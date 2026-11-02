@@ -148,8 +148,7 @@ def gamma() -> None:
         pdf,
         "Gamma Visa - Leistungen",
         [
-            "Kontaktlos bezahlen, Apple Pay und Google Pay sind inklusive. "
-            "Bargeld-Einzahlungen sind nicht möglich.",
+            "Kontaktlos bezahlen, Apple Pay und Google Pay sind inklusive. Bargeld-Einzahlungen sind nicht möglich.",
             "Ihre Karte ist bis zum Ende des Gültigkeitsjahres aktiv und wird automatisch erneuert.",
         ],
     )
