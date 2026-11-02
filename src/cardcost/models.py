@@ -6,9 +6,28 @@ from pydantic import BaseModel, Field, model_validator
 from cardcost.numbers import find_numbers
 
 EUROZONE = {
-    "AT", "BE", "BG", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR",
-    "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK",
-}  # fmt: skip
+    "AT",
+    "BE",
+    "BG",
+    "CY",
+    "DE",
+    "EE",
+    "ES",
+    "FI",
+    "FR",
+    "GR",
+    "HR",
+    "IE",
+    "IT",
+    "LT",
+    "LU",
+    "LV",
+    "MT",
+    "NL",
+    "PT",
+    "SI",
+    "SK",
+}
 HOME = "DE"
 NUMERIC_FIELDS = ("percent", "min_eur", "fx_percent", "atm_operator_fee_eur", "cash_interest_pa")
 

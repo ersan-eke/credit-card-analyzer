@@ -38,21 +38,47 @@ def log_run(conn, run_id, purpose, prompt_version, model, input_tokens, output_t
         conn.execute(
             "INSERT INTO agent_run (run_id, purpose, prompt_version, model, input_tokens, output_tokens, cost_eur,"
             " status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (run_id, purpose, prompt_version, model, input_tokens, output_tokens,
-             None if cost_eur is None else str(cost_eur), status),
-        )  # fmt: skip
+            (
+                run_id,
+                purpose,
+                prompt_version,
+                model,
+                input_tokens,
+                output_tokens,
+                None if cost_eur is None else str(cost_eur),
+                status,
+            ),
+        )
 
 
-def save_extraction(conn, fee: FeeSchedule | None, *, status: str, run_id: str, prompt_version: str,
-                    card: str | None = None, error: str | None = None) -> int:  # fmt: skip
+def save_extraction(
+    conn,
+    fee: FeeSchedule | None,
+    *,
+    status: str,
+    run_id: str,
+    prompt_version: str,
+    card: str | None = None,
+    error: str | None = None,
+) -> int:
     with conn:
         cur = conn.execute(
             "INSERT INTO extraction (run_id, prompt_version, card, product, fee_json, quote, source_file, page,"
             " confidence, error, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (run_id, prompt_version, fee.card if fee else card, fee and fee.product,
-             fee and fee.model_dump_json(), fee and fee.quote, fee and fee.source_file,
-             fee and fee.source_page, fee and fee.confidence, error, status),
-        )  # fmt: skip
+            (
+                run_id,
+                prompt_version,
+                fee.card if fee else card,
+                fee and fee.product,
+                fee and fee.model_dump_json(),
+                fee and fee.quote,
+                fee and fee.source_file,
+                fee and fee.source_page,
+                fee and fee.confidence,
+                error,
+                status,
+            ),
+        )
     return cur.lastrowid
 
 
@@ -60,8 +86,14 @@ def pending_reviews(conn) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM extraction WHERE status = 'needs_review' ORDER BY id").fetchall()
 
 
-def record_decision(conn, extraction_id: int, decision: str, reviewer: str, edits: dict[str, str] | None = None,
-                    quote: str | None = None) -> None:  # fmt: skip
+def record_decision(
+    conn,
+    extraction_id: int,
+    decision: str,
+    reviewer: str,
+    edits: dict[str, str] | None = None,
+    quote: str | None = None,
+) -> None:
     """One decision per extraction (UNIQUE). Edits are re-validated through FeeSchedule before saving."""
     row = conn.execute("SELECT * FROM extraction WHERE id = ?", (extraction_id,)).fetchone()
     if row is None:
@@ -111,4 +143,3 @@ def wallet(conn) -> list[str]:
 def wallet_add(conn, entry: str) -> None:
     with conn:
         conn.execute("INSERT OR IGNORE INTO wallet (entry) VALUES (?)", (entry,))
-
