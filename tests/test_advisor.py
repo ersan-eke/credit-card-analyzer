@@ -38,3 +38,15 @@ def test_selected_product_and_default_expansion():
     assert list(Advisor(r, FakeLLM(), wallet=["beta_card:Gold"]).resolve("Bargeld")) == ["beta_card:Gold"]
     assert list(Advisor(r, FakeLLM()).resolve("Bargeld")) == ["beta_card:Beta Classic", "beta_card:Beta Gold"]
     assert Advisor(r, FakeLLM(), wallet=["beta_card:Platin"]).resolve("Bargeld") == {"beta_card:Platin": None}
+
+
+def test_parse_scenario():
+    from decimal import Decimal
+
+    from cardcost.advisor import parse_scenario
+
+    s = parse_scenario("Welche Karte ist am günstigsten für 1.000 EUR Bargeld in den USA?")
+    assert (s.kind, s.amount_eur, s.country) == ("cash", Decimal("1000"), "US")
+    s = parse_scenario("Einkauf über 49,90 € in der Schweiz", days=3)
+    assert (s.kind, s.amount_eur, s.country, s.days) == ("purchase", Decimal("49.90"), "CH", 3)
+    assert parse_scenario("Geld abheben", amount_eur="200").amount_eur == Decimal("200")

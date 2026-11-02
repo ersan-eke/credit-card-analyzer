@@ -1,9 +1,13 @@
 import logging
+import os
+import re
+from pathlib import Path
 
 from cardcost import db
 from cardcost.calc import rank
 from cardcost.extract import extract_fees
 from cardcost.models import CostLine, FeeSchedule, Passage, Scenario
+from cardcost.numbers import parse_german_decimal
 from cardcost.retrieval import Retriever
 
 log = logging.getLogger("cardcost.advisor")
@@ -49,3 +53,60 @@ class Advisor:
 
     def cost_table(self, question: str, scenario: Scenario) -> list[CostLine]:
         return rank(self.resolve(question), scenario)
+
+
+COUNTRIES = {
+    "deutschland": "DE",
+    "inland": "DE",
+    "frankreich": "FR",
+    "österreich": "AT",
+    "italien": "IT",
+    "spanien": "ES",
+    "niederlande": "NL",
+    "usa": "US",
+    "vereinigten staaten": "US",
+    "amerika": "US",
+    "schweiz": "CH",
+    "großbritannien": "GB",
+    "england": "GB",
+    "türkei": "TR",
+    "polen": "PL",
+    "japan": "JP",
+    "thailand": "TH",
+}
+_AMOUNT = re.compile(r"(\d[\d.,]*)\s*(?:EUR|€|Euro)", re.IGNORECASE)
+_PURCHASE = re.compile(r"bezahl|zahlung|einkauf|kauf|umsatz|shopping", re.IGNORECASE)
+
+
+def parse_scenario(question: str, **overrides) -> Scenario:
+    """Deterministic: amount from 'N EUR', country from a name list, purchase vs cash from keywords."""
+    fields: dict = {"kind": "purchase" if _PURCHASE.search(question) else "cash", "country": "DE"}
+    if m := _AMOUNT.search(question):
+        fields["amount_eur"] = parse_german_decimal(m.group(1))
+    lowered = question.lower()
+    for name, code in COUNTRIES.items():
+        if name in lowered:
+            fields["country"] = code
+            break
+    fields |= {k: v for k, v in overrides.items() if v is not None}
+    if "amount_eur" not in fields:
+        raise ValueError("no amount found; write e.g. '300 EUR' or pass --amount")
+    return Scenario(**fields)
+
+
+def corpus_paths(conn) -> list[Path]:
+    dirs = os.environ.get("CARDCOST_DOCS", "samples:data/private").split(":")
+    paths = {p for d in dirs for p in Path(d).glob("*.pdf")}
+    paths |= {Path(r["path"]) for r in conn.execute("SELECT path FROM ingest_job WHERE status = 'done'")}
+    return sorted(p for p in paths if p.exists())
+
+
+def build_advisor(conn, mode: str = "hybrid", live: bool = True) -> Advisor:
+    from cardcost.ingest import ingest_paths
+    from cardcost.llm import LLM
+    from cardcost.retrieval import E5Embedder
+
+    # shortcut: passages and embeddings are rebuilt per process (seconds for a few PDFs); persist if the corpus grows
+    passages = ingest_paths(corpus_paths(conn))
+    retriever = Retriever(passages, mode=mode, embedder=None if mode == "bm25" else E5Embedder())
+    return Advisor(retriever, LLM(conn=conn, live=live), wallet=db.wallet(conn), conn=conn)

@@ -1,3 +1,4 @@
+import logging
 import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
@@ -6,6 +7,7 @@ import pdfplumber
 
 from cardcost.models import Passage
 
+log = logging.getLogger("cardcost.ingest")
 TARGET_WORDS = 200
 OVERLAP_WORDS = 30
 
@@ -63,3 +65,17 @@ def ingest_paths(paths: Iterable[Path]) -> list[Passage]:
     for path in paths:
         out += passages_from_pages(path.stem, path.name, read_pdf(path))
     return out
+
+
+def process_job(conn, job_id: int) -> str:
+    """Parse a queued document; on success it joins the corpus (see advisor.corpus_paths)."""
+    row = conn.execute("SELECT path FROM ingest_job WHERE id = ?", (job_id,)).fetchone()
+    try:
+        n = len(ingest_paths([Path(row["path"])]))
+        status = "done" if n else "failed"
+    except Exception:  # noqa: BLE001 - a broken PDF must mark the job, not kill the worker
+        log.exception("ingest_failed", extra={"job_id": job_id})
+        status = "failed"
+    with conn:
+        conn.execute("UPDATE ingest_job SET status = ? WHERE id = ?", (status, job_id))
+    return status
