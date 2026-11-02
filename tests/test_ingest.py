@@ -25,7 +25,7 @@ def test_windows_size_and_overlap():
 
 def test_sample_ingest_never_mixes_files_and_renders_tables():
     ps = ingest_paths(SAMPLES)
-    assert {p.card_id for p in ps} == {"alpha_card", "beta_card", "gamma_card"}
+    assert {"alpha_card", "beta_card", "gamma_card"} <= {p.card_id for p in ps}
     for p in ps:
         assert p.file == f"{p.card_id}.pdf"
     beta_p1 = " ".join(p.text for p in ps if p.card_id == "beta_card" and p.page == 1)

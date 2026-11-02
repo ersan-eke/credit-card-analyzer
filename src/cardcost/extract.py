@@ -102,7 +102,10 @@ def _parse(card_id: str, response: dict, passages: list[Passage]) -> list[FeeSch
         raise ValueError("you did not call record_fees")
     haystack = {(p.file, p.page): _squash(p.text) for p in passages}
     fees, errors = [], []
-    for item in calls[0]["input"]["products"]:
+    products = calls[0].get("input", {}).get("products")
+    if not isinstance(products, list) or not all(isinstance(i, dict) for i in products):
+        raise ValueError(f"record_fees input must be {{'products': [objects]}}, got {calls[0].get('input')!r:.300}")
+    for item in products:
         try:
             fee = FeeSchedule(card=card_id, **item)
         except ValidationError as e:

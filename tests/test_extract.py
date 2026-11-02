@@ -116,3 +116,11 @@ def test_reviewed_correction_overrides_extraction():
     [fee] = extract_fees("alpha_card", PASSAGES, FakeLLM(_tool([GOOD | {"confidence": 0.5}])), conn)
     assert fee.min_eur == Decimal("6.00") and fee.confidence == 1.0
     assert db.pending_reviews(conn) == []  # same model output again is not re-queued
+
+
+def test_malformed_tool_input_retried_then_queued():
+    broken = {"content": [{"type": "tool_use", "name": "record_fees", "input": {"_invalid_json": "{products: ["}}]}
+    llm = FakeLLM(broken, _tool([GOOD]))
+    [fee] = extract_fees("alpha_card", PASSAGES, llm, db.connect(":memory:"))
+    assert fee.percent == Decimal("2.0")
+    assert "record_fees input must be" in llm.requests[1]["messages"][0]["content"]

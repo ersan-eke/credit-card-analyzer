@@ -1,4 +1,8 @@
-"""Thin Anthropic wrapper: own retry policy, token/cost audit, and record/replay cache for evals and CI."""
+"""LLM wrapper: own retry policy, token/cost audit, record/replay cache for evals and CI.
+
+Providers (CARDCOST_PROVIDER): anthropic (default), google (AI Studio) and openrouter. The latter two go through their
+OpenAI-compatible /chat/completions endpoint; requests and responses are translated so callers always see the
+Anthropic Messages shape."""
 
 import hashlib
 import json
@@ -11,6 +15,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import anthropic
+import httpx2
 
 from cardcost import db
 from cardcost.logs import run_id_var
@@ -21,14 +26,62 @@ BASE_DELAY = 1.0
 MAX_DELAY = 30.0
 
 
+# provider -> (base URL, API-key env var) for OpenAI-compatible endpoints
+COMPAT = {
+    "google": ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY"),
+    "openrouter": ("https://openrouter.ai/api/v1/", "OPENROUTER_API_KEY"),
+}
+_FINISH = {"tool_calls": "tool_use", "length": "max_tokens", "stop": "end_turn", "content_filter": "refusal"}
+
+
 class CacheMiss(RuntimeError):
     pass
 
 
 def _retryable(e: Exception) -> bool:
-    if isinstance(e, anthropic.APIConnectionError):
+    if isinstance(e, anthropic.APIConnectionError | httpx2.TransportError):
         return True
-    return isinstance(e, anthropic.APIStatusError) and (e.status_code == 429 or e.status_code >= 500)
+    if isinstance(e, httpx2.HTTPStatusError):
+        status = e.response.status_code
+    elif isinstance(e, anthropic.APIStatusError):
+        status = e.status_code
+    else:
+        return False
+    return status == 429 or status >= 500
+
+
+def to_openai(kwargs: dict) -> dict:
+    system = [{"role": "system", "content": kwargs["system"]}] if kwargs.get("system") else []
+    body = {"model": kwargs["model"], "max_tokens": kwargs["max_tokens"], "messages": system + kwargs["messages"]}
+    if kwargs.get("tools"):
+        body["tools"] = [
+            {
+                "type": "function",
+                "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]},
+            }
+            for t in kwargs["tools"]
+        ]
+        body["tool_choice"] = "auto"
+    return body
+
+
+def from_openai(data: dict) -> dict:
+    choice = data["choices"][0]
+    message = choice.get("message") or {}
+    content = [{"type": "text", "text": message["content"]}] if message.get("content") else []
+    for call in message.get("tool_calls") or []:
+        raw = call["function"].get("arguments") or "{}"
+        try:
+            args = json.loads(raw)
+        except json.JSONDecodeError:
+            args = {"_invalid_json": raw}  # extraction rejects it and retries with the error
+        content.append({"type": "tool_use", "id": call.get("id"), "name": call["function"]["name"], "input": args})
+    usage = data.get("usage") or {}
+    return {
+        "content": content,
+        "stop_reason": _FINISH.get(choice.get("finish_reason"), choice.get("finish_reason")),
+        "usage": {"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": usage.get("completion_tokens", 0)},
+    }
 
 
 def _retry_after(e: Exception) -> float | None:
@@ -57,7 +110,11 @@ class LLM:
         cache_path: Path | None = None,
         live: bool = True,
         sleep: Callable[[float], None] = time.sleep,
+        provider: str | None = None,
     ):
+        self.provider = provider or os.environ.get("CARDCOST_PROVIDER", "anthropic")
+        if self.provider != "anthropic" and self.provider not in COMPAT:
+            raise RuntimeError(f"CARDCOST_PROVIDER must be anthropic, {' or '.join(COMPAT)}; got {self.provider!r}")
         self.model = model or os.environ.get("CARDCOST_MODEL")
         if not self.model:
             raise RuntimeError("set CARDCOST_MODEL (see .env.example)")
@@ -68,21 +125,28 @@ class LLM:
 
     @property
     def client(self):
-        if self._client is None:
+        if self._client is None and self.provider == "anthropic":
             self._client = anthropic.Anthropic(max_retries=0)  # retries are ours, see _call
+        elif self._client is None:
+            base_url, key_var = COMPAT[self.provider]
+            if not os.environ.get(key_var):
+                raise RuntimeError(f"set {key_var} for CARDCOST_PROVIDER={self.provider}")
+            headers = {"Authorization": f"Bearer {os.environ[key_var]}"}
+            self._client = httpx2.Client(base_url=base_url, headers=headers, timeout=300)
         return self._client
 
     def create(self, purpose: str, prompt_version: str, **kwargs) -> dict:
         """Call messages.create and return the response as a plain dict (same shape live and replayed)."""
         kwargs = {"model": self.model, "max_tokens": 16000} | kwargs
-        key = hashlib.sha256(json.dumps(kwargs, sort_keys=True, default=str).encode()).hexdigest()
+        cache_input = kwargs if self.provider == "anthropic" else {"provider": self.provider} | kwargs
+        key = hashlib.sha256(json.dumps(cache_input, sort_keys=True, default=str).encode()).hexdigest()
         if key in self.cache:
             self.cache_hits += 1
             self._audit(purpose, prompt_version, self.cache[key], status="cache")
             return self.cache[key]
         if not self.live:
             raise CacheMiss(f"{purpose}: no recorded response (run the eval with --live to record)")
-        response = self._call(kwargs).model_dump(mode="json")
+        response = self._call(kwargs)
         self.calls += 1
         self._audit(purpose, prompt_version, response, status=response.get("stop_reason") or "ok")
         if self.cache_path:
@@ -93,7 +157,11 @@ class LLM:
     def _call(self, kwargs: dict):
         for attempt in range(MAX_RETRIES + 1):
             try:
-                return self.client.messages.create(**kwargs)
+                if self.provider == "anthropic":
+                    return self.client.messages.create(**kwargs).model_dump(mode="json")
+                r = self.client.post("chat/completions", json=to_openai(kwargs))
+                r.raise_for_status()
+                return from_openai(r.json())
             except Exception as e:
                 if not _retryable(e) or attempt == MAX_RETRIES:
                     raise
@@ -113,7 +181,7 @@ class LLM:
             extra={
                 "purpose": purpose,
                 "prompt_version": prompt_version,
-                "model": self.model,
+                "model": f"{self.provider}:{self.model}",
                 "input_tokens": tin,
                 "output_tokens": tout,
                 "cost_eur": cost,
@@ -121,4 +189,14 @@ class LLM:
             },
         )
         if self.conn is not None:
-            db.log_run(self.conn, run_id_var.get(), purpose, prompt_version, self.model, tin, tout, cost, status)
+            db.log_run(
+                self.conn,
+                run_id_var.get(),
+                purpose,
+                prompt_version,
+                f"{self.provider}:{self.model}",
+                tin,
+                tout,
+                cost,
+                status,
+            )

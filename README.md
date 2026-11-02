@@ -8,6 +8,18 @@ uv sync && export ANTHROPIC_API_KEY=... CARDCOST_MODEL=claude-sonnet-5-5 && \
   uv run cardcost ask "Welche Karte ist am günstigsten für 300 EUR Bargeld in den USA?"
 ```
 
+### Other providers
+
+Set `CARDCOST_PROVIDER` to `google` (AI Studio key in `GEMINI_API_KEY`) or `openrouter` (`OPENROUTER_API_KEY`), and set
+`CARDCOST_MODEL` to that provider's model id. Both go through their OpenAI-compatible `/chat/completions` endpoint
+and are translated to the Anthropic response shape, so retry, audit, review and the LLM cache work the same.
+The cache key includes the provider, so recorded answers from different providers don't mix.
+
+```bash
+CARDCOST_PROVIDER=google CARDCOST_MODEL=gemini-3.8-flash GEMINI_API_KEY=... uv run python evals/run_eval.py --live --mode hybrid
+CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_API_KEY=... uv run cardcost ask "300 EUR Bargeld in den USA"
+```
+
 ## How it works
 
 | step | module | LLM? |
@@ -85,4 +97,9 @@ zero-score BM25 passages were entering RRF in arbitrary order. They are now drop
 - Passages and embeddings are rebuilt per process, which takes a few seconds and only suits a handful of PDFs.
 - The `matrix` command scans whole euros from 1 to `--max` instead of solving the crossovers analytically.
 - The API has no auth. The MCP tools are read-only for callers but still write audit rows.
-- Synthetic samples only. Real PDFs belong in `data/private/` (gitignored), with an optional private golden file.
+- On google/openrouter the Anthropic-only `strict` flag is dropped, so tool arguments are not schema-guaranteed. The Pydantic and quote
+  checks still apply, and malformed arguments go through the retry-then-review path. Whether every model accepts the
+  nullable `["string", "null"]` schema types is untested.
+- The fee model has no free monthly allowance yet. Real price lists have rules like C24's "4 x 0,00 EUR, then 2,00 EUR"; today that
+  can only become `min_eur=2.00` with the allowance noted in `conditions`.
+- The golden eval covers the synthetic samples only. Real PDFs belong in `data/private/` (gitignored), with an optional private golden file.

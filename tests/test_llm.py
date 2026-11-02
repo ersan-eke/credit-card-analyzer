@@ -1,3 +1,5 @@
+import json
+
 import anthropic
 import httpx2
 import pytest
@@ -85,3 +87,86 @@ def test_records_tokens_and_cost_and_replays_from_cache(tmp_path, monkeypatch):
     assert msgs2.calls == 0 and replay.cache_hits == 1
     with pytest.raises(CacheMiss):
         replay.create("extract", "v1", messages=[{"role": "user", "content": "other"}])
+
+
+TOOL = {"name": "record_fees", "description": "d", "strict": True, "input_schema": {"type": "object"}}
+
+
+def _compat_llm(provider, handler, **kw):
+    client = httpx2.Client(transport=httpx2.MockTransport(handler), base_url="https://compat.example/v1/")
+    sleeps: list[float] = []
+    return LLM(client=client, model="some/model", provider=provider, sleep=sleeps.append, **kw), sleeps
+
+
+@pytest.mark.parametrize("provider", ["openrouter", "google"])
+def test_openai_compatible_providers_translate_tool_calls(provider):
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx2.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "finish_reason": "tool_calls",
+                        "message": {
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "c1",
+                                    "type": "function",
+                                    "function": {"name": "record_fees", "arguments": '{"products": []}'},
+                                }
+                            ],
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 7},
+            },
+        )
+
+    llm, _ = _compat_llm(provider, handler)
+    out = llm.create(
+        "extract",
+        "v1",
+        system="SYS",
+        tools=[TOOL],
+        tool_choice={"type": "auto"},
+        messages=[{"role": "user", "content": "hi"}],
+    )
+    body = seen[0]
+    assert body["messages"][0] == {"role": "system", "content": "SYS"}
+    assert body["tools"][0]["function"]["parameters"] == {"type": "object"} and body["tool_choice"] == "auto"
+    assert "strict" not in json.dumps(body["tools"])  # Anthropic-only field
+    assert out == {
+        "content": [{"type": "tool_use", "id": "c1", "name": "record_fees", "input": {"products": []}}],
+        "stop_reason": "tool_use",
+        "usage": {"input_tokens": 50, "output_tokens": 7},
+    }
+
+
+def test_openai_compatible_retries_429_with_retry_after():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx2.Response(429, headers={"retry-after": "3"})
+        return httpx2.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": "ok"}}]})
+
+    llm, sleeps = _compat_llm("openrouter", handler)
+    assert llm.create("answer", "v1", messages=[])["content"] == [{"type": "text", "text": "ok"}]
+    assert sleeps == [3.0]
+
+
+def test_openai_compatible_400_not_retried():
+    llm, sleeps = _compat_llm("google", lambda r: httpx2.Response(400, json={"error": "bad schema"}))
+    with pytest.raises(httpx2.HTTPStatusError):
+        llm.create("answer", "v1", messages=[])
+    assert sleeps == []
+
+
+def test_unknown_provider_rejected():
+    with pytest.raises(RuntimeError, match="CARDCOST_PROVIDER"):
+        LLM(model="m", provider="nope")
