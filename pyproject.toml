@@ -36,3 +36,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: loads the real embedding model"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cardcost"]
