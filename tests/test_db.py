@@ -35,13 +35,20 @@ def test_pending_and_one_decision_per_extraction():
 def test_edited_values_win_and_rejected_are_ignored():
     conn = db.connect(":memory:")
     eid = db.save_extraction(conn, _fee(), status="needs_review", run_id="r1", prompt_version="v1")
-    assert db.reviewed_fee(conn, "beta_card", "Beta Classic") is None
+    assert db.reviewed_fees(conn, "beta_card") == []
     db.record_decision(conn, eid, "edited", reviewer="ersan", edits={"min_eur": "6.50"}, quote="3,0 % mind. 6,50 EUR")
-    fee = db.reviewed_fee(conn, "beta_card", "Beta Classic")
+    [fee] = db.reviewed_fees(conn, "beta_card")
     assert fee.min_eur == Decimal("6.50") and fee.confidence == 1.0
     eid2 = db.save_extraction(conn, _fee(product="Beta Gold"), status="needs_review", run_id="r2", prompt_version="v1")
     db.record_decision(conn, eid2, "rejected", reviewer="ersan")
-    assert db.reviewed_fee(conn, "beta_card", "Beta Gold") is None
+    assert [f.product for f in db.reviewed_fees(conn, "beta_card")] == ["Beta Classic"]
+
+
+def test_same_extraction_is_saved_once():
+    conn = db.connect(":memory:")
+    a = db.save_extraction(conn, _fee(), status="needs_review", run_id="r1", prompt_version="v1")
+    b = db.save_extraction(conn, _fee(), status="needs_review", run_id="r2", prompt_version="v1")
+    assert a == b and len(db.pending_reviews(conn)) == 1
 
 
 def test_webhook_event_dedup():

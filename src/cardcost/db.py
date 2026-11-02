@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS extraction (
 CREATE TABLE IF NOT EXISTS review (
     id INTEGER PRIMARY KEY, extraction_id INTEGER NOT NULL UNIQUE REFERENCES extraction(id),
     decision TEXT NOT NULL CHECK (decision IN ('approved', 'edited', 'rejected')),
-    reviewer TEXT NOT NULL, edits_json TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    reviewer TEXT NOT NULL, edits_json TEXT, fee_json TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS webhook_event (event_id TEXT PRIMARY KEY, received_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS ingest_job (
     id INTEGER PRIMARY KEY, path TEXT, status TEXT DEFAULT 'queued', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -61,6 +61,15 @@ def save_extraction(
     card: str | None = None,
     error: str | None = None,
 ) -> int:
+    fee_json = fee and fee.model_dump_json()
+    product = fee and fee.product
+    card = fee.card if fee else card
+    same = conn.execute(
+        "SELECT id FROM extraction WHERE card IS ? AND product IS ? AND fee_json IS ? AND error IS ?",
+        (card, product, fee_json, error),
+    ).fetchone()
+    if same:  # the same answer for the same document is one review item, not one per question
+        return same["id"]
     with conn:
         cur = conn.execute(
             "INSERT INTO extraction (run_id, prompt_version, card, product, fee_json, quote, source_file, page,"
@@ -68,9 +77,9 @@ def save_extraction(
             (
                 run_id,
                 prompt_version,
-                fee.card if fee else card,
-                fee and fee.product,
-                fee and fee.model_dump_json(),
+                card,
+                product,
+                fee_json,
                 fee and fee.quote,
                 fee and fee.source_file,
                 fee and fee.source_page,
@@ -105,23 +114,22 @@ def record_decision(
         fee_json = fee.model_dump_json()
     with conn:
         conn.execute(
-            "INSERT INTO review (extraction_id, decision, reviewer, edits_json) VALUES (?, ?, ?, ?)",
-            (extraction_id, decision, reviewer, json.dumps(edits) if edits else None),
+            "INSERT INTO review (extraction_id, decision, reviewer, edits_json, fee_json) VALUES (?, ?, ?, ?, ?)",
+            (extraction_id, decision, reviewer, json.dumps(edits) if edits else None, fee_json),
         )
-        conn.execute("UPDATE extraction SET status = ?, fee_json = ? WHERE id = ?", (decision, fee_json, extraction_id))
+        conn.execute("UPDATE extraction SET status = ? WHERE id = ?", (decision, extraction_id))
 
 
-def reviewed_fee(conn, card: str, product: str | None) -> FeeSchedule | None:
-    """Latest human-approved or human-edited values for this card/product; used instead of re-extracting."""
-    row = conn.execute(
-        "SELECT fee_json FROM extraction WHERE card = ? AND product IS ? AND status IN ('approved', 'edited')"
-        " AND fee_json IS NOT NULL ORDER BY id DESC LIMIT 1",
-        (card, product),
-    ).fetchone()
-    if row is None:
-        return None
-    fee = FeeSchedule.model_validate_json(row["fee_json"])
-    return fee.model_copy(update={"confidence": 1.0})
+def reviewed_fees(conn, card: str) -> list[FeeSchedule]:
+    """Latest human-approved or human-edited values per product of this card; they override extraction."""
+    rows = conn.execute(
+        "SELECT e.product, r.fee_json FROM review r JOIN extraction e ON e.id = r.extraction_id"
+        " WHERE e.card = ? AND r.decision IN ('approved', 'edited') AND r.fee_json IS NOT NULL ORDER BY r.id",
+        (card,),
+    ).fetchall()
+    fees = [FeeSchedule.model_validate_json(r["fee_json"]) for r in rows]
+    latest = {f.product: f for f in fees}  # an edit may rename the product, so key on the reviewed values
+    return [f.model_copy(update={"confidence": 1.0}) for f in latest.values()]
 
 
 def remember_event(conn, event_id: str) -> bool:
