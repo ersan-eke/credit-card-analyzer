@@ -50,3 +50,30 @@ def test_parse_scenario():
     s = parse_scenario("Einkauf über 49,90 € in der Schweiz", days=3)
     assert (s.kind, s.amount_eur, s.country, s.days) == ("purchase", Decimal("49.90"), "CH", 3)
     assert parse_scenario("Geld abheben", amount_eur="200").amount_eur == Decimal("200")
+
+
+def test_parse_usage():
+    from decimal import Decimal
+
+    import pytest
+
+    from cardcost.advisor import parse_usage
+    from cardcost.models import Usage
+
+    assert parse_usage(["c24=2", "rev:Standard=3:150,50"]) == {
+        "c24": Usage(count=2),
+        "rev:Standard": Usage(count=3, eur=Decimal("150.50")),
+    }
+    with pytest.raises(ValueError):
+        parse_usage(["c24"])
+
+
+def test_exact_product_name_beats_substring():
+    class TwoMastercards(FakeLLM):
+        def create(self, purpose, prompt_version, **kw):
+            products = [_item("HVB Mastercard", "3.0", "6.00"), _item("HVB Mastercard Gold", "1.0", "7.50")]
+            return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
+
+    r = Retriever(PASSAGES, mode="bm25")
+    fees = Advisor(r, TwoMastercards(), wallet=["beta_card:hvb mastercard"]).resolve("Bargeld")
+    assert fees["beta_card:hvb mastercard"].product == "HVB Mastercard"

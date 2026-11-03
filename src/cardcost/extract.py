@@ -9,7 +9,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule, Passage
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v1"
+PROMPT_VERSION = "extract-v2"
 REVIEW_BELOW = 0.7
 
 SYSTEM = """You extract credit-card fees from German bank documents ("Kosten- und Leistungsbericht", Preisverzeichnis).
@@ -24,6 +24,13 @@ Rules:
 - fx_percent: the fee for transactions in a non-euro currency (Fremdwährungsentgelt, Auslandseinsatzentgelt).
 - atm_operator_fee_eur: a fixed fee charged by the ATM operator (Geldautomatenbetreiber), only if an amount is stated.
 - cash_interest_pa: the interest rate for cash withdrawals specifically. A rate for card purchases is not it.
+- free_count / free_amount_eur: a free allowance per period, e.g. "4 x 0,00 EUR" (free_count 4) or "Bis zu 5
+  Abhebungen oder 200 € pro Monat gebührenfrei" (free_count 5, free_amount_eur 200). percent/min_eur are then the
+  fee for withdrawals beyond the allowance. Put the period (Kalendermonat, rollierender Monat) into conditions.
+- free_from_eur: withdrawals of at least this amount are free, e.g. "1 € für Abhebungen unter 100 €" gives
+  min_eur 1 and free_from_eur 100.
+- A fee written as "kostenlos" or "gebührenfrei" is 0. Use the fee at ATMs (Geldautomat), not at a bank counter
+  (Schalter).
 - Write numbers as plain decimals with a dot ("2.0", "5.00"), copying the digits from the text.
 - quote: the exact sentence(s) or table row(s), copied verbatim, that contain every number you recorded.
 - source_page: the page the quote is on.
@@ -53,6 +60,9 @@ TOOL = {
                         "fx_percent",
                         "atm_operator_fee_eur",
                         "cash_interest_pa",
+                        "free_count",
+                        "free_amount_eur",
+                        "free_from_eur",
                         "source_file",
                         "source_page",
                         "confidence",
@@ -71,6 +81,9 @@ TOOL = {
                         "fx_percent": _NUM,
                         "atm_operator_fee_eur": _NUM,
                         "cash_interest_pa": _NUM,
+                        "free_count": _NUM,
+                        "free_amount_eur": _NUM,
+                        "free_from_eur": _NUM,
                         "source_file": {"type": "string"},
                         "source_page": {"type": "integer"},
                         "confidence": {"type": "number"},

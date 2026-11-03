@@ -124,3 +124,24 @@ def test_malformed_tool_input_retried_then_queued():
     [fee] = extract_fees("alpha_card", PASSAGES, llm, db.connect(":memory:"))
     assert fee.percent == Decimal("2.0")
     assert "record_fees input must be" in llm.requests[1]["messages"][0]["content"]
+
+
+def test_zero_fee_stated_as_word_is_accepted():
+    from cardcost.models import FeeSchedule
+
+    base = dict(card="c", source_file="c.pdf", source_page=1, confidence=1.0)
+    assert FeeSchedule(**base, percent=Decimal("0"), quote="in Euro kostenlos seitens der DKB AG").percent == 0
+    try:
+        FeeSchedule(**base, percent=Decimal("0"), quote="siehe Preisverzeichnis")
+    except ValueError as e:
+        assert "percent=0 does not appear in quote" in str(e)
+    else:
+        raise AssertionError("0 without a 'free' word must be rejected")
+
+
+def test_tool_schema_has_allowance_fields():
+    from cardcost.extract import TOOL
+    from cardcost.models import NUMERIC_FIELDS
+
+    item = TOOL["input_schema"]["properties"]["products"]["items"]
+    assert set(NUMERIC_FIELDS) <= set(item["required"]) == set(item["properties"])

@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from typing import Literal
 
@@ -29,7 +30,18 @@ EUROZONE = {
     "SK",
 }
 HOME = "DE"
-NUMERIC_FIELDS = ("percent", "min_eur", "fx_percent", "atm_operator_fee_eur", "cash_interest_pa")
+NUMERIC_FIELDS = (
+    "percent",
+    "min_eur",
+    "fx_percent",
+    "atm_operator_fee_eur",
+    "cash_interest_pa",
+    "free_count",
+    "free_amount_eur",
+    "free_from_eur",
+)
+# a fee of 0 is often written as a word, not "0,00"
+FREE_WORDS = re.compile(r"kostenlos|kostenfrei|gebührenfrei|entgeltfrei|\bfree\b", re.IGNORECASE)
 
 
 class Passage(BaseModel):
@@ -52,6 +64,9 @@ class FeeSchedule(BaseModel):
     fx_percent: Decimal | None = Field(None, ge=0, le=100)
     atm_operator_fee_eur: Decimal | None = Field(None, ge=0)
     cash_interest_pa: Decimal | None = Field(None, ge=0, le=100)
+    free_count: Decimal | None = Field(None, ge=0)  # free withdrawals per period (see conditions)
+    free_amount_eur: Decimal | None = Field(None, ge=0)  # free amount per period; whichever limit ends first
+    free_from_eur: Decimal | None = Field(None, ge=0)  # withdrawals of at least this amount are free
     source_file: str
     source_page: int
     confidence: float = Field(ge=0, le=1)
@@ -65,9 +80,16 @@ class FeeSchedule(BaseModel):
             raise ValueError("quote is required when any fee is stated")
         in_quote = set(find_numbers(self.quote or ""))
         for name, value in stated.items():
-            if value not in in_quote:
+            if value not in in_quote and not (value == 0 and FREE_WORDS.search(self.quote)):
                 raise ValueError(f"{name}={value} does not appear in quote")
         return self
+
+
+class Usage(BaseModel):
+    """Withdrawals already made in the current free-allowance period of one card."""
+
+    count: int = Field(ge=0)
+    eur: Decimal | None = Field(None, ge=0)
 
 
 class Scenario(BaseModel):
@@ -75,6 +97,7 @@ class Scenario(BaseModel):
     amount_eur: Decimal = Field(gt=0)
     country: str = Field(HOME, min_length=2, max_length=2)
     days: int = Field(0, ge=0)
+    used: dict[str, Usage] = {}  # by wallet label or card id
 
     @property
     def foreign_currency(self) -> bool:
@@ -84,6 +107,9 @@ class Scenario(BaseModel):
     def abroad(self) -> bool:
         return self.country.upper() != HOME
 
+    def usage_for(self, label: str) -> Usage | None:
+        return self.used.get(label) or self.used.get(label.partition(":")[0])
+
 
 class CostLine(BaseModel):
     label: str
@@ -92,3 +118,4 @@ class CostLine(BaseModel):
     total: Decimal | None = None
     source: str = ""
     quote: str | None = None
+    notes: list[str] = []

@@ -5,8 +5,9 @@ import os
 import time
 from decimal import Decimal
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query, Request
 
 from cardcost import db, ingest
 from cardcost.logs import new_run_id, setup_logging
@@ -56,14 +57,21 @@ async def new_document(
 
 
 @app.get("/ask")
-def ask(q: str, amount: Decimal | None = None, country: str | None = None, kind: str | None = None, days: int = 0):
-    from cardcost.advisor import build_advisor, parse_scenario
+def ask(
+    q: str,
+    amount: Decimal | None = None,
+    country: str | None = None,
+    kind: str | None = None,
+    days: int = 0,
+    used: Annotated[list[str], Query(description="withdrawals this period, e.g. c24=2 or revolut=3:150")] = [],  # noqa: B006
+):
+    from cardcost.advisor import build_advisor, parse_scenario, parse_usage
     from cardcost.answer import answer
 
     run_id = new_run_id()
     conn = db.connect()
     try:
-        scenario = parse_scenario(q, amount_eur=amount, country=country, kind=kind, days=days)
+        scenario = parse_scenario(q, amount_eur=amount, country=country, kind=kind, days=days, used=parse_usage(used))
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     advisor = build_advisor(conn)

@@ -28,6 +28,7 @@ def render_table(table: list[CostLine]) -> str:
         rows.append(
             f"{i}. {ln.label}: {cost}"
             + (f" [{parts}]" if parts else "")
+            + (f" ({'; '.join(ln.notes)})" if ln.notes else "")
             + (f" Quelle {ln.source}" if ln.source else "")
         )
     return "\n".join(rows)
@@ -41,6 +42,7 @@ def allowed_numbers(table: list[CostLine], fees: dict[str, FeeSchedule | None], 
     for fee in fees.values():
         nums |= {getattr(fee, f) for f in NUMERIC_FIELDS if fee and getattr(fee, f) is not None}
     nums |= set(range(1, len(table) + 1))  # rank positions
+    nums |= {n for u in s.used.values() for n in (u.count, u.eur) if n is not None}
     return {Decimal(n) for n in nums}
 
 

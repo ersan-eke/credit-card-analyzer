@@ -5,11 +5,13 @@ import sys
 from decimal import Decimal
 
 from cardcost import db
-from cardcost.advisor import build_advisor, corpus_paths, parse_scenario
+from cardcost.advisor import build_advisor, corpus_paths, parse_scenario, parse_usage
 from cardcost.answer import answer, render_table
-from cardcost.calc import matrix
+from cardcost.calc import matrix, rank
 from cardcost.ingest import process_job
 from cardcost.logs import new_run_id, setup_logging
+from cardcost.models import NUMERIC_FIELDS, FeeSchedule, Usage
+from cardcost.numbers import parse_german_decimal
 
 
 def cmd_ingest(conn, args) -> None:
@@ -34,13 +36,37 @@ def cmd_wallet(conn, args) -> None:
     print("\n".join(db.wallet(conn)) or "wallet empty: every ingested card/product is compared")
 
 
+def ask_usage(fees: dict[str, FeeSchedule | None], used: dict[str, Usage], ask=input) -> dict[str, Usage]:
+    """Ask how much of each free allowance is used, for cards that have one and were not given via --used."""
+    for label, fee in fees.items():
+        if not fee or (fee.free_count is None and fee.free_amount_eur is None):
+            continue
+        if label in used or label.partition(":")[0] in used:
+            continue
+        limit = " / ".join(
+            x
+            for x in (fee.free_count and f"{fee.free_count} free", fee.free_amount_eur and f"{fee.free_amount_eur} EUR")
+            if x
+        )
+        period = fee.conditions or "per period"
+        count = int(ask(f"{label} ({limit}, {period}): withdrawals so far? "))
+        eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if fee.free_amount_eur is not None else None
+        used[label] = Usage(count=count, eur=eur)
+    return used
+
+
 def cmd_ask(conn, args) -> None:
     run_id = new_run_id()
+    used = parse_usage(args.used)
     scenario = parse_scenario(
         args.question, amount_eur=args.amount, kind=args.kind, country=args.country, days=args.days
     )
     advisor = build_advisor(conn, args.mode)
-    table = advisor.cost_table(args.question, scenario)
+    fees = advisor.resolve(args.question)
+    if scenario.kind == "cash" and sys.stdin.isatty():
+        used = ask_usage(fees, used)
+    scenario = scenario.model_copy(update={"used": used})
+    table = rank(fees, scenario)
     text, source = answer(args.question, scenario, table, advisor.fees, advisor.llm)
     print(f"{text}\n\n{render_table(table)}\n\n(answer: {source}, run {run_id}, scenario {scenario.model_dump_json()})")
     if pending := db.pending_reviews(conn):
@@ -60,9 +86,7 @@ def cmd_review(conn, args) -> None:
     if args.action == "list":
         for r in db.pending_reviews(conn):
             fee = json.loads(r["fee_json"]) if r["fee_json"] else {}
-            nums = {
-                k: fee.get(k) for k in ("percent", "min_eur", "fx_percent", "atm_operator_fee_eur", "cash_interest_pa")
-            }
+            nums = {k: fee.get(k) for k in NUMERIC_FIELDS if fee.get(k) is not None}
             print(
                 f"#{r['id']} {r['card']} {r['product'] or ''} conf={r['confidence']} {nums}\n"
                 f"    quote: {r['quote']}\n    page: {r['source_file']} p.{r['page']}  error: {r['error'] or '-'}"
@@ -91,6 +115,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--kind", choices=["cash", "purchase"])
     p.add_argument("--country", help="ISO code, e.g. US")
     p.add_argument("--days", type=int, help="days until repayment (adds cash-advance interest)")
+    p.add_argument(
+        "--used",
+        action="append",
+        default=[],
+        help="withdrawals already made this allowance period: card=N or card=N:EUR (asked interactively if omitted)",
+    )
     p = sub.add_parser("matrix", help="which card wins for which amount and scenario")
     p.add_argument("--countries", default="DE,FR,US")
     p.add_argument("--max", type=int, default=2000)

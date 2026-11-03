@@ -3,7 +3,7 @@ from decimal import Decimal as D
 import pytest
 
 from cardcost.calc import cash_cost, cost_line, matrix, rank
-from cardcost.models import FeeSchedule, Scenario
+from cardcost.models import FeeSchedule, Scenario, Usage
 
 
 def fee(**kw) -> FeeSchedule:
@@ -71,3 +71,41 @@ def test_rank_unknown_last_and_ties_by_label():
 def test_matrix_bands_and_crossover():
     bands = matrix({"alpha": ALPHA, "gold": GOLD}, kind="cash", country="DE", max_amount=1000)
     assert bands == [(1, 375, "alpha"), (376, 1000, "gold")]  # 2% of 375 = 7.50 = gold min; tie -> label
+
+
+C24 = fee(min_eur=D("2.00"), free_count=D("4"))  # "4 x 0,00 EUR", then 2,00 EUR per withdrawal
+REVOLUT = fee(percent=D("2"), min_eur=D("1"), free_count=D("5"), free_amount_eur=D("200"))
+TRADE = fee(min_eur=D("1"), free_from_eur=D("100"))  # "1 € für Abhebungen unter 100 €"
+
+
+def _cash(amount, **used) -> Scenario:
+    return Scenario(kind="cash", amount_eur=D(amount), used={k: Usage(**v) for k, v in used.items()})
+
+
+def test_free_count_allowance():
+    assert cost_line("c24", C24, _cash("300", c24={"count": 3})).total == D("0.00")
+    assert cost_line("c24", C24, _cash("300", c24={"count": 4})).total == D("2.00")
+
+
+def test_unknown_usage_assumes_allowance_used_up():
+    line = cost_line("c24", C24, _cash("300"))
+    assert line.total == D("2.00") and "angenommen" in line.notes[0]
+    # Revolut also caps the free amount: a count alone is not enough to call it free
+    assert cost_line("rev", REVOLUT, _cash("50", rev={"count": 0})).total == D("1.00")
+
+
+def test_free_amount_cap_whichever_first():
+    assert cost_line("rev", REVOLUT, _cash("50", rev={"count": 1, "eur": "150"})).total == D("0.00")
+    assert cost_line("rev", REVOLUT, _cash("100", rev={"count": 1, "eur": "150"})).total == D("2.00")
+    assert cost_line("rev", REVOLUT, _cash("10", rev={"count": 5, "eur": "0"})).total == D("1.00")
+
+
+def test_free_from_amount():
+    assert cost_line("tr", TRADE, _cash("99.99")).total == D("1.00")
+    assert cost_line("tr", TRADE, _cash("100")).total == D("0.00")
+
+
+def test_usage_matches_card_or_product_label():
+    s = _cash("300", c24={"count": 0})
+    assert s.usage_for("c24:Smartkonto") == Usage(count=0)
+    assert cost_line("c24:Smartkonto", C24, s).total == D("0.00")

@@ -6,7 +6,7 @@ from pathlib import Path
 from cardcost import db
 from cardcost.calc import rank
 from cardcost.extract import extract_fees
-from cardcost.models import CostLine, FeeSchedule, Passage, Scenario
+from cardcost.models import CostLine, FeeSchedule, Passage, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 from cardcost.retrieval import Retriever
 
@@ -40,7 +40,8 @@ class Advisor:
                 by_card[card] = extract_fees(card, self.passages_for(card, question), self.llm, self.conn)
             options = by_card[card]
             if product:
-                match = [f for f in options if f.product and product.lower() in f.product.lower()]
+                exact = [f for f in options if f.product and product.lower() == f.product.lower()]
+                match = exact or [f for f in options if f.product and product.lower() in f.product.lower()]
                 fees[entry] = match[0] if len(match) == 1 else None
                 if len(match) != 1:
                     log.warning("product_not_found", extra={"entry": entry, "found": [f.product for f in options]})
@@ -92,6 +93,18 @@ def parse_scenario(question: str, **overrides) -> Scenario:
     if "amount_eur" not in fields:
         raise ValueError("no amount found; write e.g. '300 EUR' or pass --amount")
     return Scenario(**fields)
+
+
+def parse_usage(items: list[str]) -> dict[str, Usage]:
+    """['c24=2', 'revolut=3:150'] -> withdrawals (and EUR) already used in the current free-allowance period."""
+    used = {}
+    for item in items:
+        label, sep, value = item.partition("=")
+        if not sep:
+            raise ValueError(f"usage must look like card=N or card=N:EUR, got {item!r}")
+        count, _, amount = value.partition(":")
+        used[label.strip()] = Usage(count=int(count), eur=parse_german_decimal(amount) if amount else None)
+    return used
 
 
 def corpus_paths(conn) -> list[Path]:

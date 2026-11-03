@@ -39,3 +39,36 @@ def test_wallet(tmp_path, capsys):
     path = str(tmp_path / "t.db")
     assert main(["--db", path, "wallet", "beta_card:Gold", "alpha_card"]) == 0
     assert capsys.readouterr().out.split() == ["alpha_card", "beta_card:Gold"]
+
+
+def test_ask_usage_only_for_cards_with_an_allowance():
+    from decimal import Decimal
+
+    from cardcost.cli import ask_usage
+    from cardcost.models import FeeSchedule, Usage
+
+    base = dict(source_file="x.pdf", source_page=1, confidence=1.0)
+    fees = {
+        "c24:Smart": FeeSchedule(
+            card="c24", min_eur=Decimal("2.00"), free_count=Decimal("4"), quote="4 x 2,00", **base
+        ),
+        "rev": FeeSchedule(
+            card="rev",
+            percent=Decimal("2"),
+            free_count=Decimal("5"),
+            free_amount_eur=Decimal("200"),
+            quote="5 Abhebungen oder 200 €, 2 %",
+            **base,
+        ),
+        "plain": FeeSchedule(card="plain", percent=Decimal("1"), quote="1 %", **base),
+        "given": FeeSchedule(card="given", min_eur=Decimal("2"), free_count=Decimal("1"), quote="1 x 2", **base),
+    }
+    answers = iter(["3", "1", "150,50"])
+    asked = []
+    used = ask_usage(fees, {"given": Usage(count=0)}, ask=lambda q: asked.append(q) or next(answers))
+    assert used == {
+        "given": Usage(count=0),
+        "c24:Smart": Usage(count=3),
+        "rev": Usage(count=1, eur=Decimal("150.50")),
+    }
+    assert len(asked) == 3 and "4 free" in asked[0]

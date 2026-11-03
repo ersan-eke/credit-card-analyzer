@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from cardcost.models import CostLine, FeeSchedule, Scenario
+from cardcost.models import CostLine, FeeSchedule, Scenario, Usage
 from cardcost.numbers import to_cents
 
 ZERO = Decimal(0)
@@ -12,16 +12,40 @@ def cash_cost(fee: FeeSchedule, amount: Decimal) -> Decimal:
     return to_cents(max(amount * (fee.percent or ZERO) / 100, fee.min_eur or ZERO))
 
 
+def allowance(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[bool, str | None]:
+    """Is this withdrawal free under the card's allowance? Unknown usage counts as used up: never assume free."""
+    if fee.free_from_eur is not None and amount >= fee.free_from_eur:
+        return True, f"kostenlos ab {fee.free_from_eur} EUR"
+    if fee.free_count is None and fee.free_amount_eur is None:
+        return False, None
+    if used is None or (fee.free_amount_eur is not None and used.eur is None):
+        return False, "Freikontingent als verbraucht angenommen (bisherige Abhebungen nicht angegeben)"
+    # shortcut: a withdrawal that only partly fits the free amount is charged in full; no document here says otherwise
+    free = (fee.free_count is None or used.count < fee.free_count) and (
+        fee.free_amount_eur is None or used.eur + amount <= fee.free_amount_eur
+    )
+    limits = []
+    if fee.free_count is not None:
+        limits.append(f"{fee.free_count} Abhebungen")
+    if fee.free_amount_eur is not None:
+        limits.append(f"{fee.free_amount_eur} EUR")
+    so_far = f"{used.count} Abhebungen" + (f" / {used.eur} EUR" if used.eur is not None else "")
+    return free, f"Freikontingent {' / '.join(limits)}, bisher {so_far}: {'kostenlos' if free else 'verbraucht'}"
+
+
 def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
     if fee is None:
         return CostLine(label=label, missing=["fee document"])
     comps: dict[str, Decimal] = {}
     missing: list[str] = []
+    notes: list[str] = []
     if s.kind == "cash":
         if fee.percent is None and fee.min_eur is None:
             missing.append("cash_fee")
         else:
-            comps["cash_fee"] = cash_cost(fee, s.amount_eur)
+            free, note = allowance(fee, s.amount_eur, s.usage_for(label))
+            comps["cash_fee"] = ZERO if free else cash_cost(fee, s.amount_eur)
+            notes += [note] if note else []
         if s.abroad and fee.atm_operator_fee_eur is not None:
             comps["atm_operator_fee"] = to_cents(fee.atm_operator_fee_eur)
         if s.days:
@@ -41,6 +65,7 @@ def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
         total=None if missing else sum(comps.values(), ZERO),
         source=f"{fee.source_file} p.{fee.source_page}",
         quote=fee.quote,
+        notes=notes,
     )
 
 
