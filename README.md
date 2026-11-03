@@ -95,9 +95,9 @@ interpretation. Run it with `--golden evals/golden_real.json`.
 
 | real docs (draft) | retrieval@3 | context | extraction | ranking |
 |---|---|---|---|---|
-| bm25 | 0.90 | 0.95 | _pending live run_ | _pending_ |
-| vector | 0.60 | 0.95 | _pending_ | _pending_ |
-| hybrid | 0.70 | 0.95 | _pending_ | _pending_ |
+| bm25 | 0.90 | 1.00 | _pending live run_ | _pending_ |
+| vector | 0.60 | 1.00 | _pending_ | _pending_ |
+| hybrid | 0.70 | 1.00 | _pending_ | _pending_ |
 
 How it got here (each step one commit, numbers on the 18-question draft unless noted):
 
@@ -110,8 +110,15 @@ How it got here (each step one commit, numbers on the 18-question draft unless n
 
 The kerning fix *lowered* vector@3 (r11 now lands on ING's girocard page, which uses the same words). Retrieval@3 understates what
 extraction gets: the fee-terms query rescues most misses. Context recall was 0.90 for hybrid before k scaled with document size
-(+~28 % passages), and is 0.95 after. The remaining context miss is Revolut's FX section (r13/r20). Revolut calls that fee
-"Wechselgebühr", which the fee-terms query does not contain. Not added yet, because adding it would be tuning toward this eval.
+(+~28 % passages), and is 0.95 after. The last context misses were Revolut's FX section (r13/r20). Revolut calls that fee "Wechselgebühr". The fee-terms query now
+holds every name the six price lists use for each fee (one line per fee; Währungsumrechnungsentgelt, Wechselgebühr/Wechsellimit,
+Abhebung were missing). Context recall is 1.00 in every mode; synthetic is unchanged.
+
+**Checking the draft:** `uv run python evals/verify_golden.py evals/golden_real.json > evals/golden_real_sheet.md` reads each PDF
+with plain pdfplumber (not our ingest). For every expected number it lists the lines on the expected page that contain it, each
+with the line before as context. All 20 questions' numbers are found. I read the sheet against the hand notes and found
+no contradiction. A human sign-off is still missing, and the `VERIFY` questions (r04, r09, r11, r18, r19) rest on interpretations
+that only a person, or the bank, can settle.
 
 Retrieval@1 (synthetic): bm25 0.65, vector 0.65, hybrid 0.71. The remaining hybrid miss is q02 *"Ich hebe 300 EUR … ab"*: a separable
 German verb ("hebe … ab" means "abheben", to withdraw), and neither side links it to "Bargeldauszahlung". Extraction does not depend on this question's retrieval,
@@ -157,8 +164,9 @@ gutter and must stay whole (tested).
   nullable `["string", "null"]` schema types is untested.
 - Allowances are tracked per wallet entry. C24's footnote shares one allowance across EUR and FX withdrawals, which fits;
   allowances shared between two cards of the same account do not.
-- Account-model products depend on the model naming them exactly `<card> / <Kontomodell>`. A different name means the wallet entry
-  resolves to "not found" (logged), never to a wrong price.
+- Account-model products are matched by words: the exact name first, then the product containing every word of the wallet entry
+  with the fewest extra words. Two equally good candidates resolve to "not found" (logged), never to a guess.
 - The column split uses thresholds fitted on six price lists (gutter at 45-57 % of the width, right side < 30 % fee values).
-  A page heading that spans the gutter gets cut in two.
+  A test pins which pages split (HVB 1-9, 11, 12; Trade Republic 1), so any change to them shows up. Full-width lines that span
+  the gutter (headings) are read whole.
 - The golden set for the real price lists is a draft that no human has verified yet.
