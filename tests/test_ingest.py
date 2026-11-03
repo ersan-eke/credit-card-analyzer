@@ -57,3 +57,28 @@ def test_two_column_page_is_read_column_by_column():
     # fee tables with a central gutter (C24, DKB) are not split either
     c24 = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-c24.pdf"])
     assert any("Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7" in p.text for p in c24 if p.page == 3)
+
+
+def test_full_width_heading_on_column_page_stays_whole():
+    hvb = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-hvb.pdf"])
+    page5 = "\n".join(p.text for p in hvb if p.page == 5)
+    assert "für Verbraucher und Nichtverbraucher bei Zahlungsdiensten (Bargeldauszahlung, Überweisung," in page5
+    assert "\nSe\n" not in page5
+
+
+def test_column_split_decisions_are_pinned():
+    # shortcut thresholds in _columns were fitted on these PDFs; a change to them must show up here
+    import pdfplumber
+
+    from cardcost.ingest import _columns, _drop_kerning_spaces
+
+    split = {}
+    for path in SAMPLES:
+        with pdfplumber.open(path) as pdf:
+            pages = [i + 1 for i, p in enumerate(pdf.pages) if len(_columns(_drop_kerning_spaces(p))) > 1]
+        if pages:
+            split[path.name] = pages
+    assert split == {
+        "preis-leistung-hvb.pdf": [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12],
+        "preis-leistung-traderepublik.pdf": [1],
+    }

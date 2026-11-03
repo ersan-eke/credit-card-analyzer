@@ -96,7 +96,17 @@ def _columns(page) -> list:
     # shortcut: thresholds fitted on six price lists (HVB columns <= 0.25 values, DKB/C24 fee layouts >= 0.32)
     if crossing > 0.02 * len(words) or not 0.4 <= left <= 0.62 or values >= 0.3:
         return [page]
-    return [page.crop((0, 0, gutter, page.height)), page.crop((gutter, 0, width, page.height))]
+    # words across the gutter belong to full-width lines (headings): read those whole, and keep them out of both columns
+    bands = [(w["top"] - 1, w["bottom"] + 1) for w in words if w["x0"] < gutter < w["x1"]]
+
+    def in_band(o) -> bool:
+        return o.get("object_type") == "char" and any(t <= o["top"] and o["bottom"] <= b for t, b in bands)
+
+    columns = [
+        page.crop(box).filter(lambda o: not in_band(o))
+        for box in ((0, 0, gutter, page.height), (gutter, 0, width, page.height))
+    ]
+    return ([page.filter(in_band)] if bands else []) + columns
 
 
 def read_pdf(path: Path) -> list[str]:
