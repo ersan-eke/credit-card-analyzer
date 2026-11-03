@@ -1,0 +1,513 @@
+{
+ "_note": "DRAFT, not yet verified by a human. Drafted from the extracted page text of samples/preis-leistung-*.pdf. Check every expected value against the PDF and remove VERIFY markers before trusting the score. Cash at ATMs only; ATM-operator fees without a stated amount are not added; unknown free-allowance usage counts as used up.",
+ "wallet": [
+  "preis-leistung-c24:Smartkonto",
+  "preis-leistung-dkb:Kreditkarte",
+  "preis-leistung-hvb:HVB Mastercard",
+  "preis-leistung-ing:VISA",
+  "preis-leistung-revolut",
+  "preis-leistung-traderepublik"
+ ],
+ "questions": [
+  {
+   "id": "r01",
+   "question": "Was kostet eine Bargeldabhebung von 300 EUR mit der C24 Mastercard, wenn ich diesen Monat schon 2 Mal abgehoben habe?",
+   "card": "preis-leistung-c24",
+   "product": "Smartkonto",
+   "expected_page": 3,
+   "expected_fields": {
+    "min_eur": "2.00",
+    "free_count": "4"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "300",
+    "used": {
+     "preis-leistung-c24": {
+      "count": 2
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "c24 2<4 free 0.00; dkb 0; hvb max(6,5)=6.00; ing 0; rev usage unknown -> assumed used, max(6,1)=6.00; tr >=100 0"
+  },
+  {
+   "id": "r02",
+   "question": "Ich habe mit der C24 Mastercard diesen Monat schon 4 Mal Geld abgehoben. Was kostet die nächste Abhebung von 300 EUR?",
+   "card": "preis-leistung-c24",
+   "product": "Smartkonto",
+   "expected_page": 3,
+   "expected_fields": {
+    "min_eur": "2.00",
+    "free_count": "4"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "300",
+    "used": {
+     "preis-leistung-c24": {
+      "count": 4
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "c24 allowance used 2.00; hvb 6.00; rev 6.00"
+  },
+  {
+   "id": "r03",
+   "question": "Ich habe mit Revolut diesen Monat 2 Mal insgesamt 150 EUR abgehoben. Was kostet eine weitere Abhebung von 40 EUR?",
+   "card": "preis-leistung-revolut",
+   "product": null,
+   "expected_page": 3,
+   "expected_fields": {
+    "percent": "2",
+    "min_eur": "1",
+    "free_count": "5",
+    "free_amount_eur": "200"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "40",
+    "used": {
+     "preis-leistung-revolut": {
+      "count": 2,
+      "eur": "150"
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "rev 150+40<=200 and 2<5 free; tr 40<100 1.00; c24 assumed used 2.00; hvb max(0.80,5)=5.00. p12 states it again"
+  },
+  {
+   "id": "r04",
+   "question": "Revolut: 2 Abhebungen mit zusammen 150 EUR schon gemacht. Was kostet es, jetzt 100 EUR abzuheben?",
+   "card": "preis-leistung-revolut",
+   "product": null,
+   "expected_page": 3,
+   "expected_fields": {
+    "percent": "2",
+    "min_eur": "1",
+    "free_count": "5",
+    "free_amount_eur": "200"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "100",
+    "used": {
+     "preis-leistung-revolut": {
+      "count": 2,
+      "eur": "150"
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00"
+  },
+  {
+   "id": "r05",
+   "question": "Ich habe mit Revolut diesen Monat schon 5 Mal 50 EUR abgehoben. Was kosten 20 EUR am Automaten?",
+   "card": "preis-leistung-revolut",
+   "product": null,
+   "expected_page": 3,
+   "expected_fields": {
+    "percent": "2",
+    "min_eur": "1",
+    "free_count": "5",
+    "free_amount_eur": "200"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "20",
+    "used": {
+     "preis-leistung-revolut": {
+      "count": 5,
+      "eur": "50"
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "count cap hit first: max(0.40,1)=1.00; tr 20<100 1.00 (tie, label order); c24 2.00; hvb 5.00"
+  },
+  {
+   "id": "r06",
+   "question": "Was kostet es, mit der Trade Republic Karte 50 EUR abzuheben?",
+   "card": "preis-leistung-traderepublik",
+   "product": null,
+   "expected_page": 1,
+   "expected_fields": {
+    "min_eur": "1",
+    "free_from_eur": "100"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "50"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "'1 € für Abhebungen unter 100 €' -> 1.00; rev assumed used max(1,1)=1.00; c24 2.00; hvb 5.00"
+  },
+  {
+   "id": "r07",
+   "question": "Kostet eine Abhebung von 100 EUR mit Trade Republic etwas?",
+   "card": "preis-leistung-traderepublik",
+   "product": null,
+   "expected_page": 1,
+   "expected_fields": {
+    "min_eur": "1",
+    "free_from_eur": "100"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "100"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "exactly 100 is not 'unter 100' -> 0.00; rev 2.00; c24 2.00; hvb 5.00"
+  },
+  {
+   "id": "r08",
+   "question": "Kostet Geld abheben am Automaten mit der DKB Visa Kreditkarte etwas?",
+   "card": "preis-leistung-dkb",
+   "product": "Kreditkarte",
+   "expected_page": 2,
+   "expected_fields": {
+    "percent": "0"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "200"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "'An Geldautomaten in Euro kostenlos seitens der DKB AG'; trap: 'Am Schalter 3,00 %, mind. 5,00 EUR' is the counter, not the ATM; rev 4.00; hvb max(4,5)=5.00"
+  },
+  {
+   "id": "r09",
+   "question": "Welche Gebühr nimmt die HVB Mastercard für eine Abhebung von 500 EUR an fremden Geldautomaten?",
+   "card": "preis-leistung-hvb",
+   "product": "HVB Mastercard",
+   "expected_page": 5,
+   "expected_fields": {
+    "percent": "2",
+    "min_eur": "5"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "500"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "VERIFY: '– an allen anderen Geldautomaten 2% mind. 5 EUR' (two-column page, lines interleave); account exceptions (ExklusivKonto free, AktivKonto 2,50 EUR) ignored; hvb 10.00, rev 10.00 tie -> label order"
+  },
+  {
+   "id": "r10",
+   "question": "Was kostet die HVB Mastercard für 200 EUR am Geldautomaten einer anderen Bank?",
+   "card": "preis-leistung-hvb",
+   "product": "HVB Mastercard",
+   "expected_page": 5,
+   "expected_fields": {
+    "percent": "2",
+    "min_eur": "5"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "200"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "hvb max(4,5)=5.00 (minimum side of the 250 EUR crossover); rev 4.00"
+  },
+  {
+   "id": "r11",
+   "question": "Ich hebe 300 EUR in den USA ab. Was kostet das mit der ING VISA Card?",
+   "card": "preis-leistung-ing",
+   "product": "VISA",
+   "expected_page": 2,
+   "expected_fields": {
+    "percent": "0",
+    "fx_percent": "2.20"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "300"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev fx not stated -> unknown, last"
+  },
+  {
+   "id": "r12",
+   "question": "Kostet Geld abheben in Frankreich mit der ING VISA Card etwas?",
+   "card": "preis-leistung-ing",
+   "product": "VISA",
+   "expected_page": 2,
+   "expected_fields": {
+    "percent": "0"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "FR",
+    "days": 0,
+    "amount_eur": "300"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "eurozone: no FX; 'ggf. zuzüglich Entgelt des Geldautomatenbetreibers' has no amount -> not added; hvb 6.00, rev 6.00"
+  },
+  {
+   "id": "r13",
+   "question": "Was kostet Revolut beim Bezahlen in US-Dollar?",
+   "card": "preis-leistung-revolut",
+   "product": null,
+   "expected_page": 5,
+   "expected_fields": {
+    "fx_percent": null
+   },
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "100"
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "not stated as a number: only 'faire Nutzungsgebühr von 0,5 %' above 1.000 EUR/month; hvb 1.75; ing 2.20; rev unknown, last"
+  },
+  {
+   "id": "r14",
+   "question": "Wie hoch ist das Auslandseinsatzentgelt der ING VISA Card?",
+   "card": "preis-leistung-ing",
+   "product": "VISA",
+   "expected_page": 2,
+   "expected_fields": {
+    "fx_percent": "2.20"
+   },
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "200"
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40"
+  },
+  {
+   "id": "r15",
+   "question": "Was kostet die HVB Mastercard beim Bezahlen in Fremdwährung?",
+   "card": "preis-leistung-hvb",
+   "product": "HVB Mastercard",
+   "expected_page": 8,
+   "expected_fields": {
+    "fx_percent": "1.75"
+   },
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "100"
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block)"
+  },
+  {
+   "id": "r16",
+   "question": "Gibt es bei Trade Republic ein Währungsumrechnungsentgelt?",
+   "card": "preis-leistung-traderepublik",
+   "product": null,
+   "expected_page": 1,
+   "expected_fields": {
+    "fx_percent": "0"
+   },
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "100"
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %)"
+  },
+  {
+   "id": "r17",
+   "question": "Wie viele kostenlose Abhebungen pro Monat habe ich mit dem C24 Smartkonto?",
+   "card": "preis-leistung-c24",
+   "product": "Smartkonto",
+   "expected_page": 3,
+   "expected_fields": {
+    "free_count": "4"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "100",
+    "used": {
+     "preis-leistung-c24": {
+      "count": 0
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-traderepublik",
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
+   ],
+   "_hand": "Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); rev assumed used 2.00; hvb 5.00"
+  },
+  {
+   "id": "r18",
+   "question": "Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?",
+   "card": "preis-leistung-dkb",
+   "product": "Kreditkarte",
+   "expected_page": 2,
+   "expected_fields": {
+    "percent": "0",
+    "fx_percent": "0"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "TH",
+    "days": 0,
+    "amount_eur": "1000"
+   },
+   "expected_ranking": [
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-traderepublik",
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-ing:VISA",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-revolut"
+   ],
+   "_hand": "VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev unknown"
+  }
+ ]
+}

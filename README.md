@@ -27,7 +27,7 @@ CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_A
 | PDF → per-page text (tables as `cell \| cell` rows), NFC, ~200-word line windows, never across files | `ingest.py` | no |
 | Hybrid retrieval per card: BM25 (indexed per card) + `multilingual-e5-small` embeddings, RRF k=60 | `retrieval.py` | no |
 | Fee extraction via a strict tool schema into `FeeSchedule`; every number must appear in `quote`, the quote must be verbatim on the cited page; one retry with the error, then review queue | `extract.py` | yes |
-| Cost = `max(amount·pct/100, min)` + FX (non-EUR) + ATM operator fee (abroad) + interest (`--days`), Decimal, half-up per component; unknown fee ⇒ no total, ranked last | `calc.py` | no |
+| Cost = `max(amount·pct/100, min)` + FX (non-EUR) + ATM operator fee (abroad) + interest (`--days`), Decimal, half-up per component; unknown fee ⇒ no total, ranked last. Free allowances (see below) can make the cash fee 0 | `calc.py` | no |
 | ≤3-sentence answer; every number in it must be in the computed table, else regenerate once, else a template | `answer.py` | yes |
 | Audit: `agent_run` (prompt_version, model, tokens, cost_eur), `extraction`, `review` (one decision per extraction) | `db.py` | no |
 
@@ -42,17 +42,26 @@ uv run cardcost ingest [file.pdf ...]          # corpus = samples/ + data/privat
 uv run cardcost products                       # card products found, e.g. beta_card:Beta Classic, beta_card:Beta Gold
 uv run cardcost wallet alpha_card beta_card:Gold   # pick the account/card types you own (default: all)
 uv run cardcost ask "Einkauf über 200 EUR in der Schweiz"   # flags: --amount --kind cash|purchase --country US --days 30
+uv run cardcost ask "300 EUR abheben" --used preis-leistung-c24=2 --used preis-leistung-revolut=3:150
 uv run cardcost matrix --countries DE,FR,US    # which card wins for which amount: "1-375 EUR -> alpha_card; 376-2000 EUR -> beta_card:Gold"
 uv run cardcost review list
 uv run cardcost review edited 7 --set min_eur=6,50 --quote "3,0 % mind. 6,50 EUR" --reviewer me   # used on the next question
 uv run uvicorn cardcost.api:app               # GET /ask?q=..., POST /webhooks/new-document
 ```
 
+**Free allowances.** Real price lists waive the cash fee in three ways, each a `FeeSchedule` field:
+`free_count` (C24 Smartkonto: "4 x 0,00 EUR", then 2,00 EUR), `free_amount_eur` (Revolut: "5 Abhebungen oder 200 €, je nachdem,
+was zuerst eintritt", then 2 %, min 1 €) and `free_from_eur` (Trade Republic: "1 € für Abhebungen unter 100 €").
+Whether a withdrawal is free depends on what you already used this period, which no document knows. `ask` therefore asks
+for each card with an allowance (count, plus EUR if there is an amount cap), or takes `--used card=N[:EUR]`; the API and MCP
+take the same `used` strings. If usage is not given, the allowance counts as used up, so the advisor never claims "free" on a guess.
+A withdrawal that only partly fits the amount cap is charged in full, because none of the documents says how an overrun is charged.
+
 **Webhook**: `X-Timestamp: <unix s>` and `X-Signature: hex(HMAC-SHA256(CARDCOST_WEBHOOK_SECRET, "<timestamp>.<raw body>"))`,
 body `{"event_id": "...", "path": "data/private/x.pdf"}`. A request is rejected if it is older than 5 minutes, if its event id was already seen (it gets 200 and is not queued again), or if the path is outside `data/private/`.
 The endpoint returns 200 and ingests in the background.
 
-**MCP** (read-only tools `get_fee(card, amount_eur)`, `compare_cards(amount_eur, country)`):
+**MCP** (read-only tools `get_fee(card, amount_eur, used)`, `compare_cards(amount_eur, country, used)`):
 
 ```bash
 claude mcp add cardcost -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY -e CARDCOST_MODEL=claude-sonnet-5-5 \
@@ -73,7 +82,24 @@ and fails if hybrid extraction accuracy is below 0.9.
 | vector | 0.94 | _pending_ | _pending_ |
 | hybrid | 0.94 | _pending_ | _pending_ |
 
-Retrieval@1: bm25 0.65, vector 0.65, hybrid 0.71. The remaining hybrid miss is q02 *"Ich hebe 300 EUR … ab"*: a separable
+`evals/golden_real.json` is a **draft** of 18 questions over the 6 real price lists (C24, DKB, HVB, ING, Revolut,
+Trade Republic). They cover the allowance rules on both sides of each limit, a "kostenlos" fee, the DKB counter-vs-ATM trap,
+HVB's two-column layout, and FX that is not stated as a number (Revolut). The expected values were drafted from the extracted
+text and checked against the calc, but **not yet verified by a human against the PDFs**. Questions marked `VERIFY` rest on an
+interpretation. Run it with `--golden evals/golden_real.json`.
+
+| real docs (draft) | retrieval@3 | extraction | ranking |
+|---|---|---|---|
+| bm25 | 0.78 | _pending live run_ | _pending_ |
+| vector | 0.67 | _pending_ | _pending_ |
+| hybrid | 0.72 | _pending_ | _pending_ |
+
+Much worse than on the synthetic set. Two reasons are visible in the failures. ING's PDF splits words by kerning ("Aus lands einsatz entgelt"), so
+neither BM25 nor the embedding matches "Auslandseinsatzentgelt" (r14). And footnote pages that repeat the query terms outrank the
+fee table (C24 r17 lands on p7). Not tuned yet. Proposed fix: also index each passage with its spaces removed
+for BM25 character n-grams, which rejoins kerning splits. Then re-measure, and keep it only if the synthetic numbers hold.
+
+Retrieval@1 (synthetic): bm25 0.65, vector 0.65, hybrid 0.71. The remaining hybrid miss is q02 *"Ich hebe 300 EUR … ab"*: a separable
 German verb ("hebe … ab" means "abheben", to withdraw), and neither side links it to "Bargeldauszahlung". Extraction does not depend on this question's retrieval,
 because the advisor always adds a fixed fee-terms query.
 
@@ -84,6 +110,13 @@ although that exact word is on page 2. The cause: BM25 was indexed over all card
 card. "Alpha" and "Card" are rare corpus-wide, so pages repeating the card name outscored the fee term.
 **Fix:** one BM25 index per card (IDF within the card's own pages). BM25 went from 0.82 to 1.00 @3. A unit test also caught that
 zero-score BM25 passages were entering RRF in arbitrary order. They are now dropped before fusion.
+
+## A second failure: real PDFs
+
+ING's price list came out of ingest as bare values ("kostenlos 2,20 % …") with no row labels, so no reader could tell which fee
+a number belonged to. pdfplumber detects the whole page layout as one "table", and `extract()` drops text that is not in a cell.
+**Fix:** a detected table is used only if its cells hold at least 80 % of the words in its area. Otherwise the area is read as prose.
+The beta sample's real fee table is still rendered as rows (test), and the synthetic retrieval numbers did not change.
 
 ## Limits
 
@@ -100,6 +133,10 @@ zero-score BM25 passages were entering RRF in arbitrary order. They are now drop
 - On google/openrouter the Anthropic-only `strict` flag is dropped, so tool arguments are not schema-guaranteed. The Pydantic and quote
   checks still apply, and malformed arguments go through the retry-then-review path. Whether every model accepts the
   nullable `["string", "null"]` schema types is untested.
-- The fee model has no free monthly allowance yet. Real price lists have rules like C24's "4 x 0,00 EUR, then 2,00 EUR"; today that
-  can only become `min_eur=2.00` with the allowance noted in `conditions`.
-- The golden eval covers the synthetic samples only. Real PDFs belong in `data/private/` (gitignored), with an optional private golden file.
+- Allowances are tracked per wallet entry. C24's footnote shares one allowance across EUR and FX withdrawals, which fits;
+  allowances shared between two cards of the same account do not. `matrix` assumes every allowance is used up.
+- Fee rules that depend on the account model (HVB: the Mastercard is free at ATMs in ExklusivKonto, 2,50 EUR in AktivKonto) are
+  not modelled. Use a review edit for your account.
+- FX allowances (Revolut: free up to 1.000 EUR a month, then 0,5 %) are not modelled, so Revolut's FX stays "not stated".
+- HVB's two-column pages come out of pdfplumber with lines from both columns interleaved, so verbatim quotes can fail there.
+- The golden set for the real price lists is a draft that no human has verified yet.

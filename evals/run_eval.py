@@ -2,6 +2,7 @@
 
 uv run python evals/run_eval.py            # replay recorded LLM answers (CI)
 uv run python evals/run_eval.py --live     # call Claude on cache misses and record them
+uv run python evals/run_eval.py --golden evals/golden_real.json   # draft set for the real price lists
 Exit 1 if hybrid extraction accuracy < 0.9.
 """
 
@@ -69,8 +70,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", default="all", choices=["all", "bm25", "vector", "hybrid"])
     ap.add_argument("--live", action="store_true", help="call the API on cache misses")
+    ap.add_argument("--golden", type=Path, default=ROOT / "evals/golden.json")
     args = ap.parse_args()
-    golden = json.loads((ROOT / "evals/golden.json").read_text())
+    golden = json.loads(args.golden.read_text())
     passages = ingest_paths(sorted((ROOT / "samples").glob("*.pdf")))
     embedder = E5Embedder()
     llm = LLM(cache_path=ROOT / "evals/llm_cache.json", live=args.live)
