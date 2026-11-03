@@ -22,6 +22,25 @@ FEE_QUERY = " ".join(
 )
 
 
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.lower()))
+
+
+def match_product(wanted: str, options: list[FeeSchedule]) -> FeeSchedule | None:
+    """Exact name first; else the product containing every word of `wanted` with the fewest extra words, if unique.
+    Punctuation is ignored, so "HVB Mastercard / HVB AktivKonto" finds "HVB Mastercard (HVB AktivKonto)"."""
+    named = [f for f in options if f.product]
+    exact = [f for f in named if f.product.lower() == wanted.lower()]
+    if len(exact) == 1:
+        return exact[0]
+    want = _words(wanted)
+    extra = {id(f): len(_words(f.product) - want) for f in named if want <= _words(f.product)}
+    if not extra:
+        return None
+    best = [f for f in named if extra.get(id(f)) == min(extra.values())]
+    return best[0] if len(best) == 1 else None
+
+
 class Advisor:
     def __init__(self, retriever: Retriever, llm, wallet: list[str] | None = None, conn=None, k: int = 3):
         self.retriever, self.llm, self.k = retriever, llm, k
@@ -53,10 +72,8 @@ class Advisor:
                 by_card[card] = extract_fees(card, self.passages_for(card, question), self.llm, self.conn)
             options = by_card[card]
             if product:
-                exact = [f for f in options if f.product and product.lower() == f.product.lower()]
-                match = exact or [f for f in options if f.product and product.lower() in f.product.lower()]
-                fees[entry] = match[0] if len(match) == 1 else None
-                if len(match) != 1:
+                fees[entry] = match_product(product, options)
+                if fees[entry] is None:
                     log.warning("product_not_found", extra={"entry": entry, "found": [f.product for f in options]})
             elif len(options) <= 1:
                 fees[entry] = options[0] if options else None

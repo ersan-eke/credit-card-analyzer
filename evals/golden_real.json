@@ -514,7 +514,7 @@
    "id": "r19",
    "question": "Ich habe ein HVB AktivKonto. Was kostet eine Abhebung von 300 EUR mit der HVB Mastercard an einem fremden Automaten?",
    "card": "preis-leistung-hvb",
-   "product": "HVB Mastercard / HVB AktivKonto",
+   "product": "HVB Mastercard AktivKonto",
    "expected_page": 5,
    "expected_fields": {
     "percent": null,
@@ -528,13 +528,13 @@
    },
    "wallet": [
     "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-hvb:HVB Mastercard / HVB AktivKonto"
+    "preis-leistung-hvb:HVB Mastercard AktivKonto"
    ],
    "expected_ranking": [
-    "preis-leistung-hvb:HVB Mastercard / HVB AktivKonto",
+    "preis-leistung-hvb:HVB Mastercard AktivKonto",
     "preis-leistung-hvb:HVB Mastercard"
    ],
-   "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. Depends on the model naming the product exactly 'HVB Mastercard / HVB AktivKonto'"
+   "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve"
   },
   {
    "id": "r20",

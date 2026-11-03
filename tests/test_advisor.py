@@ -115,3 +115,20 @@ def test_fee_query_reaches_revolut_fx_section():
     rev = ingest_paths([Path(__file__).parent.parent / "samples/preis-leistung-revolut.pdf"])
     a = Advisor(Retriever(rev, mode="bm25"), FakeLLM())
     assert 5 in {p.page for p in a.passages_for("preis-leistung-revolut", "Was kostet das?")}
+
+
+def test_match_product_by_words():
+    from cardcost.advisor import match_product
+    from cardcost.models import FeeSchedule
+
+    def f(name):
+        return FeeSchedule(card="hvb", product=name, source_file="x.pdf", source_page=1, confidence=1.0)
+
+    options = [f("HVB Mastercard"), f("HVB Mastercard Gold"), f("HVB Mastercard (HVB AktivKonto)")]
+    assert match_product("hvb mastercard", options).product == "HVB Mastercard"  # exact beats fewer words
+    assert match_product("HVB Mastercard / HVB AktivKonto", options).product == "HVB Mastercard (HVB AktivKonto)"
+    assert match_product("AktivKonto", options).product == "HVB Mastercard (HVB AktivKonto)"
+    assert match_product("Gold", options).product == "HVB Mastercard Gold"
+    assert match_product("Platinum", options) is None
+    tie = [f("HVB Mastercard Gold"), f("HVB Mastercard Basis")]
+    assert match_product("Mastercard", tie) is None  # never guesses between equal candidates
