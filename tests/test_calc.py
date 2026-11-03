@@ -132,3 +132,9 @@ def test_fx_allowance_unknown_usage_charges_full_amount():
 
 def test_cards_without_fx_allowance_unchanged():
     assert cost_line("a", ALPHA, _buy("200", a={"count": 0, "fx_eur": "0"})).total == D("3.50")
+
+
+def test_matrix_uses_allowance_usage():
+    fees = {"c24": C24, "rev": REVOLUT}
+    assert matrix(fees, "cash", "DE", 300) == [(1, 99, "rev"), (100, 300, "c24")]  # both allowances assumed used up
+    assert matrix(fees, "cash", "DE", 300, used={"c24": Usage(count=0)}) == [(1, 300, "c24")]

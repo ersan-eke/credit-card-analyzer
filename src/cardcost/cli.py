@@ -10,7 +10,7 @@ from cardcost.answer import answer, render_table
 from cardcost.calc import matrix, rank
 from cardcost.ingest import process_job
 from cardcost.logs import new_run_id, setup_logging
-from cardcost.models import NUMERIC_FIELDS, FeeSchedule, Scenario, Usage
+from cardcost.models import EUROZONE, HOME, NUMERIC_FIELDS, FeeSchedule, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 
@@ -89,10 +89,24 @@ def cmd_ask(conn, args) -> None:
 def cmd_matrix(conn, args) -> None:
     advisor = build_advisor(conn, args.mode)
     fees = advisor.resolve("Bargeldauszahlung Fremdwährung")
+    countries = args.countries.split(",")
+    used = parse_usage(args.used)
+    if sys.stdin.isatty():  # one probe scenario that triggers both the cash and the FX questions
+        foreign = next((c for c in countries if c.upper() not in EUROZONE), HOME)
+        used = ask_usage(fees, used, Scenario(kind="cash", amount_eur=Decimal(1), country=foreign))
     for kind in ("cash", "purchase"):
-        for country in args.countries.split(","):
-            bands = matrix(fees, kind, country, args.max)
+        for country in countries:
+            bands = matrix(fees, kind, country, args.max, used)
             print(f"{kind:8} {country}: " + "; ".join(f"{a}-{b} EUR -> {w}" for a, b, w in bands))
+    allowance = ("free_count", "free_amount_eur", "fx_free_eur")
+    state = Scenario(kind="cash", amount_eur=Decimal(1), used=used)
+    assumed = [
+        label
+        for label, fee in fees.items()
+        if fee and any(getattr(fee, f) is not None for f in allowance) and not state.usage_for(label)
+    ]
+    if assumed:
+        print("allowance assumed used up (pass --used): " + ", ".join(assumed))
 
 
 def cmd_review(conn, args) -> None:
@@ -137,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("matrix", help="which card wins for which amount and scenario")
     p.add_argument("--countries", default="DE,FR,US")
     p.add_argument("--max", type=int, default=2000)
+    p.add_argument("--used", action="append", default=[], help="allowance usage so far: card=N[:EUR[:FX_EUR]]")
     p = sub.add_parser("review", help="human review of extractions")
     p.add_argument("action", choices=["list", "approved", "edited", "rejected"])
     p.add_argument("id", type=int, nargs="?")

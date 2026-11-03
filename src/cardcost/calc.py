@@ -88,12 +88,14 @@ def rank(fees: dict[str, FeeSchedule | None], s: Scenario) -> list[CostLine]:
     return sorted(lines, key=lambda ln: (ln.total is None, ln.total or ZERO, ln.label))
 
 
-def matrix(fees: dict[str, FeeSchedule | None], kind: str, country: str, max_amount: int = 2000):
-    """Winner bands [(from_eur, to_eur, label)] over whole-euro amounts."""
+def matrix(
+    fees: dict[str, FeeSchedule | None], kind: str, country: str, max_amount: int = 2000, used: dict | None = None
+):
+    """Winner bands [(from_eur, to_eur, label)] for the next transaction, given allowance usage so far."""
     # shortcut: 1-EUR scan instead of solving the piecewise-linear crossovers; exact enough for advice up to ~10k EUR
     bands: list[tuple[int, int, str]] = []
     for amount in range(1, max_amount + 1):
-        best = rank(fees, Scenario(kind=kind, amount_eur=Decimal(amount), country=country))[0]
+        best = rank(fees, Scenario(kind=kind, amount_eur=Decimal(amount), country=country, used=used or {}))[0]
         winner = best.label if best.total is not None else "unknown"
         if bands and bands[-1][2] == winner:
             bands[-1] = (bands[-1][0], amount, winner)
