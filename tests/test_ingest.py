@@ -30,3 +30,10 @@ def test_sample_ingest_never_mixes_files_and_renders_tables():
         assert p.file == f"{p.card_id}.pdf"
     beta_p1 = " ".join(p.text for p in ps if p.card_id == "beta_card" and p.page == 1)
     assert "Bargeldauszahlung am Geldautomaten | 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR" in beta_p1
+
+
+def test_layout_box_is_read_as_prose_not_table():
+    # pdfplumber sees the whole ING page as one "table" whose cells drop the row labels
+    ps = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-ing.pdf"])
+    page2 = " ".join(p.text for p in ps if p.page == 2)
+    assert "VISA Card [Debitkarte]" in page2 and "Bargeldauszahlungen" in page2

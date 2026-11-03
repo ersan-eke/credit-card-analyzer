@@ -45,9 +45,16 @@ def passages_from_pages(card_id: str, file: str, pages: list[str]) -> list[Passa
     return out
 
 
+def _is_data_table(page, table) -> bool:
+    """A layout box detected as a table loses its label text in extract(); read those as prose instead."""
+    cell_words = sum(len((c or "").split()) for row in table.extract() for c in row)
+    region_words = len((page.crop(table.bbox).extract_text() or "").split())
+    return cell_words >= 0.8 * region_words
+
+
 def _page_text(page) -> str:
     """Prose outside tables, then each table as 'cell | cell' rows so columns stay attached to products."""
-    tables = page.find_tables()
+    tables = [t for t in page.find_tables() if _is_data_table(page, t)]
     outside = page
     for t in tables:
         outside = outside.outside_bbox(t.bbox)
