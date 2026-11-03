@@ -29,6 +29,8 @@ Rules:
   fee for withdrawals beyond the allowance. Put the period (Kalendermonat, rollierender Monat) into conditions.
 - free_from_eur: withdrawals of at least this amount are free, e.g. "1 € für Abhebungen unter 100 €" gives
   min_eur 1 and free_from_eur 100.
+- fx_free_eur: an amount per period that can be exchanged without FX fee; fx_percent is then the fee beyond it, e.g.
+  "Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %" gives fx_free_eur 1000, fx_percent 0.5.
 - If a fee differs by account model (Kontomodell), record one product per card and account model, named
   "<card> / <Kontomodell>", plus one plain "<card>" product for all other account models.
 - A fee written as "kostenlos" or "gebührenfrei" is 0. Use the fee at ATMs (Geldautomat), not at a bank counter
@@ -65,6 +67,7 @@ TOOL = {
                         "free_count",
                         "free_amount_eur",
                         "free_from_eur",
+                        "fx_free_eur",
                         "source_file",
                         "source_page",
                         "confidence",
@@ -86,6 +89,7 @@ TOOL = {
                         "free_count": _NUM,
                         "free_amount_eur": _NUM,
                         "free_from_eur": _NUM,
+                        "fx_free_eur": _NUM,
                         "source_file": {"type": "string"},
                         "source_page": {"type": "integer"},
                         "confidence": {"type": "number"},

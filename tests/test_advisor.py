@@ -60,9 +60,10 @@ def test_parse_usage():
     from cardcost.advisor import parse_usage
     from cardcost.models import Usage
 
-    assert parse_usage(["c24=2", "rev:Standard=3:150,50"]) == {
+    assert parse_usage(["c24=2", "rev:Standard=3:150,50", "rev2=0::400"]) == {
         "c24": Usage(count=2),
         "rev:Standard": Usage(count=3, eur=Decimal("150.50")),
+        "rev2": Usage(count=0, fx_eur=Decimal("400")),
     }
     with pytest.raises(ValueError):
         parse_usage(["c24"])

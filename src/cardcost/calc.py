@@ -33,6 +33,17 @@ def allowance(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[bo
     return free, f"Freikontingent {' / '.join(limits)}, bisher {so_far}: {'kostenlos' if free else 'verbraucht'}"
 
 
+def fx_base(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[Decimal, str | None]:
+    """Amount the FX fee applies to. With an exchange allowance only the excess is charged ("für den zusätzlichen
+    Betrag"); unknown usage counts as used up."""
+    if fee.fx_free_eur is None:
+        return amount, None
+    if used is None or used.fx_eur is None:
+        return amount, "Wechsellimit als verbraucht angenommen (bisheriger Umtausch nicht angegeben)"
+    left = max(ZERO, fee.fx_free_eur - used.fx_eur)
+    return max(ZERO, amount - left), f"Wechsellimit {fee.fx_free_eur} EUR, bisher {used.fx_eur} EUR umgetauscht"
+
+
 def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
     if fee is None:
         return CostLine(label=label, missing=["fee document"])
@@ -57,7 +68,9 @@ def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
         if fee.fx_percent is None:
             missing.append("fx_fee")
         else:
-            comps["fx_fee"] = to_cents(s.amount_eur * fee.fx_percent / 100)
+            base, note = fx_base(fee, s.amount_eur, s.usage_for(label))
+            comps["fx_fee"] = to_cents(base * fee.fx_percent / 100)
+            notes += [note] if note else []
     return CostLine(
         label=label,
         components=comps,

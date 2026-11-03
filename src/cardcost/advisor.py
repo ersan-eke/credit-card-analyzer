@@ -96,14 +96,18 @@ def parse_scenario(question: str, **overrides) -> Scenario:
 
 
 def parse_usage(items: list[str]) -> dict[str, Usage]:
-    """['c24=2', 'revolut=3:150'] -> withdrawals (and EUR) already used in the current free-allowance period."""
+    """['c24=2', 'revolut=3:150:400'] -> withdrawals, EUR withdrawn and EUR exchanged so far this allowance period."""
     used = {}
     for item in items:
         label, sep, value = item.partition("=")
         if not sep:
-            raise ValueError(f"usage must look like card=N or card=N:EUR, got {item!r}")
-        count, _, amount = value.partition(":")
-        used[label.strip()] = Usage(count=int(count), eur=parse_german_decimal(amount) if amount else None)
+            raise ValueError(f"usage must look like card=N[:EUR[:FX_EUR]], got {item!r}")
+        count, amount, fx = (value.split(":") + ["", ""])[:3]
+        used[label.strip()] = Usage(
+            count=int(count),
+            eur=parse_german_decimal(amount) if amount else None,
+            fx_eur=parse_german_decimal(fx) if fx else None,
+        )
     return used
 
 

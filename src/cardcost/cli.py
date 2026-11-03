@@ -10,7 +10,7 @@ from cardcost.answer import answer, render_table
 from cardcost.calc import matrix, rank
 from cardcost.ingest import process_job
 from cardcost.logs import new_run_id, setup_logging
-from cardcost.models import NUMERIC_FIELDS, FeeSchedule, Usage
+from cardcost.models import NUMERIC_FIELDS, FeeSchedule, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 
@@ -36,12 +36,20 @@ def cmd_wallet(conn, args) -> None:
     print("\n".join(db.wallet(conn)) or "wallet empty: every ingested card/product is compared")
 
 
-def ask_usage(fees: dict[str, FeeSchedule | None], used: dict[str, Usage], ask=input) -> dict[str, Usage]:
-    """Ask how much of each free allowance is used, for cards that have one and were not given via --used."""
+def ask_usage(
+    fees: dict[str, FeeSchedule | None], used: dict[str, Usage], scenario: Scenario, ask=input
+) -> dict[str, Usage]:
+    """Ask how much of each allowance that matters for this scenario is used, unless given via --used."""
     for label, fee in fees.items():
-        if not fee or (fee.free_count is None and fee.free_amount_eur is None):
+        if not fee or label in used or label.partition(":")[0] in used:
             continue
-        if label in used or label.partition(":")[0] in used:
+        cash = scenario.kind == "cash" and (fee.free_count is not None or fee.free_amount_eur is not None)
+        fx = scenario.foreign_currency and fee.fx_free_eur is not None
+        if not (cash or fx):
+            continue
+        if not cash:  # the withdrawal count only matters for cash
+            fx_eur = parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
+            used[label] = Usage(count=0, fx_eur=fx_eur)
             continue
         limit = " / ".join(
             x
@@ -51,7 +59,12 @@ def ask_usage(fees: dict[str, FeeSchedule | None], used: dict[str, Usage], ask=i
         period = fee.conditions or "per period"
         count = int(ask(f"{label} ({limit}, {period}): withdrawals so far? "))
         eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if fee.free_amount_eur is not None else None
-        used[label] = Usage(count=count, eur=eur)
+        fx_eur = (
+            parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
+            if fx
+            else None
+        )
+        used[label] = Usage(count=count, eur=eur, fx_eur=fx_eur)
     return used
 
 
@@ -63,8 +76,8 @@ def cmd_ask(conn, args) -> None:
     )
     advisor = build_advisor(conn, args.mode)
     fees = advisor.resolve(args.question)
-    if scenario.kind == "cash" and sys.stdin.isatty():
-        used = ask_usage(fees, used)
+    if sys.stdin.isatty():
+        used = ask_usage(fees, used, scenario)
     scenario = scenario.model_copy(update={"used": used})
     table = rank(fees, scenario)
     text, source = answer(args.question, scenario, table, advisor.fees, advisor.llm)

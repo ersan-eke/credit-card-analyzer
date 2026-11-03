@@ -323,10 +323,10 @@
     "preis-leistung-traderepublik",
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-ing:VISA",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
    ],
-   "_hand": "VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev fx not stated -> unknown, last"
+   "_hand": "VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev cash fee + 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r12",
@@ -360,7 +360,8 @@
    "product": null,
    "expected_page": 5,
    "expected_fields": {
-    "fx_percent": null
+    "fx_percent": "0.5",
+    "fx_free_eur": "1000"
    },
    "scenario": {
     "kind": "purchase",
@@ -372,11 +373,11 @@
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-dkb:Kreditkarte",
     "preis-leistung-traderepublik",
+    "preis-leistung-revolut",
     "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut"
+    "preis-leistung-ing:VISA"
    ],
-   "_hand": "not stated as a number: only 'faire Nutzungsgebühr von 0,5 %' above 1.000 EUR/month; hvb 1.75; ing 2.20; rev unknown, last"
+   "_hand": "'Standard: Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %', charged on the excess only; usage not given -> limit counted as used up: 0.5% of 100 = 0.50; hvb 1.75; ing 2.20"
   },
   {
    "id": "r14",
@@ -397,11 +398,11 @@
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-dkb:Kreditkarte",
     "preis-leistung-traderepublik",
+    "preis-leistung-revolut",
     "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut"
+    "preis-leistung-ing:VISA"
    ],
-   "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40"
+   "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40; rev 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r15",
@@ -422,11 +423,11 @@
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-dkb:Kreditkarte",
     "preis-leistung-traderepublik",
+    "preis-leistung-revolut",
     "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut"
+    "preis-leistung-ing:VISA"
    ],
-   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block)"
+   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block); rev 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r16",
@@ -447,11 +448,11 @@
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-dkb:Kreditkarte",
     "preis-leistung-traderepublik",
+    "preis-leistung-revolut",
     "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut"
+    "preis-leistung-ing:VISA"
    ],
-   "_hand": "'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %)"
+   "_hand": "'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %); rev 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r17",
@@ -504,10 +505,10 @@
     "preis-leistung-traderepublik",
     "preis-leistung-c24:Smartkonto",
     "preis-leistung-ing:VISA",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
+    "preis-leistung-revolut",
+    "preis-leistung-hvb:HVB Mastercard"
    ],
-   "_hand": "VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev unknown"
+   "_hand": "VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev cash fee + 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r19",
@@ -534,6 +535,38 @@
     "preis-leistung-hvb:HVB Mastercard"
    ],
    "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. Depends on the model naming the product exactly 'HVB Mastercard / HVB AktivKonto'"
+  },
+  {
+   "id": "r20",
+   "question": "Ich habe mit Revolut diesen Monat erst 400 EUR umgetauscht. Was kostet ein Einkauf über 300 EUR in den USA?",
+   "card": "preis-leistung-revolut",
+   "product": null,
+   "expected_page": 5,
+   "expected_fields": {
+    "fx_percent": "0.5",
+    "fx_free_eur": "1000"
+   },
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "300",
+    "used": {
+     "preis-leistung-revolut": {
+      "count": 0,
+      "fx_eur": "400"
+     }
+    }
+   },
+   "expected_ranking": [
+    "preis-leistung-c24:Smartkonto",
+    "preis-leistung-dkb:Kreditkarte",
+    "preis-leistung-revolut",
+    "preis-leistung-traderepublik",
+    "preis-leistung-hvb:HVB Mastercard",
+    "preis-leistung-ing:VISA"
+   ],
+   "_hand": "400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60"
   }
  ]
 }

@@ -45,7 +45,7 @@ def test_ask_usage_only_for_cards_with_an_allowance():
     from decimal import Decimal
 
     from cardcost.cli import ask_usage
-    from cardcost.models import FeeSchedule, Usage
+    from cardcost.models import FeeSchedule, Scenario, Usage
 
     base = dict(source_file="x.pdf", source_page=1, confidence=1.0)
     fees = {
@@ -65,10 +65,32 @@ def test_ask_usage_only_for_cards_with_an_allowance():
     }
     answers = iter(["3", "1", "150,50"])
     asked = []
-    used = ask_usage(fees, {"given": Usage(count=0)}, ask=lambda q: asked.append(q) or next(answers))
+    cash = Scenario(kind="cash", amount_eur=Decimal("300"))
+    used = ask_usage(fees, {"given": Usage(count=0)}, cash, ask=lambda q: asked.append(q) or next(answers))
     assert used == {
         "given": Usage(count=0),
         "c24:Smart": Usage(count=3),
         "rev": Usage(count=1, eur=Decimal("150.50")),
     }
     assert len(asked) == 3 and "4 free" in asked[0]
+
+
+def test_ask_usage_asks_fx_allowance_only_in_foreign_currency():
+    from decimal import Decimal
+
+    from cardcost.cli import ask_usage
+    from cardcost.models import FeeSchedule, Scenario, Usage
+
+    rev = FeeSchedule(
+        card="rev",
+        fx_percent=Decimal("0.5"),
+        fx_free_eur=Decimal("1000"),
+        quote="1.000 EUR, 0,5 %",
+        source_file="x.pdf",
+        source_page=1,
+        confidence=1.0,
+    )
+    buy_us = Scenario(kind="purchase", amount_eur=Decimal("100"), country="US")
+    assert ask_usage({"rev": rev}, {}, buy_us, ask=lambda q: "400") == {"rev": Usage(count=0, fx_eur=Decimal("400"))}
+    buy_fr = Scenario(kind="purchase", amount_eur=Decimal("100"), country="FR")
+    assert ask_usage({"rev": rev}, {}, buy_fr, ask=lambda q: 1 / 0) == {}

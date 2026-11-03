@@ -109,3 +109,26 @@ def test_usage_matches_card_or_product_label():
     s = _cash("300", c24={"count": 0})
     assert s.usage_for("c24:Smartkonto") == Usage(count=0)
     assert cost_line("c24:Smartkonto", C24, s).total == D("0.00")
+
+
+REV_FX = fee(
+    percent=D("2"), min_eur=D("1"), fx_percent=D("0.5"), fx_free_eur=D("1000")
+)  # Wechsellimit 1.000 EUR, 0,5 %
+
+
+def _buy(amount, **used) -> Scenario:
+    return Scenario(kind="purchase", amount_eur=D(amount), country="US", used={k: Usage(**v) for k, v in used.items()})
+
+
+def test_fx_allowance_charges_only_the_excess():
+    assert cost_line("rev", REV_FX, _buy("200", rev={"count": 0, "fx_eur": "500"})).total == D("0.00")
+    assert cost_line("rev", REV_FX, _buy("300", rev={"count": 0, "fx_eur": "900"})).total == D("1.00")  # 0.5 % of 200
+
+
+def test_fx_allowance_unknown_usage_charges_full_amount():
+    line = cost_line("rev", REV_FX, _buy("300"))
+    assert line.total == D("1.50") and "angenommen" in line.notes[0]
+
+
+def test_cards_without_fx_allowance_unchanged():
+    assert cost_line("a", ALPHA, _buy("200", a={"count": 0, "fx_eur": "0"})).total == D("3.50")

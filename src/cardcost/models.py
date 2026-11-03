@@ -39,6 +39,7 @@ NUMERIC_FIELDS = (
     "free_count",
     "free_amount_eur",
     "free_from_eur",
+    "fx_free_eur",
 )
 # a fee of 0 is often written as a word, not "0,00"
 FREE_WORDS = re.compile(r"kostenlos|kostenfrei|gebührenfrei|entgeltfrei|\bfree\b", re.IGNORECASE)
@@ -67,6 +68,7 @@ class FeeSchedule(BaseModel):
     free_count: Decimal | None = Field(None, ge=0)  # free withdrawals per period (see conditions)
     free_amount_eur: Decimal | None = Field(None, ge=0)  # free amount per period; whichever limit ends first
     free_from_eur: Decimal | None = Field(None, ge=0)  # withdrawals of at least this amount are free
+    fx_free_eur: Decimal | None = Field(None, ge=0)  # exchange amount per period without FX fee; fx_percent beyond
     source_file: str
     source_page: int
     confidence: float = Field(ge=0, le=1)
@@ -90,6 +92,7 @@ class Usage(BaseModel):
 
     count: int = Field(ge=0)
     eur: Decimal | None = Field(None, ge=0)
+    fx_eur: Decimal | None = Field(None, ge=0)  # amount already exchanged into foreign currency
 
 
 class Scenario(BaseModel):
