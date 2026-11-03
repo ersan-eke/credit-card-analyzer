@@ -44,6 +44,7 @@ uv run cardcost wallet alpha_card beta_card:Gold   # pick the account/card types
 uv run cardcost ask "Einkauf über 200 EUR in der Schweiz"   # flags: --amount --kind cash|purchase --country US --days 30
 uv run cardcost ask "300 EUR abheben" --used preis-leistung-c24=2 --used preis-leistung-revolut=3:150
 uv run cardcost matrix --countries DE,FR,US    # which card wins for which amount: "1-375 EUR -> alpha_card; 376-2000 EUR -> beta_card:Gold"
+uv run cardcost matrix --used preis-leistung-c24=0  # bands for the *next* withdrawal, given allowance usage so far
 uv run cardcost review list
 uv run cardcost review edited 7 --set min_eur=6,50 --quote "3,0 % mind. 6,50 EUR" --reviewer me   # used on the next question
 uv run uvicorn cardcost.api:app               # GET /ask?q=..., POST /webhooks/new-document
@@ -53,9 +54,12 @@ uv run uvicorn cardcost.api:app               # GET /ask?q=..., POST /webhooks/n
 `free_count` (C24 Smartkonto: "4 x 0,00 EUR", then 2,00 EUR), `free_amount_eur` (Revolut: "5 Abhebungen oder 200 €, je nachdem,
 was zuerst eintritt", then 2 %, min 1 €) and `free_from_eur` (Trade Republic: "1 € für Abhebungen unter 100 €").
 Whether a withdrawal is free depends on what you already used this period, which no document knows. `ask` therefore asks
-for each card with an allowance (count, plus EUR if there is an amount cap), or takes `--used card=N[:EUR]`; the API and MCP
+for each card with an allowance (count, plus EUR if there is an amount cap), or takes `--used card=N[:EUR[:FX_EUR]]`; the API and MCP
 take the same `used` strings. If usage is not given, the allowance counts as used up, so the advisor never claims "free" on a guess.
 A withdrawal that only partly fits the amount cap is charged in full, because none of the documents says how an overrun is charged.
+FX has its own allowance (`fx_free_eur`, Revolut: "Wechsellimit von 1.000 EUR pro Monat", then 0,5 %). There the document
+does say that only the excess is charged, so only the excess is. Account-model prices (HVB: the Mastercard costs 2,50 EUR in
+the AktivKonto) are extracted as separate products named `<card> / <Kontomodell>` and picked in the wallet.
 
 **Webhook**: `X-Timestamp: <unix s>` and `X-Signature: hex(HMAC-SHA256(CARDCOST_WEBHOOK_SECRET, "<timestamp>.<raw body>"))`,
 body `{"event_id": "...", "path": "data/private/x.pdf"}`. A request is rejected if it is older than 5 minutes, if its event id was already seen (it gets 200 and is not queued again), or if the path is outside `data/private/`.
@@ -72,32 +76,42 @@ claude mcp add cardcost -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY -e CARDCOST_MODE
 
 `evals/golden.json`: 20 hand-checked questions over the 3 synthetic PDFs in `samples/`. They include 4 "not stated" questions, compound and umlaut terms, amounts on both sides of each minimum-fee crossover (200 / 250 / 750 EUR), and an injection test.
 Each question's expected costs are written out in its `_hand` field. `evals/run_eval.py` scores the three steps separately:
-retrieval (expected page in the card's top 3, 17 questions), extraction (exact Decimal match, null must be null) and
+retrieval (expected page in the card's top 3, 17 questions), context (expected page among the passages the extractor actually
+receives: question top-k plus a fixed fee-terms query, with k growing by one per 3 pages), extraction (exact Decimal match, null must be null) and
 final ranking. Run it with `--live` once to record LLM answers into `evals/llm_cache.json`. CI then replays them without a key
 and fails if hybrid extraction accuracy is below 0.9.
 
-| mode | retrieval@3 | extraction | ranking |
-|---|---|---|---|
-| bm25 | 1.00 | _pending live run_ | _pending_ |
-| vector | 0.94 | _pending_ | _pending_ |
-| hybrid | 0.94 | _pending_ | _pending_ |
+| mode | retrieval@3 | context | extraction | ranking |
+|---|---|---|---|---|
+| bm25 | 1.00 | 1.00 | _pending live run_ | _pending_ |
+| vector | 0.94 | 1.00 | _pending_ | _pending_ |
+| hybrid | 0.94 | 1.00 | _pending_ | _pending_ |
 
-`evals/golden_real.json` is a **draft** of 18 questions over the 6 real price lists (C24, DKB, HVB, ING, Revolut,
-Trade Republic). They cover the allowance rules on both sides of each limit, a "kostenlos" fee, the DKB counter-vs-ATM trap,
-HVB's two-column layout, and FX that is not stated as a number (Revolut). The expected values were drafted from the extracted
+`evals/golden_real.json` is a **draft** of 20 questions over the 6 real price lists (C24, DKB, HVB, ING, Revolut,
+Trade Republic). They cover the allowance rules on both sides of each limit, Revolut's FX allowance, a "kostenlos" fee, the DKB
+counter-vs-ATM trap, HVB's two-column layout and account-model prices. The expected values were drafted from the extracted
 text and checked against the calc, but **not yet verified by a human against the PDFs**. Questions marked `VERIFY` rest on an
 interpretation. Run it with `--golden evals/golden_real.json`.
 
-| real docs (draft) | retrieval@3 | extraction | ranking |
-|---|---|---|---|
-| bm25 | 0.78 | _pending live run_ | _pending_ |
-| vector | 0.67 | _pending_ | _pending_ |
-| hybrid | 0.72 | _pending_ | _pending_ |
+| real docs (draft) | retrieval@3 | context | extraction | ranking |
+|---|---|---|---|---|
+| bm25 | 0.90 | 0.95 | _pending live run_ | _pending_ |
+| vector | 0.60 | 0.95 | _pending_ | _pending_ |
+| hybrid | 0.70 | 0.95 | _pending_ | _pending_ |
 
-Much worse than on the synthetic set. Two reasons are visible in the failures. ING's PDF splits words by kerning ("Aus lands einsatz entgelt"), so
-neither BM25 nor the embedding matches "Auslandseinsatzentgelt" (r14). And footnote pages that repeat the query terms outrank the
-fee table (C24 r17 lands on p7). Not tuned yet. Proposed fix: also index each passage with its spaces removed
-for BM25 character n-grams, which rejoins kerning splits. Then re-measure, and keep it only if the synthetic numbers hold.
+How it got here (each step one commit, numbers on the 18-question draft unless noted):
+
+| change | bm25@3 | vector@3 | hybrid@3 |
+|---|---|---|---|
+| first run | 0.78 | 0.67 | 0.72 |
+| drop kerning spaces (ING "Aus lands einsatz entgelt") | 0.83 | 0.61 | 0.72 |
+| read two-column pages column by column (HVB) | 0.89 | 0.61 | 0.72 |
+| +2 questions (r19 HVB AktivKonto, r20 Revolut FX), 20 total | 0.90 | 0.60 | 0.70 |
+
+The kerning fix *lowered* vector@3 (r11 now lands on ING's girocard page, which uses the same words). Retrieval@3 understates what
+extraction gets: the fee-terms query rescues most misses. Context recall was 0.90 for hybrid before k scaled with document size
+(+~28 % passages), and is 0.95 after. The remaining context miss is Revolut's FX section (r13/r20). Revolut calls that fee
+"Wechselgebühr", which the fee-terms query does not contain. Not added yet, because adding it would be tuning toward this eval.
 
 Retrieval@1 (synthetic): bm25 0.65, vector 0.65, hybrid 0.71. The remaining hybrid miss is q02 *"Ich hebe 300 EUR … ab"*: a separable
 German verb ("hebe … ab" means "abheben", to withdraw), and neither side links it to "Bargeldauszahlung". Extraction does not depend on this question's retrieval,
@@ -118,6 +132,14 @@ a number belonged to. pdfplumber detects the whole page layout as one "table", a
 **Fix:** a detected table is used only if its cells hold at least 80 % of the words in its area. Otherwise the area is read as prose.
 The beta sample's real fee table is still rendered as rows (test), and the synthetic retrieval numbers did not change.
 
+## Two more real-PDF failures
+
+ING's PDF places space glyphs *on top of* the next letter, so text came out as "Aus lands einsatz entgelt" and neither BM25 nor the
+embeddings matched "Auslandseinsatzentgelt". Raising pdfplumber's `x_tolerance` did not help. **Fix:** drop every space char that
+overlaps the next char on its line. HVB prints two text columns, and pdfplumber interleaved them line by line. **Fix:** split at a
+central gutter, but only when the right side is not mostly fee values, because C24's and DKB's label/value fee layouts also have a
+gutter and must stay whole (tested).
+
 ## Limits
 
 - Forced `tool_choice` returns a 400 on Sonnet 5.5 / Opus 5.5. The tool is `strict` with `tool_choice: auto`, and a missing
@@ -134,9 +156,9 @@ The beta sample's real fee table is still rendered as rows (test), and the synth
   checks still apply, and malformed arguments go through the retry-then-review path. Whether every model accepts the
   nullable `["string", "null"]` schema types is untested.
 - Allowances are tracked per wallet entry. C24's footnote shares one allowance across EUR and FX withdrawals, which fits;
-  allowances shared between two cards of the same account do not. `matrix` assumes every allowance is used up.
-- Fee rules that depend on the account model (HVB: the Mastercard is free at ATMs in ExklusivKonto, 2,50 EUR in AktivKonto) are
-  not modelled. Use a review edit for your account.
-- FX allowances (Revolut: free up to 1.000 EUR a month, then 0,5 %) are not modelled, so Revolut's FX stays "not stated".
-- HVB's two-column pages come out of pdfplumber with lines from both columns interleaved, so verbatim quotes can fail there.
+  allowances shared between two cards of the same account do not.
+- Account-model products depend on the model naming them exactly `<card> / <Kontomodell>`. A different name means the wallet entry
+  resolves to "not found" (logged), never to a wrong price.
+- The column split uses thresholds fitted on six price lists (gutter at 45-57 % of the width, right side < 30 % fee values).
+  A page heading that spans the gutter gets cut in two.
 - The golden set for the real price lists is a draft that no human has verified yet.
