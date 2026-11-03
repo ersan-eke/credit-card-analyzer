@@ -96,3 +96,15 @@ def test_extraction_prompt_asks_for_account_model_products():
     from cardcost.extract import SYSTEM
 
     assert "Kontomodell" in SYSTEM and "<card> / <Kontomodell>" in SYSTEM
+
+
+def test_k_grows_with_document_size():
+    from cardcost.models import Passage
+
+    big = [
+        Passage(id=f"big:p{i}:0", card_id="big", file="big.pdf", page=i, text=f"Bargeld Seite {i}")
+        for i in range(1, 13)
+    ]
+    a = Advisor(Retriever(big + PASSAGES, mode="bm25"), FakeLLM())
+    assert (a.k_for("big"), a.k_for("beta_card")) == (4, 3)
+    assert len(a.retriever.search("Bargeld", "big", a.k_for("big"))) == 4

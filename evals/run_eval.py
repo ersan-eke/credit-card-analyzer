@@ -28,7 +28,7 @@ def _dec(v: str | None) -> Decimal | None:
 
 def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, list[str]]:
     advisor = Advisor(Retriever(passages, mode=mode, embedder=embedder), llm, wallet=golden["wallet"])
-    hits = {"retrieval": [0, 0], "extraction": [0, 0], "ranking": [0, 0]}
+    hits = {"retrieval": [0, 0], "context": [0, 0], "extraction": [0, 0], "ranking": [0, 0]}
     failures = []
     for q in golden["questions"]:
         advisor.wallet = q.get("wallet", golden["wallet"])
@@ -41,6 +41,13 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
                 failures.append(
                     f"[{mode}] {q['id']} retrieval: want p{q['expected_page']}, got {[p.page for p in top]}"
                 )
+            # what the extractor actually receives: question top-k plus the fixed fee-terms query
+            ctx = advisor.passages_for(q["card"], q["question"])
+            ok = any(p.page == q["expected_page"] for p in ctx)
+            hits["context"][0] += ok
+            hits["context"][1] += 1
+            if not ok:
+                failures.append(f"[{mode}] {q['id']} context: want p{q['expected_page']}, got {[p.page for p in ctx]}")
         scenario = Scenario(**q["scenario"])
         try:
             table = advisor.cost_table(q["question"], scenario)
@@ -82,9 +89,9 @@ def main() -> int:
     for mode in modes:
         scores[mode], f = run_mode(mode, golden, passages, embedder, llm)
         failures += f
-    print(f"\n{'mode':<8} {'retrieval@3':>12} {'extraction':>11} {'ranking':>8}")
+    print(f"\n{'mode':<8} {'retrieval@3':>12} {'context':>8} {'extraction':>11} {'ranking':>8}")
     for mode, s in scores.items():
-        print(f"{mode:<8} {s['retrieval']:>12.2f} {s['extraction']:>11.2f} {s['ranking']:>8.2f}")
+        print(f"{mode:<8} {s['retrieval']:>12.2f} {s['context']:>8.2f} {s['extraction']:>11.2f} {s['ranking']:>8.2f}")
     print(f"\nLLM calls: {llm.calls} live, {llm.cache_hits} from cache")
     print(f"\n{len(failures)} failures:" if failures else "\nno failures")
     for f in failures:
