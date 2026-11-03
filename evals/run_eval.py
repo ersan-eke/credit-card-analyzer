@@ -31,6 +31,7 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
     hits = {"retrieval": [0, 0], "extraction": [0, 0], "ranking": [0, 0]}
     failures = []
     for q in golden["questions"]:
+        advisor.wallet = q.get("wallet", golden["wallet"])
         if q["expected_page"] is not None:
             top = advisor.retriever.search(q["question"], card_id=q["card"], k=3)
             ok = any(p.page == q["expected_page"] for p in top)

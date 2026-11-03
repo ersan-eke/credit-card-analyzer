@@ -9,7 +9,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule, Passage
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v2"
+PROMPT_VERSION = "extract-v3"
 REVIEW_BELOW = 0.7
 
 SYSTEM = """You extract credit-card fees from German bank documents ("Kosten- und Leistungsbericht", Preisverzeichnis).
@@ -29,6 +29,8 @@ Rules:
   fee for withdrawals beyond the allowance. Put the period (Kalendermonat, rollierender Monat) into conditions.
 - free_from_eur: withdrawals of at least this amount are free, e.g. "1 € für Abhebungen unter 100 €" gives
   min_eur 1 and free_from_eur 100.
+- If a fee differs by account model (Kontomodell), record one product per card and account model, named
+  "<card> / <Kontomodell>", plus one plain "<card>" product for all other account models.
 - A fee written as "kostenlos" or "gebührenfrei" is 0. Use the fee at ATMs (Geldautomat), not at a bank counter
   (Schalter).
 - Write numbers as plain decimals with a dot ("2.0", "5.00"), copying the digits from the text.

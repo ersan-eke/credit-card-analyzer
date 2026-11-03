@@ -77,3 +77,21 @@ def test_exact_product_name_beats_substring():
     r = Retriever(PASSAGES, mode="bm25")
     fees = Advisor(r, TwoMastercards(), wallet=["beta_card:hvb mastercard"]).resolve("Bargeld")
     assert fees["beta_card:hvb mastercard"].product == "HVB Mastercard"
+
+
+def test_account_model_products_resolve_exactly():
+    class AccountModels(FakeLLM):
+        def create(self, purpose, prompt_version, **kw):
+            products = [_item("HVB Mastercard", "3.0", "6.00"), _item("HVB Mastercard / HVB AktivKonto", "1.0", "7.50")]
+            return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
+
+    r = Retriever(PASSAGES, mode="bm25")
+    wallet = ["beta_card:HVB Mastercard", "beta_card:HVB Mastercard / HVB AktivKonto"]
+    fees = Advisor(r, AccountModels(), wallet=wallet).resolve("Bargeld")
+    assert [f.product for f in fees.values()] == ["HVB Mastercard", "HVB Mastercard / HVB AktivKonto"]
+
+
+def test_extraction_prompt_asks_for_account_model_products():
+    from cardcost.extract import SYSTEM
+
+    assert "Kontomodell" in SYSTEM and "<card> / <Kontomodell>" in SYSTEM
