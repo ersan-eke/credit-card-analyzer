@@ -37,3 +37,11 @@ def test_layout_box_is_read_as_prose_not_table():
     ps = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-ing.pdf"])
     page2 = " ".join(p.text for p in ps if p.page == 2)
     assert "VISA Card [Debitkarte]" in page2 and "Bargeldauszahlungen" in page2
+
+
+def test_overlapping_kerning_spaces_are_dropped():
+    # ING's PDF places space glyphs on top of the next letter: "Aus lands einsatz entgelt"
+    ps = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-ing.pdf"])
+    page2 = " ".join(p.text for p in ps if p.page == 2)
+    assert "Auslandseinsatzentgelt" in page2 and "Aus lands" not in page2
+    assert "Bargeldauszahlungen, an allen Geldautomaten" in page2  # real spaces stay

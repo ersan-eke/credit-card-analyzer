@@ -52,6 +52,19 @@ def _is_data_table(page, table) -> bool:
     return cell_words >= 0.8 * region_words
 
 
+def _drop_kerning_spaces(page):
+    """ING puts space glyphs on top of the next letter: "Aus lands einsatz entgelt"; real spaces end first."""
+    chars = page.chars
+    kerned = {
+        (c["x0"], c["top"])
+        for c, nxt in zip(chars, chars[1:], strict=False)
+        if c["text"] == " " and abs(nxt["top"] - c["top"]) <= 1 and nxt["x0"] < c["x1"] - 0.5
+    }
+    return page.filter(
+        lambda o: not (o.get("object_type") == "char" and o["text"] == " " and (o["x0"], o["top"]) in kerned)
+    )
+
+
 def _page_text(page) -> str:
     """Prose outside tables, then each table as 'cell | cell' rows so columns stay attached to products."""
     tables = [t for t in page.find_tables() if _is_data_table(page, t)]
@@ -64,7 +77,7 @@ def _page_text(page) -> str:
 
 def read_pdf(path: Path) -> list[str]:
     with pdfplumber.open(path) as pdf:
-        return [_page_text(p) for p in pdf.pages]
+        return [_page_text(_drop_kerning_spaces(p)) for p in pdf.pages]
 
 
 def ingest_paths(paths: Iterable[Path]) -> list[Passage]:
