@@ -45,3 +45,15 @@ def test_overlapping_kerning_spaces_are_dropped():
     page2 = " ".join(p.text for p in ps if p.page == 2)
     assert "Auslandseinsatzentgelt" in page2 and "Aus lands" not in page2
     assert "Bargeldauszahlungen, an allen Geldautomaten" in page2  # real spaces stay
+
+
+def test_two_column_page_is_read_column_by_column():
+    hvb = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-hvb.pdf"])
+    page5 = "\n".join(p.text for p in hvb if p.page == 5)
+    assert "– an allen anderen Geldautomaten 2% mind. 5 EUR" in page5.splitlines()
+    # label/value layouts are not split: ING keeps label and fee on one line
+    ing = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-ing.pdf"])
+    assert any("bei Casinobetrieben, Lotteriegesellschaften und Wettbüros: 3,00% vom Umsatz" in p.text for p in ing)
+    # fee tables with a central gutter (C24, DKB) are not split either
+    c24 = ingest_paths([p for p in SAMPLES if p.name == "preis-leistung-c24.pdf"])
+    assert any("Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7" in p.text for p in c24 if p.page == 3)

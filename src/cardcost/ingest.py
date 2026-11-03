@@ -1,4 +1,5 @@
 import logging
+import re
 import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
@@ -75,9 +76,32 @@ def _page_text(page) -> str:
     return "\n".join([outside.extract_text() or "", *rows])
 
 
+_VALUE = re.compile(r"\d|EUR|€|%|kostenlos|kostenfrei")
+
+
+def _columns(page) -> list:
+    """Two text columns (HVB) interleave line by line in extract_text(); split them at a clear central gutter.
+    Label/value layouts can have a gutter too, but their right side is mostly fee values, so they stay whole."""
+    words, width = page.extract_words(), page.width
+    if not words:
+        return [page]
+    gutter = min(
+        (width * 0.45 + 2 * i for i in range(int(width * 0.12 / 2))),
+        key=lambda x: sum(w["x0"] < x < w["x1"] for w in words),
+    )
+    crossing = sum(w["x0"] < gutter < w["x1"] for w in words)
+    left = sum(w["x1"] <= gutter for w in words) / len(words)
+    right = [w for w in words if w["x0"] >= gutter]
+    values = sum(bool(_VALUE.search(w["text"])) for w in right) / max(len(right), 1)
+    # shortcut: thresholds fitted on six price lists (HVB columns <= 0.25 values, DKB/C24 fee layouts >= 0.32)
+    if crossing > 0.02 * len(words) or not 0.4 <= left <= 0.62 or values >= 0.3:
+        return [page]
+    return [page.crop((0, 0, gutter, page.height)), page.crop((gutter, 0, width, page.height))]
+
+
 def read_pdf(path: Path) -> list[str]:
     with pdfplumber.open(path) as pdf:
-        return [_page_text(_drop_kerning_spaces(p)) for p in pdf.pages]
+        return ["\n".join(_page_text(c) for c in _columns(_drop_kerning_spaces(p))) for p in pdf.pages]
 
 
 def ingest_paths(paths: Iterable[Path]) -> list[Passage]:
