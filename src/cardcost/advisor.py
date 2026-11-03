@@ -12,9 +12,13 @@ from cardcost.retrieval import Retriever
 
 log = logging.getLogger("cardcost.advisor")
 # Always retrieved next to the user's question, so a vague question cannot starve extraction of the fee pages.
-FEE_QUERY = (
-    "Bargeldauszahlung Geldautomat Entgelt Fremdwährung Auslandseinsatzentgelt Sollzinssatz Bargeldverfügung "
-    "Geldautomatenbetreiber Gebühr"
+# One line per fee, with every name the price lists use for it; a new synonym is a one-line change.
+FEE_QUERY = " ".join(
+    [
+        "Bargeldauszahlung Bargeldverfügung Abhebung Geldautomat Entgelt Gebühr",
+        "Fremdwährung Auslandseinsatzentgelt Währungsumrechnungsentgelt Wechselgebühr Wechsellimit",
+        "Geldautomatenbetreiber Sollzinssatz",
+    ]
 )
 
 

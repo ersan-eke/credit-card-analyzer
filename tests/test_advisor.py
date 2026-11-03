@@ -108,3 +108,10 @@ def test_k_grows_with_document_size():
     a = Advisor(Retriever(big + PASSAGES, mode="bm25"), FakeLLM())
     assert (a.k_for("big"), a.k_for("beta_card")) == (4, 3)
     assert len(a.retriever.search("Bargeld", "big", a.k_for("big"))) == 4
+
+
+def test_fee_query_reaches_revolut_fx_section():
+    # Revolut calls its FX fee "Wechselgebühr" / "Wechsellimit" (p5); the fee-terms query must find it for any question
+    rev = ingest_paths([Path(__file__).parent.parent / "samples/preis-leistung-revolut.pdf"])
+    a = Advisor(Retriever(rev, mode="bm25"), FakeLLM())
+    assert 5 in {p.page for p in a.passages_for("preis-leistung-revolut", "Was kostet das?")}
