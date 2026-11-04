@@ -147,3 +147,20 @@ def test_unresolved_product_offers_the_candidates():
     assert a.choice_labels() == {"beta_card:Platin": ["beta_card:Beta Classic", "beta_card:Beta Gold"]}
     assert list(a.resolve("Bargeld", wallet=["beta_card:Gold"])) == ["beta_card:Gold"]  # one-off wallet
     assert a.choices == {}
+
+
+def test_mentioned_cards_and_products():
+    from cardcost.advisor import mentioned
+
+    wallet = ["ing:VISA", "traderepublik", "hvb:HVB Mastercard", "hvb:HVB Mastercard AktivKonto", "beta_card:Gold"]
+    assert mentioned("Was kostet Trade Republic?", wallet) == ["traderepublik"]  # one letter apart: fuzzy
+    assert mentioned("Abhebung in Spanien", wallet) == []  # no false hit on short ids ("ing" in "Abhebung")
+    assert mentioned("HVB Mastercard, 300 EUR", wallet) == ["hvb:HVB Mastercard"]
+    assert mentioned("Mein HVB AktivKonto mit Mastercard", wallet) == ["hvb:HVB Mastercard AktivKonto"]
+    assert mentioned("HVB oder ING?", wallet) == ["ing:VISA", "hvb:HVB Mastercard", "hvb:HVB Mastercard AktivKonto"]
+
+
+def test_one_card_question_resolves_only_that_card():
+    r = Retriever(PASSAGES + ingest_paths([Path(__file__).parent.parent / "samples/alpha_card.pdf"]), mode="bm25")
+    a = Advisor(r, FakeLLM(), wallet=["alpha_card", "beta_card:Gold"])
+    assert list(a.resolve("Was kostet die Beta Gold für 300 EUR?")) == ["beta_card:Gold"]

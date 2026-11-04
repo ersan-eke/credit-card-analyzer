@@ -6,6 +6,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: c24 2<4 free 0.00; dkb 0; hvb max(6,5)=6.00; ing 0; rev usage unknown -> assumed used, max(6,1)=6.00; tr >=100 0
 
+Expected cost 0 EUR
+
 - `min_eur` = 2.00: 
   - `Jede weitere Bargeldauszahlung mit der ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
   - `Jede weitere Bargeldauszahlung im ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
@@ -20,6 +22,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: c24 allowance used 2.00; hvb 6.00; rev 6.00
 
+Expected cost 2.00 EUR
+
 - `min_eur` = 2.00: 
   - `Jede weitere Bargeldauszahlung mit der ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
   - `Jede weitere Bargeldauszahlung im ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
@@ -33,6 +37,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r03: Ich habe mit Revolut diesen Monat 2 Mal insgesamt 150 EUR abgehoben. Was kostet eine weitere Abhebung von 40 EUR?
 
 `preis-leistung-revolut`, page 3. Hand: rev 150+40<=200 and 2<5 free; tr 40<100 1.00; c24 assumed used 2.00; hvb max(0.80,5)=5.00. p12 states it again
+
+Expected cost 0 EUR
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
@@ -49,6 +55,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-revolut`, page 3. Hand: VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00
 
+Expected cost 2.00 EUR
+
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
   - `Kartenlose Geldautomatenauszahlungen mit BLIK: Für jede Auszahlung berechnen ⏎ wir eine Gebühr von 2 % des abgehobenen Betrags bzw. mindestens 5 PLN (je`
@@ -63,6 +71,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r05: Ich habe mit Revolut diesen Monat schon 5 Mal 50 EUR abgehoben. Was kosten 20 EUR am Automaten?
 
 `preis-leistung-revolut`, page 3. Hand: count cap hit first: max(0.40,1)=1.00; tr 20<100 1.00 (tie, label order); c24 2.00; hvb 5.00
+
+Expected cost 1.00 EUR
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
@@ -79,6 +89,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-traderepublik`, page 1. Hand: '1 € für Abhebungen unter 100 €' -> 1.00; rev assumed used max(1,1)=1.00; c24 2.00; hvb 5.00
 
+Expected cost 1.00 EUR
+
 - `min_eur` = 1: 
   - `Anlagevolumen pro Ausführung: 10 € bis 10.000 €. Konto ⏎ Abwicklungskostenpauschale2 1,00 € Kontoführung kostenfrei`
   - `Ersatzdebitkarte4 Applikation ⏎ je Standardweisung 1,00 € Versand der Debitkarte kostenfrei`
@@ -90,6 +102,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r07: Kostet eine Abhebung von 100 EUR mit Trade Republic etwas?
 
 `preis-leistung-traderepublik`, page 1. Hand: exactly 100 is not 'unter 100' -> 0.00; rev 2.00; c24 2.00; hvb 5.00
+
+Expected cost 0 EUR
 
 - `min_eur` = 1: 
   - `Anlagevolumen pro Ausführung: 10 € bis 10.000 €. Konto ⏎ Abwicklungskostenpauschale2 1,00 € Kontoführung kostenfrei`
@@ -103,6 +117,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-dkb:Kreditkarte`, page 2. Hand: 'An Geldautomaten in Euro kostenlos seitens der DKB AG'; trap: 'Am Schalter 3,00 %, mind. 5,00 EUR' is the counter, not the ATM; rev 4.00; hvb max(4,5)=5.00
 
+Expected cost 0.00 EUR
+
 - `percent` = 0: 
   - `An Geldautomaten ⏎ in Euro kostenlos seitens der DKB AG2N`
   - `Kartenversand per Kurier 48,50 EUR ⏎ Notfallbargeld (einmalige weltweite Zusendung von Bargeld) kostenlos`
@@ -114,6 +130,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r09 (VERIFY): Welche Gebühr nimmt die HVB Mastercard für eine Abhebung von 500 EUR an fremden Geldautomaten?
 
 `preis-leistung-hvb:HVB Mastercard`, page 5. Hand: VERIFY: '– an allen anderen Geldautomaten 2% mind. 5 EUR' (two-column page, lines interleave); account exceptions (ExklusivKonto free, AktivKonto 2,50 EUR) ignored; hvb 10.00, rev 10.00 tie -> label order
+
+Expected cost 10.00 EUR
 
 - `percent` = 2: 
   - `den Zahlungsdienste oder sonstigen Dienstleistungen (z. B. Überweisung) bereits in Geldautomaten in Fremdwährung (Umrechnungskurs ⏎ dem Preis für die Kontoführung enthalten sind, der für ein Kontomodell berechnet wird siehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR`
@@ -131,6 +149,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-hvb:HVB Mastercard`, page 5. Hand: hvb max(4,5)=5.00 (minimum side of the 250 EUR crossover); rev 4.00
 
+Expected cost 5.00 EUR
+
 - `percent` = 2: 
   - `den Zahlungsdienste oder sonstigen Dienstleistungen (z. B. Überweisung) bereits in Geldautomaten in Fremdwährung (Umrechnungskurs ⏎ dem Preis für die Kontoführung enthalten sind, der für ein Kontomodell berechnet wird siehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR`
   - `und in Fremdwährung 3% mind. 5 EUR ⏎ 2 Bargeldauszahlung mit der Debitkarte am Geldautomaten Bargeldeinzahlung`
@@ -147,6 +167,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-ing:VISA`, page 2. Hand: VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev cash fee + 0.5% FX (limit assumed used up)
 
+Expected cost 6.60 EUR
+
 - `percent` = 0: 
   - `in Ländern mit Eurowährung ⏎ Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere kostenlos, ggf. zuzüglich Entgelt`
   - `in Deutschland: kostenlos ⏎ in Ländern mit Eurowährung: kostenlos`
@@ -159,6 +181,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-ing:VISA`, page 2. Hand: eurozone: no FX; 'ggf. zuzüglich Entgelt des Geldautomatenbetreibers' has no amount -> not added; hvb 6.00, rev 6.00
 
+Expected cost 0.00 EUR
+
 - `percent` = 0: 
   - `in Ländern mit Eurowährung ⏎ Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere kostenlos, ggf. zuzüglich Entgelt`
   - `in Deutschland: kostenlos ⏎ in Ländern mit Eurowährung: kostenlos`
@@ -166,6 +190,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r13: Was kostet Revolut beim Bezahlen in US-Dollar?
 
 `preis-leistung-revolut`, page 5. Hand: 'Standard: Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %', charged on the excess only; usage not given -> limit counted as used up: 0.5% of 100 = 0.50; hvb 1.75; ing 2.20
+
+Expected cost 0.50 EUR
 
 - `fx_percent` = 0.5: 
   - `Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen ⏎ Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.`
@@ -177,6 +203,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-ing:VISA`, page 2. Hand: compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40; rev 0.5% FX (limit assumed used up)
 
+Expected cost 4.40 EUR
+
 - `fx_percent` = 2.20: 
   - `Beträge abgehoben werden: des Geld auto maten betreibers ⏎ in Ländern des EWR2 mit anderer EWR-Währung: A uf den Betrag in Euro 2,20 %`
   - `des Geldauto maten betreibers. ⏎ in allen anderen Ländern mit Fremdwährung4: A uf den Betrag in Euro 2,20 %`
@@ -186,6 +214,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-hvb:HVB Mastercard`, page 8. Hand: 'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block); rev 0.5% FX (limit assumed used up)
 
+Expected cost 1.75 EUR
+
 - `fx_percent` = 1.75: 
   - `– Einsatz der Kreditkarte zum Bezahlen in Fremdwährung 1 Inlands-Scheckverkehr ⏎ (Umrechnungskurs siehe Teil B, letztes Unterkapitel) 1,75% vom Umsatz – Scheckeinlösungen/Scheckgutschriften (gilt nur für Nichtverbraucher) 0,41 EUR`
   - `– Einsatz der Kreditkarte zum Bezahlen in Fremdwährung über 100,00 EUR bis 12.500,00 EUR oder Gegenwert 20,00 EUR ⏎ – HVB Visa Card 1,75% vom Umsatz über 12.500,00 EUR oder Gegenwert 2,00 ‰, max. 250,00 EUR`
@@ -193,6 +223,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r16: Gibt es bei Trade Republic ein Währungsumrechnungsentgelt?
 
 `preis-leistung-traderepublik`, page 1. Hand: 'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %); rev 0.5% FX (limit assumed used up)
+
+Expected cost 0.00 EUR
 
 - `fx_percent` = 0: 
   - `unter 100 € ⏎ je freiwillige Weisung für Wandlung / 10,00 € Währungsumrechnungsentgelt 0 €`
@@ -203,6 +235,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); rev assumed used 2.00; hvb 5.00
 
+Expected cost 0 EUR
+
 - `free_count` = 4: 
   - `über die ReiseBank AG8 ⏎ 4. Bargeldauszahlungslimite der C24`
   - `Kalendermonat) ⏎ Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7 20 x 0,00 EUR7 -`
@@ -211,6 +245,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r18 (VERIFY): Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?
 
 `preis-leistung-dkb:Kreditkarte`, page 2. Hand: VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev cash fee + 0.5% FX (limit assumed used up)
+
+Expected ranking preis-leistung-dkb:Kreditkarte > preis-leistung-traderepublik > preis-leistung-c24:Smartkonto > preis-leistung-ing:VISA > preis-leistung-revolut > preis-leistung-hvb:HVB Mastercard
 
 - `percent` = 0: 
   - `An Geldautomaten ⏎ in Euro kostenlos seitens der DKB AG2N`
@@ -231,6 +267,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-hvb:HVB Mastercard AktivKonto`, page 5. Hand: VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve
 
+Expected cost 2.50 EUR
+
 - `percent` = null: check the page states no number for it
 - `min_eur` = 2.50: 
   - `und der Cash Group kostenfrei Beleghafte Aufträge zwei Geschäftstage ⏎ – an allen anderen Geldautomaten 2,50 EUR Beleglose Aufträge einen Geschäftstag`
@@ -243,6 +281,8 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 ## r20: Ich habe mit Revolut diesen Monat erst 400 EUR umgetauscht. Was kostet ein Einkauf über 300 EUR in den USA?
 
 `preis-leistung-revolut`, page 5. Hand: 400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60
+
+Expected cost 0.00 EUR
 
 - `fx_percent` = 0.5: 
   - `Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen ⏎ Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.`

@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from cardcost import db
@@ -39,6 +40,34 @@ def match_product(wanted: str, options: list[FeeSchedule]) -> list[FeeSchedule]:
     return [f for f in named if extra and extra.get(id(f)) == min(extra.values())]
 
 
+COMPARE = re.compile(r"welche karte|günstigste|vergleich|which card|cheapest", re.IGNORECASE)
+_GENERIC = {"preis", "leistung", "card", "karte"}
+
+
+def _named(token: str, seen: set[str]) -> bool:
+    # shortcut: cards are named by their file name; long names match fuzzily ("Trade Republic" ~ traderepublik),
+    # short ids (ing, dkb) only exactly. Upgrade to a name list per card when a bank's name and file name differ more.
+    if len(token) <= 4:
+        return token in seen
+    return any(SequenceMatcher(None, token, w).ratio() >= 0.85 for w in seen)
+
+
+def mentioned(question: str, wallet: list[str]) -> list[str]:
+    """Wallet entries the question names. Of a named card, the entries whose product words all appear win,
+    the most specific first ("HVB AktivKonto … Mastercard" -> the AktivKonto entry); otherwise all its entries."""
+    words = re.findall(r"\w+", question.lower())
+    seen = set(words) | {a + b for a, b in zip(words, words[1:], strict=False)}
+    found = []
+    for card in dict.fromkeys(e.partition(":")[0] for e in wallet):
+        if not any(_named(t, seen) for t in set(re.split(r"[-_]", card.lower())) - _GENERIC):
+            continue
+        entries = [e for e in wallet if e.partition(":")[0] == card]
+        size = {e: len(_words(e.partition(":")[2])) for e in entries if _words(e.partition(":")[2]) <= seen}
+        size = {e: n for e, n in size.items() if n}
+        found += [e for e in entries if size and size.get(e) == max(size.values())] or entries
+    return found
+
+
 class Advisor:
     def __init__(self, retriever: Retriever, llm, wallet: list[str] | None = None, conn=None, k: int = 3):
         self.retriever, self.llm, self.k = retriever, llm, k
@@ -61,13 +90,19 @@ class Advisor:
         unique = {p.id: p for p in found}
         return sorted(unique.values(), key=lambda p: p.id)
 
+    def scope(self, question: str) -> list[str]:
+        """A question naming cards is about those cards only; a comparison ("welche Karte …") covers the wallet."""
+        if COMPARE.search(question):
+            return self.wallet
+        return mentioned(question, self.wallet) or self.wallet
+
     def resolve(self, question: str, wallet: list[str] | None = None) -> dict[str, FeeSchedule | None]:
         """Wallet entry 'card' or 'card:Product' -> its fees. A multi-product card without a choice lists all.
-        `wallet` overrides the saved wallet for this call."""
+        Only the cards the question is about (see scope); `wallet` overrides that for this call."""
         by_card: dict[str, list[FeeSchedule]] = {}
         fees: dict[str, FeeSchedule | None] = {}
         self.choices = {}
-        for entry in wallet or self.wallet:
+        for entry in wallet or self.scope(question):
             card, _, product = entry.partition(":")
             if card not in by_card:
                 by_card[card] = extract_fees(card, self.passages_for(card, question), self.llm, self.conn)

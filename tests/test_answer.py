@@ -60,3 +60,14 @@ def test_two_bad_answers_fall_back_to_template():
     assert source == "template"
     assert text.startswith("Am günstigsten für 300,00 EUR Bargeld (DE): alpha_card mit 6,00 EUR.")
     assert bad_numbers(text, allowed_numbers(TABLE, FEES, S)) == []
+
+
+def test_template_for_one_card_is_not_a_ranking():
+    from decimal import Decimal
+
+    from cardcost.answer import template
+    from cardcost.models import CostLine, Scenario
+
+    line = CostLine(label="c24:Smartkonto", total=Decimal("2.00"))
+    text = template([line], Scenario(kind="cash", amount_eur=Decimal("300"), country="DE"))
+    assert text == "c24:Smartkonto: 2,00 EUR für 300,00 EUR Bargeld (DE)."

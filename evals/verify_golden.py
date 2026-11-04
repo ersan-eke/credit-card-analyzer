@@ -48,6 +48,10 @@ def sheet(golden: dict) -> tuple[str, int]:
         out.append(f"## {q['id']}{' (VERIFY)' if verify else ''}: {q['question']}\n")
         label = q["card"] + (f":{q['product']}" if q["product"] else "")
         out.append(f"`{label}`, page {q['expected_page']}. Hand: {q['_hand']}\n")
+        want = (
+            f"cost {q['expected_cost']} EUR" if "expected_cost" in q else "ranking " + " > ".join(q["expected_ranking"])
+        )
+        out.append(f"Expected {want}\n")
         lines = []
         if q["expected_page"]:
             with pdfplumber.open(ROOT / "samples" / f"{q['card']}.pdf") as pdf:

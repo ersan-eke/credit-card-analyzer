@@ -40,7 +40,8 @@ are redacted before anything is logged.
 ```bash
 uv run cardcost ingest [file.pdf ...]          # corpus = samples/ + data/private/ (gitignored) + webhook uploads
 uv run cardcost products                       # card products found, e.g. beta_card:Beta Classic, beta_card:Beta Gold
-uv run cardcost wallet alpha_card beta_card:Gold   # pick the account/card types you own (default: all)
+uv run cardcost wallet --choose                # per bank, pick the cards/account models its documents name
+uv run cardcost wallet alpha_card beta_card:Gold   # or name them directly (default: all)
 uv run cardcost ask "Einkauf über 200 EUR in der Schweiz"   # flags: --amount --kind cash|purchase --country US --days 30
 uv run cardcost ask "300 EUR abheben" --used preis-leistung-c24=2 --used preis-leistung-revolut=3:150
 uv run cardcost matrix --countries DE,FR,US    # which card wins for which amount: "1-375 EUR -> alpha_card; 376-2000 EUR -> beta_card:Gold"
@@ -59,7 +60,10 @@ take the same `used` strings. If usage is not given, the allowance counts as use
 A withdrawal that only partly fits the amount cap is charged in full, because none of the documents says how an overrun is charged.
 FX has its own allowance (`fx_free_eur`, Revolut: "Wechsellimit von 1.000 EUR pro Monat", then 0,5 %). There the document
 does say that only the excess is charged, so only the excess is. Account-model prices (HVB: the Mastercard costs 2,50 EUR in
-the AktivKonto) are extracted as separate products named `<card> / <Kontomodell>` and picked in the wallet.
+the AktivKonto) are extracted as separate products named `<card> / <Kontomodell>` and picked in the wallet (`wallet --choose`).
+If a wallet entry fits two products equally (or none), `ask` lists the candidates and saves your pick; the API returns
+`choose_product` and takes `wallet=`, the MCP tools return `choose_one_of`. A question that names one card ("… mit der C24
+Mastercard") is answered for that card only; "Welche Karte ist am günstigsten …" compares the whole wallet.
 
 **Webhook**: `X-Timestamp: <unix s>` and `X-Signature: hex(HMAC-SHA256(CARDCOST_WEBHOOK_SECRET, "<timestamp>.<raw body>"))`,
 body `{"event_id": "...", "path": "data/private/x.pdf"}`. A request is rejected if it is older than 5 minutes, if its event id was already seen (it gets 200 and is not queued again), or if the path is outside `data/private/`.
@@ -75,17 +79,18 @@ claude mcp add cardcost -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY -e CARDCOST_MODE
 ## Eval
 
 `evals/golden.json`: 20 hand-checked questions over the 3 synthetic PDFs in `samples/`. They include 4 "not stated" questions, compound and umlaut terms, amounts on both sides of each minimum-fee crossover (200 / 250 / 750 EUR), and an injection test.
-Each question's expected costs are written out in its `_hand` field. `evals/run_eval.py` scores the three steps separately:
+Each question's expected costs are written out in its `_hand` field. `evals/run_eval.py` scores each step separately:
 retrieval (expected page in the card's top 3, 17 questions), context (expected page among the passages the extractor actually
-receives: question top-k plus a fixed fee-terms query, with k growing by one per 3 pages), extraction (exact Decimal match, null must be null) and
-final ranking. Run it with `--live` once to record LLM answers into `evals/llm_cache.json`. CI then replays them without a key
+receives: question top-k plus a fixed fee-terms query, with k growing by one per 3 pages), extraction (exact Decimal match, null must be null),
+cost (one-card questions: that card's total, unknown must be unknown) and ranking (only for comparison questions, so a one-card
+question never fails on another card's fee). Run it with `--live` once to record LLM answers into `evals/llm_cache.json`. CI then replays them without a key
 and fails if hybrid extraction accuracy is below 0.9.
 
-| mode | retrieval@3 | context | extraction | ranking |
-|---|---|---|---|---|
-| bm25 | 1.00 | 1.00 | _pending live run_ | _pending_ |
-| vector | 0.94 | 1.00 | _pending_ | _pending_ |
-| hybrid | 0.94 | 1.00 | _pending_ | _pending_ |
+| mode | retrieval@3 | context | extraction | cost | ranking |
+|---|---|---|---|---|---|
+| bm25 | 1.00 | 1.00 | _pending live run_ | _pending_ | _pending_ |
+| vector | 0.94 | 1.00 | _pending_ | _pending_ | _pending_ |
+| hybrid | 0.94 | 1.00 | _pending_ | _pending_ | _pending_ |
 
 `evals/golden_real.json` is a **draft** of 20 questions over the 6 real price lists (C24, DKB, HVB, ING, Revolut,
 Trade Republic). They cover the allowance rules on both sides of each limit, Revolut's FX allowance, a "kostenlos" fee, the DKB
@@ -93,11 +98,11 @@ counter-vs-ATM trap, HVB's two-column layout and account-model prices. The expec
 text and checked against the calc, but **not yet verified by a human against the PDFs**. Questions marked `VERIFY` rest on an
 interpretation. Run it with `--golden evals/golden_real.json`.
 
-| real docs (draft) | retrieval@3 | context | extraction | ranking |
-|---|---|---|---|---|
-| bm25 | 0.90 | 1.00 | _pending live run_ | _pending_ |
-| vector | 0.60 | 1.00 | _pending_ | _pending_ |
-| hybrid | 0.70 | 1.00 | _pending_ | _pending_ |
+| real docs (draft) | retrieval@3 | context | extraction | cost | ranking |
+|---|---|---|---|---|---|
+| bm25 | 0.90 | 1.00 | _pending live run_ | _pending_ | _pending_ |
+| vector | 0.60 | 1.00 | _pending_ | _pending_ | _pending_ |
+| hybrid | 0.70 | 1.00 | _pending_ | _pending_ | _pending_ |
 
 How it got here (each step one commit, numbers on the 18-question draft unless noted):
 
@@ -165,7 +170,11 @@ gutter and must stay whole (tested).
 - Allowances are tracked per wallet entry. C24's footnote shares one allowance across EUR and FX withdrawals, which fits;
   allowances shared between two cards of the same account do not.
 - Account-model products are matched by words: the exact name first, then the product containing every word of the wallet entry
-  with the fewest extra words. Two equally good candidates resolve to "not found" (logged), never to a guess.
+  with the fewest extra words. Two equally good candidates are never guessed between: the user chooses.
+- Which card a question names is matched against the file name (`preis-leistung-traderepublik` ~ "Trade Republic": fuzzy
+  for long names, exact for short ids like `ing`). A bank whose name differs more from its file name needs a name list.
+- Product names come from the LLM per extraction; a saved pick stays valid only while the extractor names it the same way
+  (exact match first, then words).
 - The column split uses thresholds fitted on six price lists (gutter at 45-57 % of the width, right side < 30 % fee values).
   A test pins which pages split (HVB 1-9, 11, 12; Trade Republic 1), so any change to them shows up. Full-width lines that span
   the gutter (headings) are read whole.

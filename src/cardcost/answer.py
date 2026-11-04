@@ -55,6 +55,8 @@ def template(table: list[CostLine], s: Scenario) -> str:
     known = [ln for ln in table if ln.total is not None]
     unknown = [ln for ln in table if ln.total is None]
     out = []
+    if len(table) == 1 and known:  # a one-card question gets its cost, not a ranking
+        return f"{known[0].label}: {eur(known[0].total)} EUR für {eur(s.amount_eur)} EUR {what} ({s.country})."
     if known:
         best = known[0]
         out.append(
