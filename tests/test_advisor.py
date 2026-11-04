@@ -37,7 +37,6 @@ def test_selected_product_and_default_expansion():
     r = Retriever(PASSAGES, mode="bm25")
     assert list(Advisor(r, FakeLLM(), wallet=["beta_card:Gold"]).resolve("Bargeld")) == ["beta_card:Gold"]
     assert list(Advisor(r, FakeLLM()).resolve("Bargeld")) == ["beta_card:Beta Classic", "beta_card:Beta Gold"]
-    assert Advisor(r, FakeLLM(), wallet=["beta_card:Platin"]).resolve("Bargeld") == {"beta_card:Platin": None}
 
 
 def test_parse_scenario():
@@ -124,11 +123,27 @@ def test_match_product_by_words():
     def f(name):
         return FeeSchedule(card="hvb", product=name, source_file="x.pdf", source_page=1, confidence=1.0)
 
+    def names(found):
+        return [x.product for x in found]
+
     options = [f("HVB Mastercard"), f("HVB Mastercard Gold"), f("HVB Mastercard (HVB AktivKonto)")]
-    assert match_product("hvb mastercard", options).product == "HVB Mastercard"  # exact beats fewer words
-    assert match_product("HVB Mastercard / HVB AktivKonto", options).product == "HVB Mastercard (HVB AktivKonto)"
-    assert match_product("AktivKonto", options).product == "HVB Mastercard (HVB AktivKonto)"
-    assert match_product("Gold", options).product == "HVB Mastercard Gold"
-    assert match_product("Platinum", options) is None
+    assert names(match_product("hvb mastercard", options)) == ["HVB Mastercard"]  # exact beats fewer words
+    assert names(match_product("HVB Mastercard / HVB AktivKonto", options)) == ["HVB Mastercard (HVB AktivKonto)"]
+    assert names(match_product("AktivKonto", options)) == ["HVB Mastercard (HVB AktivKonto)"]
+    assert names(match_product("Gold", options)) == ["HVB Mastercard Gold"]
+    assert match_product("Platinum", options) == []
     tie = [f("HVB Mastercard Gold"), f("HVB Mastercard Basis")]
-    assert match_product("Mastercard", tie) is None  # never guesses between equal candidates
+    assert names(match_product("Mastercard", tie)) == ["HVB Mastercard Gold", "HVB Mastercard Basis"]  # user picks
+
+
+def test_unresolved_product_offers_the_candidates():
+    r = Retriever(PASSAGES, mode="bm25")
+    a = Advisor(r, FakeLLM(), wallet=["beta_card:Beta"])  # both products contain "Beta" and one extra word
+    assert a.resolve("Bargeld") == {"beta_card:Beta": None}
+    assert [f.product for f in a.choices["beta_card:Beta"]] == ["Beta Classic", "Beta Gold"]
+    a.wallet = ["beta_card:Platin"]  # no match: every product of the card is a candidate
+    a.resolve("Bargeld")
+    assert [f.product for f in a.choices["beta_card:Platin"]] == ["Beta Classic", "Beta Gold"]
+    assert a.choice_labels() == {"beta_card:Platin": ["beta_card:Beta Classic", "beta_card:Beta Gold"]}
+    assert list(a.resolve("Bargeld", wallet=["beta_card:Gold"])) == ["beta_card:Gold"]  # one-off wallet
+    assert a.choices == {}

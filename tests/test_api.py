@@ -47,3 +47,26 @@ def test_stale_timestamp(client):
 def test_path_outside_inbox_rejected(client):
     assert _post(client, {"event_id": "evt-2", "path": "/etc/passwd.pdf"}).status_code == 400
     assert _post(client, {"event_id": "evt-3", "path": "data/private/../../x.pdf"}).status_code == 400
+
+
+def test_ask_returns_product_choices_and_takes_a_wallet(client, monkeypatch):
+    import cardcost.advisor
+
+    seen = {}
+
+    class Fake:
+        fees, llm = {}, None
+
+        def cost_table(self, q, scenario, wallet=None):
+            seen["wallet"] = wallet
+            return []
+
+        def choice_labels(self):
+            return {"hvb:Mastercard": ["hvb:HVB Mastercard", "hvb:HVB Mastercard / HVB AktivKonto"]}
+
+    monkeypatch.setattr(cardcost.advisor, "build_advisor", lambda conn: Fake())
+    monkeypatch.setattr("cardcost.answer.answer", lambda *a: ("text", "template"))
+    r = client.get("/ask", params={"q": "300 EUR mit HVB", "wallet": ["hvb:Mastercard"]})
+    assert r.status_code == 200
+    assert seen["wallet"] == ["hvb:Mastercard"]
+    assert r.json()["choose_product"]["hvb:Mastercard"][1] == "hvb:HVB Mastercard / HVB AktivKonto"

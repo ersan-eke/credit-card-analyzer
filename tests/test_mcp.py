@@ -21,8 +21,13 @@ GOLD = FeeSchedule(
 
 
 class FakeAdvisor:
-    def resolve(self, question):
+    choices = {}
+
+    def resolve(self, question, wallet=None):
         return {"beta_card:Gold": GOLD, "gamma_card": None}
+
+    def choice_labels(self):
+        return {}
 
 
 def test_tools_are_read_only_and_compute(monkeypatch):
@@ -43,3 +48,17 @@ def test_tools_are_read_only_and_compute(monkeypatch):
         ("beta_card:Gold", "7.50"),
         ("gamma_card", None),
     ]
+
+
+def test_ambiguous_product_returns_the_choices(monkeypatch):
+    class Ambiguous(FakeAdvisor):
+        def resolve(self, question, wallet=None):
+            assert wallet == ["beta_card:Beta"]  # get_fee prices any card:product, not only wallet entries
+            return {"beta_card:Beta": None}
+
+        def choice_labels(self):
+            return {"beta_card:Beta": ["beta_card:Beta Classic", "beta_card:Beta Gold"]}
+
+    monkeypatch.setattr(mcp_server, "_advisor", Ambiguous)
+    out = mcp_server.get_fee("beta_card:Beta", "300")
+    assert out["choose_one_of"] == ["beta_card:Beta Classic", "beta_card:Beta Gold"]

@@ -94,3 +94,21 @@ def test_ask_usage_asks_fx_allowance_only_in_foreign_currency():
     assert ask_usage({"rev": rev}, {}, buy_us, ask=lambda q: "400") == {"rev": Usage(count=0, fx_eur=Decimal("400"))}
     buy_fr = Scenario(kind="purchase", amount_eur=Decimal("100"), country="FR")
     assert ask_usage({"rev": rev}, {}, buy_fr, ask=lambda q: 1 / 0) == {}
+
+
+def test_choose_products_asks_and_saves_the_choice(tmp_path, capsys):
+    from cardcost.cli import choose_products
+
+    conn = db.connect(str(tmp_path / "t.db"))
+    db.wallet_add(conn, "hvb:Mastercard")
+    db.wallet_add(conn, "dkb")
+
+    def f(name):
+        return FeeSchedule(card="hvb", product=name, source_file="x.pdf", source_page=1, confidence=1.0)
+
+    options = [f("HVB Mastercard"), f("HVB Mastercard / HVB AktivKonto")]
+    fees = {"hvb:Mastercard": None, "dkb": None}
+    fees = choose_products(conn, fees, {"hvb:Mastercard": options}, ask=lambda _: "2")
+    assert "2) HVB Mastercard / HVB AktivKonto" in capsys.readouterr().out
+    assert fees == {"dkb": None, "hvb:HVB Mastercard / HVB AktivKonto": options[1]}
+    assert db.wallet(conn) == ["dkb", "hvb:HVB Mastercard / HVB AktivKonto"]  # next question needs no choice

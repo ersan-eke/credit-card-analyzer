@@ -64,6 +64,7 @@ def ask(
     kind: str | None = None,
     days: int = 0,
     used: Annotated[list[str], Query(description="withdrawals this period, e.g. c24=2 or revolut=3:150")] = [],  # noqa: B006
+    wallet: Annotated[list[str], Query(description="cards to compare instead of the saved wallet, e.g. hvb:X")] = [],  # noqa: B006
 ):
     from cardcost.advisor import build_advisor, parse_scenario, parse_usage
     from cardcost.answer import answer
@@ -75,7 +76,7 @@ def ask(
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     advisor = build_advisor(conn)
-    table = advisor.cost_table(q, scenario)
+    table = advisor.cost_table(q, scenario, wallet or None)
     text, source = answer(q, scenario, table, advisor.fees, advisor.llm)
     return {
         "run_id": run_id,
@@ -83,4 +84,5 @@ def ask(
         "answer_source": source,
         "scenario": scenario,
         "table": [line.model_dump() for line in table],
+        "choose_product": advisor.choice_labels(),  # ambiguous entries: ask again with wallet=<one of these>
     }

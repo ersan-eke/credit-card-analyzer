@@ -151,3 +151,9 @@ def wallet(conn) -> list[str]:
 def wallet_add(conn, entry: str) -> None:
     with conn:
         conn.execute("INSERT OR IGNORE INTO wallet (entry) VALUES (?)", (entry,))
+
+
+def wallet_set(conn, entries: list[str]) -> None:
+    with conn:
+        conn.execute("DELETE FROM wallet")
+        conn.executemany("INSERT OR IGNORE INTO wallet (entry) VALUES (?)", [(e,) for e in entries])

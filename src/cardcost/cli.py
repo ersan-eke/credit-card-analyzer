@@ -68,6 +68,23 @@ def ask_usage(
     return used
 
 
+def choose_products(
+    conn, fees: dict[str, FeeSchedule | None], choices: dict[str, list[FeeSchedule]], ask=input
+) -> dict[str, FeeSchedule | None]:
+    """Let the user pick the product a wallet entry means; the pick replaces the entry in the saved wallet."""
+    wallet = db.wallet(conn)
+    for entry, options in choices.items():
+        print(f"{entry}: which product do you have?")
+        for i, f in enumerate(options, 1):
+            print(f"  {i}) {f.product}")
+        pick = options[int(ask("number: ")) - 1]
+        chosen = f"{entry.partition(':')[0]}:{pick.product}"
+        fees = {k: v for k, v in fees.items() if k != entry} | {chosen: pick}
+        wallet = [chosen if e == entry else e for e in wallet]
+    db.wallet_set(conn, wallet)
+    return fees
+
+
 def cmd_ask(conn, args) -> None:
     run_id = new_run_id()
     used = parse_usage(args.used)
@@ -77,10 +94,16 @@ def cmd_ask(conn, args) -> None:
     advisor = build_advisor(conn, args.mode)
     fees = advisor.resolve(args.question)
     if sys.stdin.isatty():
+        fees = choose_products(conn, fees, advisor.choices)
         used = ask_usage(fees, used, scenario)
+    elif advisor.choices:
+        print(
+            "ambiguous products, choose one with `cardcost wallet`: "
+            + "; ".join(f"{e} -> {', '.join(f.product for f in fs)}" for e, fs in advisor.choices.items())
+        )
     scenario = scenario.model_copy(update={"used": used})
     table = rank(fees, scenario)
-    text, source = answer(args.question, scenario, table, advisor.fees, advisor.llm)
+    text, source = answer(args.question, scenario, table, fees, advisor.llm)
     print(f"{text}\n\n{render_table(table)}\n\n(answer: {source}, run {run_id}, scenario {scenario.model_dump_json()})")
     if pending := db.pending_reviews(conn):
         print(f"{len(pending)} extraction(s) waiting for review: cardcost review list")

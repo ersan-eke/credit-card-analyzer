@@ -26,19 +26,17 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.lower()))
 
 
-def match_product(wanted: str, options: list[FeeSchedule]) -> FeeSchedule | None:
-    """Exact name first; else the product containing every word of `wanted` with the fewest extra words, if unique.
-    Punctuation is ignored, so "HVB Mastercard / HVB AktivKonto" finds "HVB Mastercard (HVB AktivKonto)"."""
+def match_product(wanted: str, options: list[FeeSchedule]) -> list[FeeSchedule]:
+    """Exact name first; else the products containing every word of `wanted` with the fewest extra words.
+    One result is a match; several are equally good, so the user chooses. Punctuation is ignored, so
+    "HVB Mastercard / HVB AktivKonto" finds "HVB Mastercard (HVB AktivKonto)"."""
     named = [f for f in options if f.product]
     exact = [f for f in named if f.product.lower() == wanted.lower()]
     if len(exact) == 1:
-        return exact[0]
+        return exact
     want = _words(wanted)
     extra = {id(f): len(_words(f.product) - want) for f in named if want <= _words(f.product)}
-    if not extra:
-        return None
-    best = [f for f in named if extra.get(id(f)) == min(extra.values())]
-    return best[0] if len(best) == 1 else None
+    return [f for f in named if extra and extra.get(id(f)) == min(extra.values())]
 
 
 class Advisor:
@@ -47,6 +45,7 @@ class Advisor:
         self.conn = conn if conn is not None else db.connect(":memory:")
         self.wallet = wallet or sorted({p.card_id for p in retriever.passages})
         self.fees: dict[str, FeeSchedule | None] = {}
+        self.choices: dict[str, list[FeeSchedule]] = {}  # wallet entry -> products the user must choose between
         self.pages: dict[str, int] = {}
         for p in retriever.passages:
             self.pages[p.card_id] = max(self.pages.get(p.card_id, 0), p.page)
@@ -62,19 +61,23 @@ class Advisor:
         unique = {p.id: p for p in found}
         return sorted(unique.values(), key=lambda p: p.id)
 
-    def resolve(self, question: str) -> dict[str, FeeSchedule | None]:
-        """Wallet entry 'card' or 'card:Product' -> its fees. A multi-product card without a choice lists all."""
+    def resolve(self, question: str, wallet: list[str] | None = None) -> dict[str, FeeSchedule | None]:
+        """Wallet entry 'card' or 'card:Product' -> its fees. A multi-product card without a choice lists all.
+        `wallet` overrides the saved wallet for this call."""
         by_card: dict[str, list[FeeSchedule]] = {}
         fees: dict[str, FeeSchedule | None] = {}
-        for entry in self.wallet:
+        self.choices = {}
+        for entry in wallet or self.wallet:
             card, _, product = entry.partition(":")
             if card not in by_card:
                 by_card[card] = extract_fees(card, self.passages_for(card, question), self.llm, self.conn)
             options = by_card[card]
             if product:
-                fees[entry] = match_product(product, options)
-                if fees[entry] is None:
-                    log.warning("product_not_found", extra={"entry": entry, "found": [f.product for f in options]})
+                found = match_product(product, options)
+                fees[entry] = found[0] if len(found) == 1 else None
+                if fees[entry] is None:  # never guess: a tie, or with no match every product, goes back to the user
+                    self.choices[entry] = found or [f for f in options if f.product]
+                    log.warning("product_not_resolved", extra={"entry": entry, "found": [f.product for f in options]})
             elif len(options) <= 1:
                 fees[entry] = options[0] if options else None
             else:
@@ -82,8 +85,12 @@ class Advisor:
         self.fees = fees
         return fees
 
-    def cost_table(self, question: str, scenario: Scenario) -> list[CostLine]:
-        return rank(self.resolve(question), scenario)
+    def choice_labels(self) -> dict[str, list[str]]:
+        """Unresolved wallet entry -> the 'card:Product' entries the user can choose from."""
+        return {e: [f"{e.partition(':')[0]}:{f.product}" for f in fs] for e, fs in self.choices.items()}
+
+    def cost_table(self, question: str, scenario: Scenario, wallet: list[str] | None = None) -> list[CostLine]:
+        return rank(self.resolve(question, wallet), scenario)
 
 
 COUNTRIES = {
