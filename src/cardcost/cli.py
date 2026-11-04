@@ -30,7 +30,26 @@ def cmd_products(conn, args) -> None:
         print(label if fee else f"{label}  (no fees extracted, see `cardcost review list`)")
 
 
+def choose_wallet(labels: list[str], ask=input) -> list[str]:
+    """Per card, the products its documents name (incl. account models); the user picks the ones they own."""
+    by_card: dict[str, list[str]] = {}
+    for label in labels:
+        by_card.setdefault(label.partition(":")[0], []).append(label)
+    chosen = []
+    for card, options in by_card.items():
+        print(f"{card}:")
+        for i, label in enumerate(options, 1):
+            print(f"  {i}) {label.partition(':')[2] or label}")
+        picks = ask("which do you own? numbers, comma-separated, Enter = none: ")
+        chosen += [options[int(n) - 1] for n in picks.replace(" ", "").split(",") if n]
+    return chosen
+
+
 def cmd_wallet(conn, args) -> None:
+    if args.choose:
+        advisor = build_advisor(conn, args.mode)
+        cards = sorted({p.card_id for p in advisor.retriever.passages})
+        db.wallet_set(conn, choose_wallet(list(advisor.resolve("Bargeld Entgelt", wallet=cards))))
     for entry in args.entries:
         db.wallet_add(conn, entry)
     print("\n".join(db.wallet(conn)) or "wallet empty: every ingested card/product is compared")
@@ -159,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("products", help="list card products found in the documents")
     p = sub.add_parser("wallet", help="choose which cards/products you own, e.g. beta_card:Gold")
     p.add_argument("entries", nargs="*")
+    p.add_argument("--choose", action="store_true", help="pick from the products the documents name (replaces wallet)")
     p = sub.add_parser("ask", help='e.g. "Welche Karte ist am günstigsten für 300 EUR Bargeld in den USA?"')
     p.add_argument("question")
     p.add_argument("--amount", type=Decimal)
@@ -198,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     except sqlite3.IntegrityError:
         print("error: this extraction already has a review decision", file=sys.stderr)
         return 2
-    except (ValueError, KeyError, RuntimeError) as e:
+    except (ValueError, KeyError, IndexError, RuntimeError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     return 0

@@ -112,3 +112,23 @@ def test_choose_products_asks_and_saves_the_choice(tmp_path, capsys):
     assert "2) HVB Mastercard / HVB AktivKonto" in capsys.readouterr().out
     assert fees == {"dkb": None, "hvb:HVB Mastercard / HVB AktivKonto": options[1]}
     assert db.wallet(conn) == ["dkb", "hvb:HVB Mastercard / HVB AktivKonto"]  # next question needs no choice
+
+
+def test_choose_wallet_per_card(capsys):
+    from cardcost.cli import choose_wallet
+
+    labels = [
+        "dkb:Visa Debit",
+        "dkb:Kreditkarte",
+        "hvb:HVB Mastercard",
+        "hvb:HVB Mastercard / HVB AktivKonto",
+        "revolut",
+    ]
+    answers = iter(["2", "1, 2", ""])  # dkb: Kreditkarte; hvb: both; revolut: not owned
+    assert choose_wallet(labels, ask=lambda _: next(answers)) == [
+        "dkb:Kreditkarte",
+        "hvb:HVB Mastercard",
+        "hvb:HVB Mastercard / HVB AktivKonto",
+    ]
+    out = capsys.readouterr().out
+    assert "hvb:\n  1) HVB Mastercard\n  2) HVB Mastercard / HVB AktivKonto" in out and "1) revolut" in out
