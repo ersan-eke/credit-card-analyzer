@@ -1,4 +1,4 @@
-"""Score retrieval, extraction and ranking separately for bm25 / vector / hybrid.
+"""Score retrieval, extraction, cost (one-card questions) and ranking (comparisons) for bm25 / vector / hybrid.
 
 uv run python evals/run_eval.py            # replay recorded LLM answers (CI)
 uv run python evals/run_eval.py --live     # call Claude on cache misses and record them
@@ -28,7 +28,7 @@ def _dec(v: str | None) -> Decimal | None:
 
 def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, list[str]]:
     advisor = Advisor(Retriever(passages, mode=mode, embedder=embedder), llm, wallet=golden["wallet"])
-    hits = {"retrieval": [0, 0], "context": [0, 0], "extraction": [0, 0], "ranking": [0, 0]}
+    hits = {"retrieval": [0, 0], "context": [0, 0], "extraction": [0, 0], "cost": [0, 0], "ranking": [0, 0]}
     failures = []
     for q in golden["questions"]:
         advisor.wallet = q.get("wallet", golden["wallet"])
@@ -54,7 +54,7 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
         except Exception as e:  # noqa: BLE001 - an eval must report, not crash
             failures.append(f"[{mode}] {q['id']} pipeline error: {e!r}")
             hits["extraction"][1] += 1
-            hits["ranking"][1] += 1
+            hits["cost" if "expected_cost" in q else "ranking"][1] += 1
             continue
         label = q["card"] + (f":{q['product']}" if q["product"] else "")
         fee = advisor.fees.get(label)
@@ -65,13 +65,21 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
         hits["extraction"][1] += 1
         if not ok:
             failures.append(f"[{mode}] {q['id']} extraction {label}: want {want}, got {got}")
+        if "expected_cost" in q:  # one-card question: only that card's cost counts
+            got_cost = next((ln.total for ln in table if ln.label == label), "missing")
+            ok = got_cost == _dec(q["expected_cost"])
+            hits["cost"][0] += ok
+            hits["cost"][1] += 1
+            if not ok:
+                failures.append(f"[{mode}] {q['id']} cost {label}: want {q['expected_cost']}, got {got_cost}")
+            continue
         ranking = [line.label for line in table]
         ok = ranking == q["expected_ranking"]
         hits["ranking"][0] += ok
         hits["ranking"][1] += 1
         if not ok:
             failures.append(f"[{mode}] {q['id']} ranking: want {q['expected_ranking']}, got {ranking}")
-    return {k: v[0] / v[1] for k, v in hits.items()}, failures
+    return {k: v[0] / v[1] if v[1] else float("nan") for k, v in hits.items()}, failures
 
 
 def main() -> int:
@@ -89,9 +97,10 @@ def main() -> int:
     for mode in modes:
         scores[mode], f = run_mode(mode, golden, passages, embedder, llm)
         failures += f
-    print(f"\n{'mode':<8} {'retrieval@3':>12} {'context':>8} {'extraction':>11} {'ranking':>8}")
+    print(f"\n{'mode':<8} {'retrieval@3':>12} {'context':>8} {'extraction':>11} {'cost':>6} {'ranking':>8}")
     for mode, s in scores.items():
-        print(f"{mode:<8} {s['retrieval']:>12.2f} {s['context']:>8.2f} {s['extraction']:>11.2f} {s['ranking']:>8.2f}")
+        cols = f"{s['retrieval']:>12.2f} {s['context']:>8.2f} {s['extraction']:>11.2f}"
+        print(f"{mode:<8} {cols} {s['cost']:>6.2f} {s['ranking']:>8.2f}")
     print(f"\nLLM calls: {llm.calls} live, {llm.cache_hits} from cache")
     print(f"\n{len(failures)} failures:" if failures else "\nno failures")
     for f in failures:

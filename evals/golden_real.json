@@ -30,15 +30,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
-   ],
-   "_hand": "c24 2<4 free 0.00; dkb 0; hvb max(6,5)=6.00; ing 0; rev usage unknown -> assumed used, max(6,1)=6.00; tr >=100 0"
+   "_hand": "c24 2<4 free 0.00; dkb 0; hvb max(6,5)=6.00; ing 0; rev usage unknown -> assumed used, max(6,1)=6.00; tr >=100 0",
+   "expected_cost": "0"
   },
   {
    "id": "r02",
@@ -61,15 +54,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
-   ],
-   "_hand": "c24 allowance used 2.00; hvb 6.00; rev 6.00"
+   "_hand": "c24 allowance used 2.00; hvb 6.00; rev 6.00",
+   "expected_cost": "2.00"
   },
   {
    "id": "r03",
@@ -95,15 +81,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "rev 150+40<=200 and 2<5 free; tr 40<100 1.00; c24 assumed used 2.00; hvb max(0.80,5)=5.00. p12 states it again"
+   "_hand": "rev 150+40<=200 and 2<5 free; tr 40<100 1.00; c24 assumed used 2.00; hvb max(0.80,5)=5.00. p12 states it again",
+   "expected_cost": "0"
   },
   {
    "id": "r04",
@@ -129,15 +108,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00"
+   "_hand": "VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00",
+   "expected_cost": "2.00"
   },
   {
    "id": "r05",
@@ -163,15 +135,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "count cap hit first: max(0.40,1)=1.00; tr 20<100 1.00 (tie, label order); c24 2.00; hvb 5.00"
+   "_hand": "count cap hit first: max(0.40,1)=1.00; tr 20<100 1.00 (tie, label order); c24 2.00; hvb 5.00",
+   "expected_cost": "1.00"
   },
   {
    "id": "r06",
@@ -189,15 +154,8 @@
     "days": 0,
     "amount_eur": "50"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "'1 € für Abhebungen unter 100 €' -> 1.00; rev assumed used max(1,1)=1.00; c24 2.00; hvb 5.00"
+   "_hand": "'1 € für Abhebungen unter 100 €' -> 1.00; rev assumed used max(1,1)=1.00; c24 2.00; hvb 5.00",
+   "expected_cost": "1.00"
   },
   {
    "id": "r07",
@@ -215,15 +173,8 @@
     "days": 0,
     "amount_eur": "100"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "exactly 100 is not 'unter 100' -> 0.00; rev 2.00; c24 2.00; hvb 5.00"
+   "_hand": "exactly 100 is not 'unter 100' -> 0.00; rev 2.00; c24 2.00; hvb 5.00",
+   "expected_cost": "0"
   },
   {
    "id": "r08",
@@ -240,15 +191,8 @@
     "days": 0,
     "amount_eur": "200"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "'An Geldautomaten in Euro kostenlos seitens der DKB AG'; trap: 'Am Schalter 3,00 %, mind. 5,00 EUR' is the counter, not the ATM; rev 4.00; hvb max(4,5)=5.00"
+   "_hand": "'An Geldautomaten in Euro kostenlos seitens der DKB AG'; trap: 'Am Schalter 3,00 %, mind. 5,00 EUR' is the counter, not the ATM; rev 4.00; hvb max(4,5)=5.00",
+   "expected_cost": "0.00"
   },
   {
    "id": "r09",
@@ -266,15 +210,8 @@
     "days": 0,
     "amount_eur": "500"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
-   ],
-   "_hand": "VERIFY: '– an allen anderen Geldautomaten 2% mind. 5 EUR' (two-column page, lines interleave); account exceptions (ExklusivKonto free, AktivKonto 2,50 EUR) ignored; hvb 10.00, rev 10.00 tie -> label order"
+   "_hand": "VERIFY: '– an allen anderen Geldautomaten 2% mind. 5 EUR' (two-column page, lines interleave); account exceptions (ExklusivKonto free, AktivKonto 2,50 EUR) ignored; hvb 10.00, rev 10.00 tie -> label order",
+   "expected_cost": "10.00"
   },
   {
    "id": "r10",
@@ -292,15 +229,8 @@
     "days": 0,
     "amount_eur": "200"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "hvb max(4,5)=5.00 (minimum side of the 250 EUR crossover); rev 4.00"
+   "_hand": "hvb max(4,5)=5.00 (minimum side of the 250 EUR crossover); rev 4.00",
+   "expected_cost": "5.00"
   },
   {
    "id": "r11",
@@ -318,15 +248,8 @@
     "days": 0,
     "amount_eur": "300"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev cash fee + 0.5% FX (limit assumed used up)"
+   "_hand": "VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev cash fee + 0.5% FX (limit assumed used up)",
+   "expected_cost": "6.60"
   },
   {
    "id": "r12",
@@ -343,15 +266,8 @@
     "days": 0,
     "amount_eur": "300"
    },
-   "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-revolut"
-   ],
-   "_hand": "eurozone: no FX; 'ggf. zuzüglich Entgelt des Geldautomatenbetreibers' has no amount -> not added; hvb 6.00, rev 6.00"
+   "_hand": "eurozone: no FX; 'ggf. zuzüglich Entgelt des Geldautomatenbetreibers' has no amount -> not added; hvb 6.00, rev 6.00",
+   "expected_cost": "0.00"
   },
   {
    "id": "r13",
@@ -369,15 +285,8 @@
     "days": 0,
     "amount_eur": "100"
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA"
-   ],
-   "_hand": "'Standard: Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %', charged on the excess only; usage not given -> limit counted as used up: 0.5% of 100 = 0.50; hvb 1.75; ing 2.20"
+   "_hand": "'Standard: Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %', charged on the excess only; usage not given -> limit counted as used up: 0.5% of 100 = 0.50; hvb 1.75; ing 2.20",
+   "expected_cost": "0.50"
   },
   {
    "id": "r14",
@@ -394,15 +303,8 @@
     "days": 0,
     "amount_eur": "200"
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA"
-   ],
-   "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40; rev 0.5% FX (limit assumed used up)"
+   "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40; rev 0.5% FX (limit assumed used up)",
+   "expected_cost": "4.40"
   },
   {
    "id": "r15",
@@ -419,15 +321,8 @@
     "days": 0,
     "amount_eur": "100"
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA"
-   ],
-   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block); rev 0.5% FX (limit assumed used up)"
+   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block); rev 0.5% FX (limit assumed used up)",
+   "expected_cost": "1.75"
   },
   {
    "id": "r16",
@@ -444,15 +339,8 @@
     "days": 0,
     "amount_eur": "100"
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA"
-   ],
-   "_hand": "'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %); rev 0.5% FX (limit assumed used up)"
+   "_hand": "'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %); rev 0.5% FX (limit assumed used up)",
+   "expected_cost": "0.00"
   },
   {
    "id": "r17",
@@ -474,15 +362,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-traderepublik",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); rev assumed used 2.00; hvb 5.00"
+   "_hand": "Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); rev assumed used 2.00; hvb 5.00",
+   "expected_cost": "0"
   },
   {
    "id": "r18",
@@ -530,11 +411,8 @@
     "preis-leistung-hvb:HVB Mastercard",
     "preis-leistung-hvb:HVB Mastercard AktivKonto"
    ],
-   "expected_ranking": [
-    "preis-leistung-hvb:HVB Mastercard AktivKonto",
-    "preis-leistung-hvb:HVB Mastercard"
-   ],
-   "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve"
+   "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve",
+   "expected_cost": "2.50"
   },
   {
    "id": "r20",
@@ -558,15 +436,8 @@
      }
     }
    },
-   "expected_ranking": [
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-revolut",
-    "preis-leistung-traderepublik",
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-ing:VISA"
-   ],
-   "_hand": "400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60"
+   "_hand": "400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60",
+   "expected_cost": "0.00"
   }
  ]
 }
