@@ -6,7 +6,7 @@ DRAFT, not yet verified by a human. Drafted from the extracted page text of samp
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: c24 2<4 free 0.00; dkb 0; hvb max(6,5)=6.00; ing 0; rev usage unknown -> assumed used, max(6,1)=6.00; tr >=100 0
 
-Expected cost 0 EUR
+Expected cost 0 EUR: correct
 
 - `min_eur` = 2.00: 
   - `Jede weitere Bargeldauszahlung mit der ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
@@ -22,7 +22,7 @@ Expected cost 0 EUR
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: c24 allowance used 2.00; hvb 6.00; rev 6.00
 
-Expected cost 2.00 EUR
+Expected cost 2.00 EUR: correct
 
 - `min_eur` = 2.00: 
   - `Jede weitere Bargeldauszahlung mit der ⏎ 2,00 EUR 2,00 EUR 2,00 EUR 2,00 EUR`
@@ -38,7 +38,7 @@ Expected cost 2.00 EUR
 
 `preis-leistung-revolut`, page 3. Hand: rev 150+40<=200 and 2<5 free; tr 40<100 1.00; c24 assumed used 2.00; hvb max(0.80,5)=5.00. p12 states it again
 
-Expected cost 0 EUR
+Expected cost 0 EUR: correct
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
@@ -55,7 +55,7 @@ Expected cost 0 EUR
 
 `preis-leistung-revolut`, page 3. Hand: VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00
 
-Expected cost 2.00 EUR
+Expected cost 2.00 EUR: incorrect, shouldnt be charged in full, first until the limit of 200 is still free, everything after that is charged
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
@@ -72,7 +72,7 @@ Expected cost 2.00 EUR
 
 `preis-leistung-revolut`, page 3. Hand: count cap hit first: max(0.40,1)=1.00; tr 20<100 1.00 (tie, label order); c24 2.00; hvb 5.00
 
-Expected cost 1.00 EUR
+Expected cost 1.00 EUR: correct
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
@@ -89,7 +89,7 @@ Expected cost 1.00 EUR
 
 `preis-leistung-traderepublik`, page 1. Hand: '1 € für Abhebungen unter 100 €' -> 1.00; rev assumed used max(1,1)=1.00; c24 2.00; hvb 5.00
 
-Expected cost 1.00 EUR
+Expected cost 1.00 EUR: correct
 
 - `min_eur` = 1: 
   - `Anlagevolumen pro Ausführung: 10 € bis 10.000 €. Konto ⏎ Abwicklungskostenpauschale2 1,00 € Kontoführung kostenfrei`
@@ -103,7 +103,7 @@ Expected cost 1.00 EUR
 
 `preis-leistung-traderepublik`, page 1. Hand: exactly 100 is not 'unter 100' -> 0.00; rev 2.00; c24 2.00; hvb 5.00
 
-Expected cost 0 EUR
+Expected cost 0 EUR: correct
 
 - `min_eur` = 1: 
   - `Anlagevolumen pro Ausführung: 10 € bis 10.000 €. Konto ⏎ Abwicklungskostenpauschale2 1,00 € Kontoführung kostenfrei`
@@ -117,7 +117,7 @@ Expected cost 0 EUR
 
 `preis-leistung-dkb:Kreditkarte`, page 2. Hand: 'An Geldautomaten in Euro kostenlos seitens der DKB AG'; trap: 'Am Schalter 3,00 %, mind. 5,00 EUR' is the counter, not the ATM; rev 4.00; hvb max(4,5)=5.00
 
-Expected cost 0.00 EUR
+Expected cost 0.00 EUR: correctf
 
 - `percent` = 0: 
   - `An Geldautomaten ⏎ in Euro kostenlos seitens der DKB AG2N`
@@ -131,7 +131,7 @@ Expected cost 0.00 EUR
 
 `preis-leistung-hvb:HVB Mastercard`, page 5. Hand: VERIFY: '– an allen anderen Geldautomaten 2% mind. 5 EUR' (two-column page, lines interleave); account exceptions (ExklusivKonto free, AktivKonto 2,50 EUR) ignored; hvb 10.00, rev 10.00 tie -> label order
 
-Expected cost 10.00 EUR
+Expected cost 10.00 EUR: correct but depends on Konto, so that should be verified by the user 
 
 - `percent` = 2: 
   - `den Zahlungsdienste oder sonstigen Dienstleistungen (z. B. Überweisung) bereits in Geldautomaten in Fremdwährung (Umrechnungskurs ⏎ dem Preis für die Kontoführung enthalten sind, der für ein Kontomodell berechnet wird siehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR`
@@ -149,7 +149,7 @@ Expected cost 10.00 EUR
 
 `preis-leistung-hvb:HVB Mastercard`, page 5. Hand: hvb max(4,5)=5.00 (minimum side of the 250 EUR crossover); rev 4.00
 
-Expected cost 5.00 EUR
+Expected cost 5.00 EUR: correct but also depends on the Konto
 
 - `percent` = 2: 
   - `den Zahlungsdienste oder sonstigen Dienstleistungen (z. B. Überweisung) bereits in Geldautomaten in Fremdwährung (Umrechnungskurs ⏎ dem Preis für die Kontoführung enthalten sind, der für ein Kontomodell berechnet wird siehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR`
@@ -167,7 +167,7 @@ Expected cost 5.00 EUR
 
 `preis-leistung-ing:VISA`, page 2. Hand: VERIFY: ing 0 + 2.20% = 6.60; hvb 6.00 + 1.75% purchase FX 5.25 = 11.25 (calc adds FX to cash; doc lists 1,75% for 'Bezahlen' only); c24 2.00 + 0; rev cash fee + 0.5% FX (limit assumed used up)
 
-Expected cost 6.60 EUR
+Expected cost 6.60 EUR: correct, just 2,20% percent
 
 - `percent` = 0: 
   - `in Ländern mit Eurowährung ⏎ Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere kostenlos, ggf. zuzüglich Entgelt`
@@ -181,7 +181,7 @@ Expected cost 6.60 EUR
 
 `preis-leistung-ing:VISA`, page 2. Hand: eurozone: no FX; 'ggf. zuzüglich Entgelt des Geldautomatenbetreibers' has no amount -> not added; hvb 6.00, rev 6.00
 
-Expected cost 0.00 EUR
+Expected cost 0.00 EUR: correct
 
 - `percent` = 0: 
   - `in Ländern mit Eurowährung ⏎ Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere kostenlos, ggf. zuzüglich Entgelt`
@@ -191,7 +191,7 @@ Expected cost 0.00 EUR
 
 `preis-leistung-revolut`, page 5. Hand: 'Standard: Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %', charged on the excess only; usage not given -> limit counted as used up: 0.5% of 100 = 0.50; hvb 1.75; ing 2.20
 
-Expected cost 0.50 EUR
+Expected cost 0.50 EUR: incorrect, the first 1000 euro are free exchange, after that 0,5%, also look out for weekends where additional 1% is being charged (page 6)
 
 - `fx_percent` = 0.5: 
   - `Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen ⏎ Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.`
@@ -203,7 +203,7 @@ Expected cost 0.50 EUR
 
 `preis-leistung-ing:VISA`, page 2. Hand: compound word split by PDF kerning: 'Aus lands einsatz entgelt'; hvb 3.50; ing 4.40; rev 0.5% FX (limit assumed used up)
 
-Expected cost 4.40 EUR
+Expected cost 4.40 EUR: wrong, it is 2,2% so it depends on the amount being withdrawn
 
 - `fx_percent` = 2.20: 
   - `Beträge abgehoben werden: des Geld auto maten betreibers ⏎ in Ländern des EWR2 mit anderer EWR-Währung: A uf den Betrag in Euro 2,20 %`
@@ -214,7 +214,7 @@ Expected cost 4.40 EUR
 
 `preis-leistung-hvb:HVB Mastercard`, page 8. Hand: 'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block); rev 0.5% FX (limit assumed used up)
 
-Expected cost 1.75 EUR
+Expected cost 1.75 EUR: correct but there is also a mastercard firmenkunden which costs 1% so that should be cleared by the user
 
 - `fx_percent` = 1.75: 
   - `– Einsatz der Kreditkarte zum Bezahlen in Fremdwährung 1 Inlands-Scheckverkehr ⏎ (Umrechnungskurs siehe Teil B, letztes Unterkapitel) 1,75% vom Umsatz – Scheckeinlösungen/Scheckgutschriften (gilt nur für Nichtverbraucher) 0,41 EUR`
@@ -224,7 +224,7 @@ Expected cost 1.75 EUR
 
 `preis-leistung-traderepublik`, page 1. Hand: 'Währungsumrechnungsentgelt | 0 €' (a EUR amount, read as 0 %); rev 0.5% FX (limit assumed used up)
 
-Expected cost 0.00 EUR
+Expected cost 0.00 EUR: correct
 
 - `fx_percent` = 0: 
   - `unter 100 € ⏎ je freiwillige Weisung für Wandlung / 10,00 € Währungsumrechnungsentgelt 0 €`
@@ -235,7 +235,7 @@ Expected cost 0.00 EUR
 
 `preis-leistung-c24:Smartkonto`, page 3. Hand: Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); rev assumed used 2.00; hvb 5.00
 
-Expected cost 0 EUR
+Expected cost 0 EUR: the answer is 4, expected cost depends on the user
 
 - `free_count` = 4: 
   - `über die ReiseBank AG8 ⏎ 4. Bargeldauszahlungslimite der C24`
@@ -246,8 +246,8 @@ Expected cost 0 EUR
 
 `preis-leistung-dkb:Kreditkarte`, page 2. Hand: VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev cash fee + 0.5% FX (limit assumed used up)
 
-Expected ranking preis-leistung-dkb:Kreditkarte > preis-leistung-traderepublik > preis-leistung-c24:Smartkonto > preis-leistung-ing:VISA > preis-leistung-revolut > preis-leistung-hvb:HVB Mastercard
-
+Expected ranking preis-leistung-dkb:Kreditkarte > preis-leistung-traderepublik > preis-leistung-c24:Smartkonto > preis-leistung-ing:VISA > preis-leistung-revolut > preis-leistung-hvb:HVB Mastercard: first it depends on which cards / konto types the user has. then for example for dkb if he has aktivstatus or how many withdrawals he already had. shouldnt c24 be 0 because it has 4 free withdrawals? revolut could be 200 free after that 
+2%. hvb has 2% or free (see exceptions)
 - `percent` = 0: 
   - `An Geldautomaten ⏎ in Euro kostenlos seitens der DKB AG2N`
   - `Kartenversand per Kurier 48,50 EUR ⏎ Notfallbargeld (einmalige weltweite Zusendung von Bargeld) kostenlos`
@@ -267,7 +267,7 @@ Expected ranking preis-leistung-dkb:Kreditkarte > preis-leistung-traderepublik >
 
 `preis-leistung-hvb:HVB Mastercard AktivKonto`, page 5. Hand: VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve
 
-Expected cost 2.50 EUR
+Expected cost 2.50 EUR: correct, the open question was if the withdrawal was is in EU/EWR countries
 
 - `percent` = null: check the page states no number for it
 - `min_eur` = 2.50: 
@@ -282,7 +282,7 @@ Expected cost 2.50 EUR
 
 `preis-leistung-revolut`, page 5. Hand: 400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60
 
-Expected cost 0.00 EUR
+Expected cost 0.00 EUR: yes, but also the question is if the user has euros or dollars on hand
 
 - `fx_percent` = 0.5: 
   - `Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen ⏎ Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.`
