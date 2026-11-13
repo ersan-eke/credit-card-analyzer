@@ -63,6 +63,7 @@ def update_fees(paths: list[Path], fees_path: Path, llm, conn, mode: str = "hybr
                 "prompt_version": PROMPT_VERSION,
                 "fees": [json.loads(f.model_dump_json()) for f in fees],
             }
-        fees_path.parent.mkdir(parents=True, exist_ok=True)
-        fees_path.write_text(json.dumps(entries, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+            # written per card, so a run that dies on a rate limit keeps what it has; a rerun resumes
+            fees_path.parent.mkdir(parents=True, exist_ok=True)
+            fees_path.write_text(json.dumps(entries, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
     return [p.stem for p in stale]

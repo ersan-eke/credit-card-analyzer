@@ -149,3 +149,22 @@ def test_failed_extraction_keeps_the_old_fees(tmp_path, conn):
 
     update_fees([pdf], out, Nothing(), conn, "bm25")
     assert out.read_bytes() == before
+
+
+def test_a_crash_keeps_the_cards_already_extracted(tmp_path, conn):
+    pdfs = []
+    for name in ("beta_card", "other_card"):
+        pdfs.append(tmp_path / f"{name}.pdf")
+        shutil.copy(ROOT / "samples/beta_card.pdf", pdfs[-1])
+    out, ok = tmp_path / "fees.json", FakeLLM()
+
+    class DiesOnSecond:
+        def create(self, *a, **kw):
+            if ok.calls:
+                raise RuntimeError("429")
+            return ok.create(*a, **kw)
+
+    with pytest.raises(RuntimeError):
+        update_fees(pdfs, out, DiesOnSecond(), conn, "bm25")
+    assert set(json.loads(out.read_text())) == {"beta_card"}
+    assert update_fees(pdfs, out, ok, conn, "bm25") == ["other_card"]  # resumes with the missing card only
