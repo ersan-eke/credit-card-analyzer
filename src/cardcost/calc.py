@@ -12,25 +12,29 @@ def cash_cost(fee: FeeSchedule, amount: Decimal) -> Decimal:
     return to_cents(max(amount * (fee.percent or ZERO) / 100, fee.min_eur or ZERO))
 
 
-def allowance(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[bool, str | None]:
-    """Is this withdrawal free under the card's allowance? Unknown usage counts as used up: never assume free."""
+def cash_base(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[Decimal, str | None]:
+    """Amount the cash fee applies to after the card's allowance. Unknown usage counts as used up: never assume free.
+    A withdrawal that only partly fits a free amount is charged on the part above the limit."""
     if fee.free_from_eur is not None and amount >= fee.free_from_eur:
-        return True, f"kostenlos ab {fee.free_from_eur} EUR"
+        return ZERO, f"kostenlos ab {fee.free_from_eur} EUR"
     if fee.free_count is None and fee.free_amount_eur is None:
-        return False, None
+        return amount, None
     if used is None or (fee.free_amount_eur is not None and used.eur is None):
-        return False, "Freikontingent als verbraucht angenommen (bisherige Abhebungen nicht angegeben)"
-    # shortcut: a withdrawal that only partly fits the free amount is charged in full; no document here says otherwise
-    free = (fee.free_count is None or used.count < fee.free_count) and (
-        fee.free_amount_eur is None or used.eur + amount <= fee.free_amount_eur
-    )
+        return amount, "Freikontingent als verbraucht angenommen (bisherige Abhebungen nicht angegeben)"
+    if fee.free_count is not None and used.count >= fee.free_count:
+        base = amount
+    elif fee.free_amount_eur is None:
+        base = ZERO
+    else:
+        base = max(ZERO, amount - max(ZERO, fee.free_amount_eur - used.eur))
     limits = []
     if fee.free_count is not None:
         limits.append(f"{fee.free_count} Abhebungen")
     if fee.free_amount_eur is not None:
         limits.append(f"{fee.free_amount_eur} EUR")
     so_far = f"{used.count} Abhebungen" + (f" / {used.eur} EUR" if used.eur is not None else "")
-    return free, f"Freikontingent {' / '.join(limits)}, bisher {so_far}: {'kostenlos' if free else 'verbraucht'}"
+    state = "kostenlos" if base == ZERO else "verbraucht" if base == amount else f"berechnet auf {base} EUR"
+    return base, f"Freikontingent {' / '.join(limits)}, bisher {so_far}: {state}"
 
 
 def fx_base(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[Decimal, str | None]:
@@ -54,8 +58,8 @@ def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
         if fee.percent is None and fee.min_eur is None:
             missing.append("cash_fee")
         else:
-            free, note = allowance(fee, s.amount_eur, s.usage_for(label))
-            comps["cash_fee"] = ZERO if free else cash_cost(fee, s.amount_eur)
+            base, note = cash_base(fee, s.amount_eur, s.usage_for(label))
+            comps["cash_fee"] = cash_cost(fee, base) if base else ZERO
             notes += [note] if note else []
         if s.abroad and fee.atm_operator_fee_eur is not None:
             comps["atm_operator_fee"] = to_cents(fee.atm_operator_fee_eur)

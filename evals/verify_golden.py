@@ -48,9 +48,15 @@ def sheet(golden: dict) -> tuple[str, int]:
         out.append(f"## {q['id']}{' (VERIFY)' if verify else ''}: {q['question']}\n")
         label = q["card"] + (f":{q['product']}" if q["product"] else "")
         out.append(f"`{label}`, page {q['expected_page']}. Hand: {q['_hand']}\n")
-        want = (
-            f"cost {q['expected_cost']} EUR" if "expected_cost" in q else "ranking " + " > ".join(q["expected_ranking"])
-        )
+        if "expected_cost" in q:
+            want = f"cost {q['expected_cost']} EUR"
+        elif "expected_ranking" in q:
+            want = "ranking " + " > ".join(q["expected_ranking"])
+        elif "expected_fact" in q:
+            want = f'answer "{q["expected_fact"]["answer"]}" (`{q["expected_fact"]["field"]}`)'
+        else:
+            ask = q["expected_question"]
+            want = f"a question back: {ask['ask']}" + (f" for {ask['card']}" if "card" in ask else "")
         out.append(f"Expected {want}\n")
         lines = []
         if q["expected_page"]:
