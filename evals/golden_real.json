@@ -1,18 +1,18 @@
 {
- "_note": "DRAFT, not yet verified by a human. Drafted from the extracted page text of samples/preis-leistung-*.pdf. Check every expected value against the PDF and remove VERIFY markers before trusting the score. Cash at ATMs only; ATM-operator fees without a stated amount are not added; unknown free-allowance usage counts as used up.",
+ "_note": "DRAFT, not yet verified by a human. Drafted from the extracted page text of catalog/docs/*.pdf. Check every expected value against the PDF and remove VERIFY markers before trusting the score. Cash at ATMs only; ATM-operator fees without a stated amount are not added; unknown free-allowance usage counts as used up.",
  "wallet": [
-  "preis-leistung-c24:Smartkonto",
-  "preis-leistung-dkb:Kreditkarte",
-  "preis-leistung-hvb:HVB Mastercard",
-  "preis-leistung-ing:VISA",
-  "preis-leistung-revolut",
-  "preis-leistung-traderepublik"
+  "c24:Smartkonto",
+  "dkb:Kreditkarte",
+  "hvb:HVB Mastercard",
+  "ing:VISA",
+  "revolut_standard",
+  "traderepublik"
  ],
  "questions": [
   {
    "id": "r01",
    "question": "Was kostet eine Bargeldabhebung von 300 EUR mit der C24 Mastercard, wenn ich diesen Monat schon 2 Mal abgehoben habe?",
-   "card": "preis-leistung-c24",
+   "card": "c24",
    "product": "Smartkonto",
    "expected_page": 3,
    "expected_fields": {
@@ -25,7 +25,7 @@
     "days": 0,
     "amount_eur": "300",
     "used": {
-     "preis-leistung-c24": {
+     "c24": {
       "count": 2
      }
     }
@@ -36,7 +36,7 @@
   {
    "id": "r02",
    "question": "Ich habe mit der C24 Mastercard diesen Monat schon 4 Mal Geld abgehoben. Was kostet die nächste Abhebung von 300 EUR?",
-   "card": "preis-leistung-c24",
+   "card": "c24",
    "product": "Smartkonto",
    "expected_page": 3,
    "expected_fields": {
@@ -49,7 +49,7 @@
     "days": 0,
     "amount_eur": "300",
     "used": {
-     "preis-leistung-c24": {
+     "c24": {
       "count": 4
      }
     }
@@ -60,7 +60,7 @@
   {
    "id": "r03",
    "question": "Ich habe mit Revolut diesen Monat 2 Mal insgesamt 150 EUR abgehoben. Was kostet eine weitere Abhebung von 40 EUR?",
-   "card": "preis-leistung-revolut",
+   "card": "revolut_standard",
    "product": null,
    "expected_page": 3,
    "expected_fields": {
@@ -75,7 +75,7 @@
     "days": 0,
     "amount_eur": "40",
     "used": {
-     "preis-leistung-revolut": {
+     "revolut_standard": {
       "count": 2,
       "eur": "150"
      }
@@ -87,7 +87,7 @@
   {
    "id": "r04",
    "question": "Revolut: 2 Abhebungen mit zusammen 150 EUR schon gemacht. Was kostet es, jetzt 100 EUR abzuheben?",
-   "card": "preis-leistung-revolut",
+   "card": "revolut_standard",
    "product": null,
    "expected_page": 3,
    "expected_fields": {
@@ -102,7 +102,7 @@
     "days": 0,
     "amount_eur": "100",
     "used": {
-     "preis-leistung-revolut": {
+     "revolut_standard": {
       "count": 2,
       "eur": "150"
      }
@@ -114,7 +114,7 @@
   {
    "id": "r05",
    "question": "Ich habe mit Revolut diesen Monat schon 5 Mal 50 EUR abgehoben. Was kosten 20 EUR am Automaten?",
-   "card": "preis-leistung-revolut",
+   "card": "revolut_standard",
    "product": null,
    "expected_page": 3,
    "expected_fields": {
@@ -129,7 +129,7 @@
     "days": 0,
     "amount_eur": "20",
     "used": {
-     "preis-leistung-revolut": {
+     "revolut_standard": {
       "count": 5,
       "eur": "50"
      }
@@ -141,7 +141,7 @@
   {
    "id": "r06",
    "question": "Was kostet es, mit der Trade Republic Karte 50 EUR abzuheben?",
-   "card": "preis-leistung-traderepublik",
+   "card": "traderepublik",
    "product": null,
    "expected_page": 1,
    "expected_fields": {
@@ -160,7 +160,7 @@
   {
    "id": "r07",
    "question": "Kostet eine Abhebung von 100 EUR mit Trade Republic etwas?",
-   "card": "preis-leistung-traderepublik",
+   "card": "traderepublik",
    "product": null,
    "expected_page": 1,
    "expected_fields": {
@@ -179,7 +179,7 @@
   {
    "id": "r08",
    "question": "Kostet Geld abheben am Automaten mit der DKB Visa Kreditkarte etwas?",
-   "card": "preis-leistung-dkb",
+   "card": "dkb",
    "product": "Kreditkarte",
    "expected_page": 2,
    "expected_fields": {
@@ -197,7 +197,7 @@
   {
    "id": "r09",
    "question": "Welche Gebühr nimmt die HVB Mastercard für eine Abhebung von 500 EUR an fremden Geldautomaten?",
-   "card": "preis-leistung-hvb",
+   "card": "hvb",
    "product": "HVB Mastercard",
    "expected_page": 5,
    "expected_fields": {
@@ -216,7 +216,7 @@
   {
    "id": "r10",
    "question": "Was kostet die HVB Mastercard für 200 EUR am Geldautomaten einer anderen Bank?",
-   "card": "preis-leistung-hvb",
+   "card": "hvb",
    "product": "HVB Mastercard",
    "expected_page": 5,
    "expected_fields": {
@@ -235,7 +235,7 @@
   {
    "id": "r11",
    "question": "Ich hebe 300 EUR in den USA ab. Was kostet das mit der ING VISA Card?",
-   "card": "preis-leistung-ing",
+   "card": "ing",
    "product": "VISA",
    "expected_page": 2,
    "expected_fields": {
@@ -254,7 +254,7 @@
   {
    "id": "r12",
    "question": "Kostet Geld abheben in Frankreich mit der ING VISA Card etwas?",
-   "card": "preis-leistung-ing",
+   "card": "ing",
    "product": "VISA",
    "expected_page": 2,
    "expected_fields": {
@@ -272,7 +272,7 @@
   {
    "id": "r13",
    "question": "Was kostet Revolut beim Bezahlen in US-Dollar?",
-   "card": "preis-leistung-revolut",
+   "card": "revolut_standard",
    "product": null,
    "expected_page": 5,
    "expected_fields": {
@@ -291,7 +291,7 @@
   {
    "id": "r14",
    "question": "Wie hoch ist das Auslandseinsatzentgelt der ING VISA Card?",
-   "card": "preis-leistung-ing",
+   "card": "ing",
    "product": "VISA",
    "expected_page": 2,
    "expected_fields": {
@@ -309,7 +309,7 @@
   {
    "id": "r15",
    "question": "Was kostet die HVB Mastercard beim Bezahlen in Fremdwährung?",
-   "card": "preis-leistung-hvb",
+   "card": "hvb",
    "product": "HVB Mastercard",
    "expected_page": 8,
    "expected_fields": {
@@ -327,7 +327,7 @@
   {
    "id": "r16",
    "question": "Gibt es bei Trade Republic ein Währungsumrechnungsentgelt?",
-   "card": "preis-leistung-traderepublik",
+   "card": "traderepublik",
    "product": null,
    "expected_page": 1,
    "expected_fields": {
@@ -345,7 +345,7 @@
   {
    "id": "r17",
    "question": "Wie viele kostenlose Abhebungen pro Monat habe ich mit dem C24 Smartkonto?",
-   "card": "preis-leistung-c24",
+   "card": "c24",
    "product": "Smartkonto",
    "expected_page": 3,
    "expected_fields": {
@@ -357,7 +357,7 @@
     "days": 0,
     "amount_eur": "100",
     "used": {
-     "preis-leistung-c24": {
+     "c24": {
       "count": 0
      }
     }
@@ -368,7 +368,7 @@
   {
    "id": "r18",
    "question": "Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?",
-   "card": "preis-leistung-dkb",
+   "card": "dkb",
    "product": "Kreditkarte",
    "expected_page": 2,
    "expected_fields": {
@@ -382,19 +382,19 @@
     "amount_eur": "1000"
    },
    "expected_ranking": [
-    "preis-leistung-dkb:Kreditkarte",
-    "preis-leistung-traderepublik",
-    "preis-leistung-c24:Smartkonto",
-    "preis-leistung-ing:VISA",
-    "preis-leistung-revolut",
-    "preis-leistung-hvb:HVB Mastercard"
+    "dkb:Kreditkarte",
+    "traderepublik",
+    "c24:Smartkonto",
+    "ing:VISA",
+    "revolut_standard",
+    "hvb:HVB Mastercard"
    ],
    "_hand": "VERIFY: dkb 0; tr 0; c24 2.00 + FX 0 ('In Fremdwährung 0,00 EUR', card payments row); ing 22.00; hvb 20.00 + 17.50 = 37.50; rev cash fee + 0.5% FX (limit assumed used up)"
   },
   {
    "id": "r19",
    "question": "Ich habe ein HVB AktivKonto. Was kostet eine Abhebung von 300 EUR mit der HVB Mastercard an einem fremden Automaten?",
-   "card": "preis-leistung-hvb",
+   "card": "hvb",
    "product": "HVB Mastercard AktivKonto",
    "expected_page": 5,
    "expected_fields": {
@@ -408,8 +408,8 @@
     "amount_eur": "300"
    },
    "wallet": [
-    "preis-leistung-hvb:HVB Mastercard",
-    "preis-leistung-hvb:HVB Mastercard AktivKonto"
+    "hvb:HVB Mastercard",
+    "hvb:HVB Mastercard AktivKonto"
    ],
    "_hand": "VERIFY: 'Ausnahme: Mit der HVB Mastercard / HVB Mastercard Gold im HVB AktivKonto und HVB PlusKonto 2,50 EUR' -> flat 2.50; plain HVB Mastercard 2% mind. 5 -> 6.00. wallet entry matched by words, so 'HVB Mastercard / HVB AktivKonto' or '(HVB AktivKonto)' both resolve",
    "expected_cost": "2.50"
@@ -417,7 +417,7 @@
   {
    "id": "r20",
    "question": "Ich habe mit Revolut diesen Monat erst 400 EUR umgetauscht. Was kostet ein Einkauf über 300 EUR in den USA?",
-   "card": "preis-leistung-revolut",
+   "card": "revolut_standard",
    "product": null,
    "expected_page": 5,
    "expected_fields": {
@@ -430,7 +430,7 @@
     "days": 0,
     "amount_eur": "300",
     "used": {
-     "preis-leistung-revolut": {
+     "revolut_standard": {
       "count": 0,
       "fx_eur": "400"
      }

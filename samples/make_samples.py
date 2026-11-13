@@ -29,7 +29,7 @@ def alpha() -> None:
     pdf = _pdf()
     _page(
         pdf,
-        "Alpha Bank - Kosten- und Leistungsbericht Alpha Card",
+        "Alpha Bank - Preis- und Leistungsverzeichnis Alpha Card",
         [
             "Sehr geehrte Kundin, sehr geehrter Kunde, mit diesem Bericht informieren wir Sie über die "
             "Kosten und Leistungen Ihrer Alpha Card im vergangenen Abrechnungszeitraum.",

@@ -184,7 +184,7 @@ def parse_usage(items: list[str]) -> dict[str, Usage]:
 
 
 def corpus_paths(conn) -> list[Path]:
-    dirs = os.environ.get("CARDCOST_DOCS", "samples:data/private").split(":")
+    dirs = os.environ.get("CARDCOST_DOCS", "samples:catalog/docs:data/private").split(":")
     paths = {p for d in dirs for p in Path(d).glob("*.pdf")}
     paths |= {Path(r["path"]) for r in conn.execute("SELECT path FROM ingest_job WHERE status = 'done'")}
     return sorted(p for p in paths if p.exists())

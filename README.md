@@ -1,7 +1,7 @@
 # cardcost
 
 Answers "which of my credit cards is cheapest for *this* (e.g. 300 EUR cash in the USA)?" from the banks'
-German *Kosten- und Leistungsbericht* PDFs: the LLM only reads the documents and writes the answer text, and all money maths is plain Decimal code.
+German *Preis- und Leistungsverzeichnis* PDFs: the LLM only reads the documents and writes the answer text, and all money maths is plain Decimal code.
 
 ```bash
 uv sync && export ANTHROPIC_API_KEY=... CARDCOST_MODEL=claude-sonnet-5-5 && \
@@ -38,14 +38,14 @@ are redacted before anything is logged.
 ## Commands
 
 ```bash
-uv run cardcost ingest [file.pdf ...]          # corpus = samples/ + data/private/ (gitignored) + webhook uploads
+uv run cardcost ingest [file.pdf ...]          # documents = samples/ + catalog/docs/ + data/private/ (gitignored) + webhook uploads
 uv run cardcost products                       # card products found, e.g. beta_card:Beta Classic, beta_card:Beta Gold
 uv run cardcost wallet --choose                # per bank, pick the cards/account models its documents name
 uv run cardcost wallet alpha_card beta_card:Gold   # or name them directly (default: all)
 uv run cardcost ask "Einkauf über 200 EUR in der Schweiz"   # flags: --amount --kind cash|purchase --country US --days 30
-uv run cardcost ask "300 EUR abheben" --used preis-leistung-c24=2 --used preis-leistung-revolut=3:150
+uv run cardcost ask "300 EUR abheben" --used c24=2 --used revolut_standard=3:150
 uv run cardcost matrix --countries DE,FR,US    # which card wins for which amount: "1-375 EUR -> alpha_card; 376-2000 EUR -> beta_card:Gold"
-uv run cardcost matrix --used preis-leistung-c24=0  # bands for the *next* withdrawal, given allowance usage so far
+uv run cardcost matrix --used c24=0  # bands for the *next* withdrawal, given allowance usage so far
 uv run cardcost review list
 uv run cardcost review edited 7 --set min_eur=6,50 --quote "3,0 % mind. 6,50 EUR" --reviewer me   # used on the next question
 uv run uvicorn cardcost.api:app               # GET /ask?q=..., POST /webhooks/new-document
@@ -97,6 +97,9 @@ Trade Republic). They cover the allowance rules on both sides of each limit, Rev
 counter-vs-ATM trap, HVB's two-column layout and account-model prices. The expected values were drafted from the extracted
 text and checked against the calc, but **not yet verified by a human against the PDFs**. Questions marked `VERIFY` rest on an
 interpretation. Run it with `--golden evals/golden_real.json`.
+
+The catalog: `catalog/sources.toml` records each price list's id, bank and official URL; the reviewed copy is
+`catalog/docs/<id>.pdf`, and the id is the card id everywhere (golden sets, `--used`, LLM cache keys).
 
 | real docs (draft) | retrieval@3 | context | extraction | cost | ranking |
 |---|---|---|---|---|---|
@@ -171,7 +174,7 @@ gutter and must stay whole (tested).
   allowances shared between two cards of the same account do not.
 - Account-model products are matched by words: the exact name first, then the product containing every word of the wallet entry
   with the fewest extra words. Two equally good candidates are never guessed between: the user chooses.
-- Which card a question names is matched against the file name (`preis-leistung-traderepublik` ~ "Trade Republic": fuzzy
+- Which card a question names is matched against the file name (`traderepublik` ~ "Trade Republic": fuzzy
   for long names, exact for short ids like `ing`). A bank whose name differs more from its file name needs a name list.
 - Product names come from the LLM per extraction; a saved pick stays valid only while the extractor names it the same way
   (exact match first, then words).

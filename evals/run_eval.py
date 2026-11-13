@@ -89,7 +89,7 @@ def main() -> int:
     ap.add_argument("--golden", type=Path, default=ROOT / "evals/golden.json")
     args = ap.parse_args()
     golden = json.loads(args.golden.read_text())
-    passages = ingest_paths(sorted((ROOT / "samples").glob("*.pdf")))
+    passages = ingest_paths(sorted([*(ROOT / "samples").glob("*.pdf"), *(ROOT / "catalog/docs").glob("*.pdf")]))
     embedder = E5Embedder()
     llm = LLM(cache_path=ROOT / "evals/llm_cache.json", live=args.live)
     modes = ["bm25", "vector", "hybrid"] if args.mode == "all" else [args.mode]

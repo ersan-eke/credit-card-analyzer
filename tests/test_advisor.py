@@ -111,9 +111,9 @@ def test_k_grows_with_document_size():
 
 def test_fee_query_reaches_revolut_fx_section():
     # Revolut calls its FX fee "Wechselgebühr" / "Wechsellimit" (p5); the fee-terms query must find it for any question
-    rev = ingest_paths([Path(__file__).parent.parent / "samples/preis-leistung-revolut.pdf"])
+    rev = ingest_paths([Path(__file__).parent.parent / "catalog/docs/revolut_standard.pdf"])
     a = Advisor(Retriever(rev, mode="bm25"), FakeLLM())
-    assert 5 in {p.page for p in a.passages_for("preis-leistung-revolut", "Was kostet das?")}
+    assert 5 in {p.page for p in a.passages_for("revolut_standard", "Was kostet das?")}
 
 
 def test_match_product_by_words():

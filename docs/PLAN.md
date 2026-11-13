@@ -3,7 +3,7 @@
 ## Context
 Empty directory (`/Users/ersan/Documents/credit-card-analyzer`, not a git repo yet; `uv` installed, system Python 3.15 → uv will pin 3.12).
 Goal: a portfolio project for an AI-automation interview. It answers "which of my cards is cheapest for X in scenario Y" from
-"Kosten- und Leistungsbericht" PDFs. The LLM only *reads* (extraction, wording). All money math is deterministic Python.
+"Preis- und Leistungsverzeichnis" PDFs. The LLM only *reads* (extraction, wording). All money math is deterministic Python.
 Every claim is backed by an eval number, a test, or an audit-log row.
 
 ## Stack (minimal)

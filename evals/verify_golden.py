@@ -54,7 +54,7 @@ def sheet(golden: dict) -> tuple[str, int]:
         out.append(f"Expected {want}\n")
         lines = []
         if q["expected_page"]:
-            with pdfplumber.open(ROOT / "samples" / f"{q['card']}.pdf") as pdf:
+            with pdfplumber.open(ROOT / "catalog/docs" / f"{q['card']}.pdf") as pdf:
                 lines = (pdf.pages[q["expected_page"] - 1].extract_text() or "").splitlines()
         for field, raw in q["expected_fields"].items():
             if raw is None:

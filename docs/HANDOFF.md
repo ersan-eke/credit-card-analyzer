@@ -2,8 +2,8 @@
 
 State on 2026-11-13. Last commit `c716301`. 113 tests pass, ruff clean. Not committed: the user's review notes in
 `evals/golden_real_sheet.md` (commit first: re-running `verify_golden.py > evals/golden_real_sheet.md` overwrites them),
-`GLOSSARY.md`, `docs/adr/0001`, `docs/adr/0002`, and the user's renamed bank PDFs in `samples/` (17 files, old
-`preis-leistung-*.pdf` deleted).
+`GLOSSARY.md`, `docs/adr/0001`, `docs/adr/0002`. Step 1 done: the 16 bank PDFs are in `catalog/docs/` with
+sources in `catalog/sources.toml` (the 17th price list is Bank Norwegian, a web page, step 8).
 
 Read `GLOSSARY.md` and `docs/adr/` first; use their terms (Preis- und Leistungsverzeichnis / price list, Bank, Source,
 Product, Status, Catalog, Wallet, Allowance).
@@ -27,7 +27,7 @@ till, on a phone: amount, country, withdrawal or payment → which wallet card i
    from the response content type), downloaded copies in `catalog/docs/` (PDF, or extracted text for HTML), committed.
    Move the 17 bank PDFs there; `samples/` keeps only alpha/beta/gamma. Look up each official source URL; list any not
    found for the user instead of guessing. Fix ids everywhere: `evals/golden_real.json` (42 refs), `tests/test_ingest.py`,
-   `tests/test_advisor.py`, `evals/llm_cache.json` keys. Rename "Kosten- und Leistungsbericht" in README, PLAN, extract.py.
+   `tests/test_advisor.py`, `evals/llm_cache.json` keys. Rename the old document name in README, PLAN, extract.py.
 2. **Old HANDOFF tasks 1 and 4.** r04: only the part above the amount limit is charged (150 used + 100 → 2 % of 50 =
    1,00 €, min 1 €). Golden corrections: r04 → 1.00; r14 ("2,20 %") and r17 ("4") are fact questions (new expectation type
    in golden + `run_eval.py` + `test_golden.py`); r13/r18/r20 must ask about usage; r09/r10/r15 must ask for the HVB
