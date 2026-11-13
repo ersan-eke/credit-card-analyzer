@@ -122,7 +122,9 @@ def _parse(card_id: str, response: dict, passages: list[Passage]) -> list[FeeSch
     calls = [b for b in response.get("content", []) if b.get("type") == "tool_use" and b.get("name") == "record_fees"]
     if not calls:
         raise ValueError("you did not call record_fees")
-    haystack = {(p.file, p.page): _squash(p.text) for p in passages}
+    haystack: dict[tuple[str, int], str] = {}
+    for p in passages:  # a page can reach the prompt as several passages; a quote may sit in any of them
+        haystack[(p.file, p.page)] = f"{haystack.get((p.file, p.page), '')} {_squash(p.text)}"
     fees, errors = [], []
     products = calls[0].get("input", {}).get("products")
     if not isinstance(products, list) or not all(isinstance(i, dict) for i in products):
@@ -161,7 +163,8 @@ def extract_fees(card_id: str, passages: list[Passage], llm, conn) -> list[FeeSc
             log.warning("extraction_invalid", extra={"card": card_id, "attempt": attempt + 1, "error": error})
     run_id = run_id_var.get()
     if error:
-        raw = json.dumps(response.get("content"), ensure_ascii=False)[:2000]
+        calls = [b for b in response.get("content") or [] if b.get("type") == "tool_use"]  # not the thinking blocks
+        raw = json.dumps(calls, ensure_ascii=False)[:2000]
         db.save_extraction(
             conn,
             None,

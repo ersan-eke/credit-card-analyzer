@@ -145,3 +145,31 @@ def test_tool_schema_has_allowance_fields():
 
     item = TOOL["input_schema"]["properties"]["products"]["items"]
     assert set(NUMERIC_FIELDS) <= set(item["required"]) == set(item["properties"])
+
+
+def test_quote_may_sit_in_any_passage_of_the_page():
+    from cardcost.extract import _parse
+
+    a = Passage(id="c:p1:0", card_id="c", file="c.pdf", page=1, text="Bargeld 2,0 % mindestens 5,00 EUR")
+    b = Passage(id="c:p1:1", card_id="c", file="c.pdf", page=1, text="Fremdwährung 1,5 %")
+    item = {
+        "product": None,
+        "percent": "2.0",
+        "min_eur": "5.00",
+        "currency": "EUR",
+        "conditions": None,
+        "fx_percent": None,
+        "atm_operator_fee_eur": None,
+        "cash_interest_pa": None,
+        "free_count": None,
+        "free_amount_eur": None,
+        "free_from_eur": None,
+        "fx_free_eur": None,
+        "source_file": "c.pdf",
+        "source_page": 1,
+        "confidence": 0.9,
+        "quote": "Bargeld 2,0 % mindestens 5,00 EUR",
+        "not_stated": [],
+    }
+    response = {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": [item]}}]}
+    assert _parse("c", response, [a, b])[0].percent == 2
