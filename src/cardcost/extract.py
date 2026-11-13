@@ -9,7 +9,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule, Passage
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v3"
+PROMPT_VERSION = "extract-v4"
 REVIEW_BELOW = 0.7
 
 SYSTEM = """You extract credit-card fees from German bank documents ("Preis- und Leistungsverzeichnis").
@@ -33,6 +33,9 @@ Rules:
   "Wechsellimit von 1.000 EUR pro Monat ... faire Nutzungsgebühr von 0,5 %" gives fx_free_eur 1000, fx_percent 0.5.
 - If a fee differs by account model (Kontomodell), record one product per card and account model, named
   "<card> / <Kontomodell>", plus one plain "<card>" product for all other account models.
+- If a card has a price column per status (e.g. DKB "Preismodell Standardleistung | Aktivstatus"), record one product
+  per status: "<card> / ohne Aktivstatus" for the standard column and "<card> / mit Aktivstatus" for the status
+  column, each with its own quote. Do not record a plain "<card>" product for it.
 - A fee written as "kostenlos" or "gebührenfrei" is 0. Use the fee at ATMs (Geldautomat), not at a bank counter
   (Schalter).
 - Write numbers as plain decimals with a dot ("2.0", "5.00"), copying the digits from the text.

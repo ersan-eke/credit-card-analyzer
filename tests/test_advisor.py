@@ -123,3 +123,40 @@ def test_one_card_question_resolves_only_that_card():
         BETA | {"alpha_card": [_fee(None, "3.0", "6.00", "alpha_card")]}, wallet=["alpha_card", "beta_card:Gold"]
     )
     assert list(a.resolve("Was kostet die Beta Gold für 300 EUR?")) == ["beta_card:Gold"]
+
+
+def test_status_products_are_extracted_separately_and_priced_by_the_chosen_one():
+    from decimal import Decimal
+
+    from cardcost.calc import cost_line
+    from cardcost.extract import SYSTEM
+    from cardcost.models import Scenario
+
+    assert "Aktivstatus" in SYSTEM and "<card> / mit Aktivstatus" in SYSTEM
+
+    def dkb(status, fx, quote):
+        return FeeSchedule(
+            card="dkb",
+            product=f"Visa Debitkarte / {status} Aktivstatus",
+            percent="0",
+            fx_percent=fx,
+            source_file="dkb.pdf",
+            source_page=1,
+            confidence=0.9,
+            quote=quote,
+        )
+
+    ohne = dkb("ohne", "2.2", "kostenlos seitens der DKB AG 2,20 % vom Umsatz")
+    mit = dkb("mit", "0", "kostenlos seitens der DKB AG")
+    advisor = Advisor({"dkb": [ohne, mit]}, wallet=["dkb"])
+    advisor.resolve("Bargeld")
+    assert list(advisor.choice_labels()) == []  # unqualified entry lists both products
+    assert list(advisor.resolve("Bargeld")) == [
+        "dkb:Visa Debitkarte / ohne Aktivstatus",
+        "dkb:Visa Debitkarte / mit Aktivstatus",
+    ]
+    us = Scenario(kind="cash", amount_eur=Decimal(200), country="US")
+    for status, want in (("ohne", "4.40"), ("mit", "0.00")):
+        label = f"dkb:Visa Debitkarte / {status} Aktivstatus"
+        fee = Advisor({"dkb": [ohne, mit]}, wallet=[label]).resolve("Bargeld")[label]
+        assert cost_line(label, fee, us).total == Decimal(want)

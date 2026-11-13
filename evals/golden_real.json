@@ -454,6 +454,50 @@
     "ask": "usage",
     "card": "revolut_standard"
    }
+  },
+  {
+   "id": "r21",
+   "question": "Was kostet eine Abhebung von 200 EUR in den USA mit der DKB Visa Debitkarte ohne Aktivstatus?",
+   "card": "dkb",
+   "product": "Visa Debitkarte / ohne Aktivstatus",
+   "expected_page": 1,
+   "expected_fields": {
+    "percent": "0",
+    "fx_percent": "2.2"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "200"
+   },
+   "wallet": [
+    "dkb:Visa Debitkarte / ohne Aktivstatus"
+   ],
+   "_hand": "Visa Debitkarte, p.1: 'in Euro kostenlos seitens der DKB AG' for both columns; outside the EWR in foreign currency the Standardleistung column adds 2,20 % vom Umsatz (Währungsumrechnungsentgelt), the Aktivstatus column does not. 200 * 2.2 % = 4.40 / 0",
+   "expected_cost": "4.40"
+  },
+  {
+   "id": "r22",
+   "question": "Was kostet eine Abhebung von 200 EUR in den USA mit der DKB Visa Debitkarte mit Aktivstatus?",
+   "card": "dkb",
+   "product": "Visa Debitkarte / mit Aktivstatus",
+   "expected_page": 1,
+   "expected_fields": {
+    "percent": "0",
+    "fx_percent": "0"
+   },
+   "scenario": {
+    "kind": "cash",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "200"
+   },
+   "wallet": [
+    "dkb:Visa Debitkarte / mit Aktivstatus"
+   ],
+   "_hand": "Visa Debitkarte, p.1: 'in Euro kostenlos seitens der DKB AG' for both columns; outside the EWR in foreign currency the Standardleistung column adds 2,20 % vom Umsatz (Währungsumrechnungsentgelt), the Aktivstatus column does not. 200 * 2.2 % = 4.40 / 0",
+   "expected_cost": "0.00"
   }
  ]
 }
