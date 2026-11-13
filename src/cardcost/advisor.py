@@ -1,26 +1,14 @@
 import logging
-import os
 import re
 from difflib import SequenceMatcher
-from pathlib import Path
 
 from cardcost import db
 from cardcost.calc import rank
-from cardcost.extract import extract_fees
-from cardcost.models import CostLine, FeeSchedule, Passage, Scenario, Usage
+from cardcost.fees import read_fees
+from cardcost.models import CostLine, FeeSchedule, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
-from cardcost.retrieval import Retriever
 
 log = logging.getLogger("cardcost.advisor")
-# Always retrieved next to the user's question, so a vague question cannot starve extraction of the fee pages.
-# One line per fee, with every name the price lists use for it; a new synonym is a one-line change.
-FEE_QUERY = " ".join(
-    [
-        "Bargeldauszahlung Bargeldverfügung Abhebung Geldautomat Entgelt Gebühr",
-        "Fremdwährung Auslandseinsatzentgelt Währungsumrechnungsentgelt Wechselgebühr Wechsellimit",
-        "Geldautomatenbetreiber Sollzinssatz",
-    ]
-)
 
 
 def _words(text: str) -> set[str]:
@@ -69,26 +57,11 @@ def mentioned(question: str, wallet: list[str]) -> list[str]:
 
 
 class Advisor:
-    def __init__(self, retriever: Retriever, llm, wallet: list[str] | None = None, conn=None, k: int = 3):
-        self.retriever, self.llm, self.k = retriever, llm, k
-        self.conn = conn if conn is not None else db.connect(":memory:")
-        self.wallet = wallet or sorted({p.card_id for p in retriever.passages})
+    def __init__(self, fees: dict[str, list[FeeSchedule]], llm=None, wallet: list[str] | None = None):
+        self.by_card, self.llm = fees, llm
+        self.wallet = wallet or sorted(fees)
         self.fees: dict[str, FeeSchedule | None] = {}
         self.choices: dict[str, list[FeeSchedule]] = {}  # wallet entry -> products the user must choose between
-        self.pages: dict[str, int] = {}
-        for p in retriever.passages:
-            self.pages[p.card_id] = max(self.pages.get(p.card_id, 0), p.page)
-
-    def k_for(self, card_id: str) -> int:
-        # shortcut: one extra passage per 3 pages, so long price lists (HVB, Revolut) keep their fee pages in context;
-        # measured on the real golden set: context recall 0.90 -> 0.95 (hybrid) for ~28 % more passages
-        return max(self.k, self.pages.get(card_id, 0) // 3)
-
-    def passages_for(self, card_id: str, question: str) -> list[Passage]:
-        k = self.k_for(card_id)
-        found = self.retriever.search(question, card_id, k) + self.retriever.search(FEE_QUERY, card_id, k)
-        unique = {p.id: p for p in found}
-        return sorted(unique.values(), key=lambda p: p.id)
 
     def scope(self, question: str) -> list[str]:
         """A question naming cards is about those cards only; a comparison ("welche Karte …") covers the wallet."""
@@ -99,14 +72,11 @@ class Advisor:
     def resolve(self, question: str, wallet: list[str] | None = None) -> dict[str, FeeSchedule | None]:
         """Wallet entry 'card' or 'card:Product' -> its fees. A multi-product card without a choice lists all.
         Only the cards the question is about (see scope); `wallet` overrides that for this call."""
-        by_card: dict[str, list[FeeSchedule]] = {}
         fees: dict[str, FeeSchedule | None] = {}
         self.choices = {}
         for entry in wallet or self.scope(question):
             card, _, product = entry.partition(":")
-            if card not in by_card:
-                by_card[card] = extract_fees(card, self.passages_for(card, question), self.llm, self.conn)
-            options = by_card[card]
+            options = self.by_card.get(card, [])
             if product:
                 found = match_product(product, options)
                 fees[entry] = found[0] if len(found) == 1 else None
@@ -183,19 +153,7 @@ def parse_usage(items: list[str]) -> dict[str, Usage]:
     return used
 
 
-def corpus_paths(conn) -> list[Path]:
-    dirs = os.environ.get("CARDCOST_DOCS", "samples:catalog/docs:data/private").split(":")
-    paths = {p for d in dirs for p in Path(d).glob("*.pdf")}
-    paths |= {Path(r["path"]) for r in conn.execute("SELECT path FROM ingest_job WHERE status = 'done'")}
-    return sorted(p for p in paths if p.exists())
-
-
-def build_advisor(conn, mode: str = "hybrid", live: bool = True) -> Advisor:
-    from cardcost.ingest import ingest_paths
+def build_advisor(conn, live: bool = True) -> Advisor:
     from cardcost.llm import LLM
-    from cardcost.retrieval import E5Embedder
 
-    # shortcut: passages and embeddings are rebuilt per process (seconds for a few PDFs); persist if the corpus grows
-    passages = ingest_paths(corpus_paths(conn))
-    retriever = Retriever(passages, mode=mode, embedder=None if mode == "bm25" else E5Embedder())
-    return Advisor(retriever, LLM(conn=conn, live=live), wallet=db.wallet(conn), conn=conn)
+    return Advisor(read_fees(), LLM(conn=conn, live=live), wallet=db.wallet(conn))

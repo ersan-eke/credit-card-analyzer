@@ -1,42 +1,28 @@
-from pathlib import Path
-
 from cardcost.advisor import Advisor
-from cardcost.ingest import ingest_paths
-from cardcost.retrieval import Retriever
+from cardcost.models import FeeSchedule
 
-PASSAGES = ingest_paths(sorted((Path(__file__).parent.parent / "samples").glob("beta*.pdf")))
 ROW = "Bargeldauszahlung am Geldautomaten | 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR"
 
 
-def _item(product, pct, mn):
-    return {
-        "product": product,
-        "percent": pct,
-        "min_eur": mn,
-        "currency": "EUR",
-        "conditions": None,
-        "fx_percent": None,
-        "atm_operator_fee_eur": None,
-        "cash_interest_pa": None,
-        "source_file": "beta_card.pdf",
-        "source_page": 1,
-        "confidence": 0.9,
-        "quote": ROW,
-        "not_stated": [],
-    }
+def _fee(product, pct, mn, card="beta_card"):
+    return FeeSchedule(
+        card=card,
+        product=product,
+        percent=pct,
+        min_eur=mn,
+        source_file="beta_card.pdf",
+        source_page=1,
+        confidence=0.9,
+        quote=ROW,
+    )
 
 
-class FakeLLM:
-    def create(self, purpose, prompt_version, **kw):
-        assert ROW in kw["messages"][0]["content"]  # the fee table reaches the extractor
-        products = [_item("Beta Classic", "3.0", "6.00"), _item("Beta Gold", "1.0", "7.50")]
-        return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
+BETA = {"beta_card": [_fee("Beta Classic", "3.0", "6.00"), _fee("Beta Gold", "1.0", "7.50")]}
 
 
 def test_selected_product_and_default_expansion():
-    r = Retriever(PASSAGES, mode="bm25")
-    assert list(Advisor(r, FakeLLM(), wallet=["beta_card:Gold"]).resolve("Bargeld")) == ["beta_card:Gold"]
-    assert list(Advisor(r, FakeLLM()).resolve("Bargeld")) == ["beta_card:Beta Classic", "beta_card:Beta Gold"]
+    assert list(Advisor(BETA, wallet=["beta_card:Gold"]).resolve("Bargeld")) == ["beta_card:Gold"]
+    assert list(Advisor(BETA).resolve("Bargeld")) == ["beta_card:Beta Classic", "beta_card:Beta Gold"]
 
 
 def test_parse_scenario():
@@ -69,51 +55,24 @@ def test_parse_usage():
 
 
 def test_exact_product_name_beats_substring():
-    class TwoMastercards(FakeLLM):
-        def create(self, purpose, prompt_version, **kw):
-            products = [_item("HVB Mastercard", "3.0", "6.00"), _item("HVB Mastercard Gold", "1.0", "7.50")]
-            return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
-
-    r = Retriever(PASSAGES, mode="bm25")
-    fees = Advisor(r, TwoMastercards(), wallet=["beta_card:hvb mastercard"]).resolve("Bargeld")
-    assert fees["beta_card:hvb mastercard"].product == "HVB Mastercard"
+    fees = {"beta_card": [_fee("HVB Mastercard", "3.0", "6.00"), _fee("HVB Mastercard Gold", "1.0", "7.50")]}
+    resolved = Advisor(fees, wallet=["beta_card:hvb mastercard"]).resolve("Bargeld")
+    assert resolved["beta_card:hvb mastercard"].product == "HVB Mastercard"
 
 
 def test_account_model_products_resolve_exactly():
-    class AccountModels(FakeLLM):
-        def create(self, purpose, prompt_version, **kw):
-            products = [_item("HVB Mastercard", "3.0", "6.00"), _item("HVB Mastercard / HVB AktivKonto", "1.0", "7.50")]
-            return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
-
-    r = Retriever(PASSAGES, mode="bm25")
+    fees = {
+        "beta_card": [_fee("HVB Mastercard", "3.0", "6.00"), _fee("HVB Mastercard / HVB AktivKonto", "1.0", "7.50")]
+    }
     wallet = ["beta_card:HVB Mastercard", "beta_card:HVB Mastercard / HVB AktivKonto"]
-    fees = Advisor(r, AccountModels(), wallet=wallet).resolve("Bargeld")
-    assert [f.product for f in fees.values()] == ["HVB Mastercard", "HVB Mastercard / HVB AktivKonto"]
+    resolved = Advisor(fees, wallet=wallet).resolve("Bargeld")
+    assert [f.product for f in resolved.values()] == ["HVB Mastercard", "HVB Mastercard / HVB AktivKonto"]
 
 
 def test_extraction_prompt_asks_for_account_model_products():
     from cardcost.extract import SYSTEM
 
     assert "Kontomodell" in SYSTEM and "<card> / <Kontomodell>" in SYSTEM
-
-
-def test_k_grows_with_document_size():
-    from cardcost.models import Passage
-
-    big = [
-        Passage(id=f"big:p{i}:0", card_id="big", file="big.pdf", page=i, text=f"Bargeld Seite {i}")
-        for i in range(1, 13)
-    ]
-    a = Advisor(Retriever(big + PASSAGES, mode="bm25"), FakeLLM())
-    assert (a.k_for("big"), a.k_for("beta_card")) == (4, 3)
-    assert len(a.retriever.search("Bargeld", "big", a.k_for("big"))) == 4
-
-
-def test_fee_query_reaches_revolut_fx_section():
-    # Revolut calls its FX fee "Wechselgebühr" / "Wechsellimit" (p5); the fee-terms query must find it for any question
-    rev = ingest_paths([Path(__file__).parent.parent / "catalog/docs/revolut_standard.pdf"])
-    a = Advisor(Retriever(rev, mode="bm25"), FakeLLM())
-    assert 5 in {p.page for p in a.passages_for("revolut_standard", "Was kostet das?")}
 
 
 def test_match_product_by_words():
@@ -137,8 +96,7 @@ def test_match_product_by_words():
 
 
 def test_unresolved_product_offers_the_candidates():
-    r = Retriever(PASSAGES, mode="bm25")
-    a = Advisor(r, FakeLLM(), wallet=["beta_card:Beta"])  # both products contain "Beta" and one extra word
+    a = Advisor(BETA, wallet=["beta_card:Beta"])  # both products contain "Beta" and one extra word
     assert a.resolve("Bargeld") == {"beta_card:Beta": None}
     assert [f.product for f in a.choices["beta_card:Beta"]] == ["Beta Classic", "Beta Gold"]
     a.wallet = ["beta_card:Platin"]  # no match: every product of the card is a candidate
@@ -161,6 +119,7 @@ def test_mentioned_cards_and_products():
 
 
 def test_one_card_question_resolves_only_that_card():
-    r = Retriever(PASSAGES + ingest_paths([Path(__file__).parent.parent / "samples/alpha_card.pdf"]), mode="bm25")
-    a = Advisor(r, FakeLLM(), wallet=["alpha_card", "beta_card:Gold"])
+    a = Advisor(
+        BETA | {"alpha_card": [_fee(None, "3.0", "6.00", "alpha_card")]}, wallet=["alpha_card", "beta_card:Gold"]
+    )
     assert list(a.resolve("Was kostet die Beta Gold für 300 EUR?")) == ["beta_card:Gold"]

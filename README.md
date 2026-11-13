@@ -12,11 +12,10 @@ uv sync && export ANTHROPIC_API_KEY=... CARDCOST_MODEL=claude-sonnet-5-5 && \
 
 Set `CARDCOST_PROVIDER` to `google` (AI Studio key in `GEMINI_API_KEY`) or `openrouter` (`OPENROUTER_API_KEY`), and set
 `CARDCOST_MODEL` to that provider's model id. Both go through their OpenAI-compatible `/chat/completions` endpoint
-and are translated to the Anthropic response shape, so retry, audit, review and the LLM cache work the same.
-The cache key includes the provider, so recorded answers from different providers don't mix.
+and are translated to the Anthropic response shape, so retry, audit and review work the same.
 
 ```bash
-CARDCOST_PROVIDER=google CARDCOST_MODEL=gemini-3.8-flash GEMINI_API_KEY=... uv run python evals/run_eval.py --live --mode hybrid
+CARDCOST_PROVIDER=google CARDCOST_MODEL=gemini-3.8-flash GEMINI_API_KEY=... uv run cardcost ingest --mode hybrid
 CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_API_KEY=... uv run cardcost ask "300 EUR Bargeld in den USA"
 ```
 
@@ -38,7 +37,7 @@ are redacted before anything is logged.
 ## Commands
 
 ```bash
-uv run cardcost ingest [file.pdf ...]          # documents = samples/ + catalog/docs/ + data/private/ (gitignored) + webhook uploads
+uv run cardcost ingest [file.pdf ...]          # extract changed price lists (default catalog/docs/) into catalog/fees.json; --fees to use another file
 uv run cardcost products                       # card products found, e.g. beta_card:Beta Classic, beta_card:Beta Gold
 uv run cardcost wallet --choose                # per bank, pick the cards/account models its documents name
 uv run cardcost wallet alpha_card beta_card:Gold   # or name them directly (default: all)
@@ -67,7 +66,7 @@ Mastercard") is answered for that card only; "Welche Karte ist am g√ºnstigsten ‚
 
 **Webhook**: `X-Timestamp: <unix s>` and `X-Signature: hex(HMAC-SHA256(CARDCOST_WEBHOOK_SECRET, "<timestamp>.<raw body>"))`,
 body `{"event_id": "...", "path": "data/private/x.pdf"}`. A request is rejected if it is older than 5 minutes, if its event id was already seen (it gets 200 and is not queued again), or if the path is outside `data/private/`.
-The endpoint returns 200 and ingests in the background.
+The endpoint returns 200 and parses the file in the background; its fees reach the app with the next `cardcost ingest <file>`.
 
 **MCP** (read-only tools `get_fee(card, amount_eur, used)`, `compare_cards(amount_eur, country, used)`):
 
@@ -81,9 +80,10 @@ claude mcp add cardcost -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY -e CARDCOST_MODE
 `evals/golden.json`: 20 hand-checked questions over the 3 synthetic PDFs in `samples/`. They include 4 "not stated" questions, compound and umlaut terms, amounts on both sides of each minimum-fee crossover (200 / 250 / 750 EUR), and an injection test.
 Each question's expected costs are written out in its `_hand` field. `evals/run_eval.py` scores each step separately:
 retrieval (expected page in the card's top 3, 17 questions), context (expected page among the passages the extractor actually
-receives: question top-k plus a fixed fee-terms query, with k growing by one per 3 pages), extraction (exact Decimal match, null must be null),
+receives at ingest: the fixed fee-terms query's top-k, with k growing by one per 3 pages), extraction (exact Decimal match, null must be null),
 cost (one-card questions: that card's total, unknown must be unknown) and ranking (only for comparison questions, so a one-card
-question never fails on another card's fee). Run it with `--live` once to record LLM answers into `evals/llm_cache.json`. CI then replays them without a key
+question never fails on another card's fee). Extraction, cost and ranking are scored from the committed fees files (`samples/fees.json`, written by
+`cardcost ingest samples/*.pdf --fees samples/fees.json`, and `catalog/fees.json`), so CI needs no key
 and fails if hybrid extraction accuracy is below 0.9.
 
 | mode | retrieval@3 | context | extraction | cost | ranking |

@@ -1,8 +1,9 @@
 """Score retrieval, extraction, cost (one-card questions), ranking (comparisons), facts (a stated fee or count) and
-questions back (the advisor should ask instead of answering) for bm25 / vector / hybrid.
+questions back (the advisor should ask instead of answering). Extraction, cost, ranking and facts are scored from the
+committed fees files (samples/fees.json, catalog/fees.json), so they need no LLM; retrieval is scored for
+bm25 / vector / hybrid on the fee pages an ingest would send to the extractor.
 
-uv run python evals/run_eval.py            # replay recorded LLM answers (CI)
-uv run python evals/run_eval.py --live     # call Claude on cache misses and record them
+uv run python evals/run_eval.py
 uv run python evals/run_eval.py --golden evals/golden_real.json   # draft set for the real price lists
 Exit 1 if hybrid extraction accuracy < 0.9.
 """
@@ -14,8 +15,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from cardcost.advisor import Advisor
+from cardcost.fees import fee_passages, read_fees
 from cardcost.ingest import ingest_paths
-from cardcost.llm import LLM
 from cardcost.models import Scenario
 from cardcost.numbers import find_numbers
 from cardcost.retrieval import E5Embedder, Retriever
@@ -34,15 +35,16 @@ def _dec(v: str | None) -> Decimal | None:
     return None if v is None else Decimal(v)
 
 
-def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, list[str]]:
-    advisor = Advisor(Retriever(passages, mode=mode, embedder=embedder), llm, wallet=golden["wallet"])
+def run_mode(mode: str, golden: dict, passages, embedder, fees) -> tuple[dict, list[str]]:
+    retriever = Retriever(passages, mode=mode, embedder=embedder)
+    advisor = Advisor(fees, wallet=golden["wallet"])
     hits = {k: [0, 0] for k in ["retrieval", "context", "extraction", *EXPECTS.values()]}
     failures = []
     for q in golden["questions"]:
         expect = next(v for k, v in EXPECTS.items() if k in q)
         advisor.wallet = q.get("wallet", golden["wallet"])
         if q["expected_page"] is not None:
-            top = advisor.retriever.search(q["question"], card_id=q["card"], k=3)
+            top = retriever.search(q["question"], card_id=q["card"], k=3)
             ok = any(p.page == q["expected_page"] for p in top)
             hits["retrieval"][0] += ok
             hits["retrieval"][1] += 1
@@ -50,8 +52,8 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
                 failures.append(
                     f"[{mode}] {q['id']} retrieval: want p{q['expected_page']}, got {[p.page for p in top]}"
                 )
-            # what the extractor actually receives: question top-k plus the fixed fee-terms query
-            ctx = advisor.passages_for(q["card"], q["question"])
+            # what the extractor receives at ingest: the fee-terms query's top-k, the same for every question
+            ctx = fee_passages(retriever, q["card"])
             ok = any(p.page == q["expected_page"] for p in ctx)
             hits["context"][0] += ok
             hits["context"][1] += 1
@@ -110,23 +112,21 @@ def run_mode(mode: str, golden: dict, passages, embedder, llm) -> tuple[dict, li
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", default="all", choices=["all", "bm25", "vector", "hybrid"])
-    ap.add_argument("--live", action="store_true", help="call the API on cache misses")
     ap.add_argument("--golden", type=Path, default=ROOT / "evals/golden.json")
     args = ap.parse_args()
     golden = json.loads(args.golden.read_text())
     passages = ingest_paths(sorted([*(ROOT / "samples").glob("*.pdf"), *(ROOT / "catalog/docs").glob("*.pdf")]))
     embedder = E5Embedder()
-    llm = LLM(cache_path=ROOT / "evals/llm_cache.json", live=args.live)
+    fees = read_fees([ROOT / "samples/fees.json", ROOT / "catalog/fees.json"])
     modes = ["bm25", "vector", "hybrid"] if args.mode == "all" else [args.mode]
     scores, failures = {}, []
     for mode in modes:
-        scores[mode], f = run_mode(mode, golden, passages, embedder, llm)
+        scores[mode], f = run_mode(mode, golden, passages, embedder, fees)
         failures += f
     names = list(next(iter(scores.values())))
     print(f"\n{'mode':<8} " + " ".join(f"{'retrieval@3' if n == 'retrieval' else n:>11}" for n in names))
     for mode, s in scores.items():
         print(f"{mode:<8} " + " ".join(f"{s[n]:>11.2f}" for n in names))
-    print(f"\nLLM calls: {llm.calls} live, {llm.cache_hits} from cache")
     print(f"\n{len(failures)} failures:" if failures else "\nno failures")
     for f in failures:
         print("  " + f)

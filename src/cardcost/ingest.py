@@ -122,7 +122,7 @@ def ingest_paths(paths: Iterable[Path]) -> list[Passage]:
 
 
 def process_job(conn, job_id: int) -> str:
-    """Parse a queued document; on success it joins the corpus (see advisor.corpus_paths)."""
+    """Parse a queued document; on success the file can be passed to `cardcost ingest`."""
     row = conn.execute("SELECT path FROM ingest_job WHERE id = ?", (job_id,)).fetchone()
     try:
         n = len(ingest_paths([Path(row["path"])]))

@@ -3,29 +3,28 @@ import json
 import sqlite3
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 from cardcost import db
-from cardcost.advisor import build_advisor, corpus_paths, parse_scenario, parse_usage
+from cardcost.advisor import build_advisor, parse_scenario, parse_usage
 from cardcost.answer import answer, render_table
 from cardcost.calc import matrix, rank
-from cardcost.ingest import process_job
+from cardcost.fees import CATALOG_DOCS, CATALOG_FEES, update_fees
+from cardcost.llm import LLM
 from cardcost.logs import new_run_id, setup_logging
 from cardcost.models import EUROZONE, HOME, NUMERIC_FIELDS, FeeSchedule, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 
 def cmd_ingest(conn, args) -> None:
-    for path in args.paths:
-        db.enqueue_ingest(conn, path)
-    for row in conn.execute("SELECT id, path FROM ingest_job WHERE status = 'queued'").fetchall():
-        print(f"job {row['id']} {row['path']}: {process_job(conn, row['id'])}")
-    for p in corpus_paths(conn):
-        print(f"corpus: {p}")
+    paths = [Path(p) for p in args.paths] or sorted(CATALOG_DOCS.glob("*.pdf"))
+    refreshed = update_fees(paths, Path(args.fees), LLM(conn=conn), conn, args.mode)
+    print(f"{args.fees}: extracted {', '.join(refreshed) or 'nothing'}; {len(paths) - len(refreshed)} unchanged")
 
 
 def cmd_products(conn, args) -> None:
-    advisor = build_advisor(conn, args.mode)
-    advisor.wallet = sorted({p.card_id for p in advisor.retriever.passages})
+    advisor = build_advisor(conn)
+    advisor.wallet = sorted(advisor.by_card)
     for label, fee in advisor.resolve("Bargeld Entgelt").items():
         print(label if fee else f"{label}  (no fees extracted, see `cardcost review list`)")
 
@@ -47,8 +46,8 @@ def choose_wallet(labels: list[str], ask=input) -> list[str]:
 
 def cmd_wallet(conn, args) -> None:
     if args.choose:
-        advisor = build_advisor(conn, args.mode)
-        cards = sorted({p.card_id for p in advisor.retriever.passages})
+        advisor = build_advisor(conn)
+        cards = sorted(advisor.by_card)
         db.wallet_set(conn, choose_wallet(list(advisor.resolve("Bargeld Entgelt", wallet=cards))))
     for entry in args.entries:
         db.wallet_add(conn, entry)
@@ -110,7 +109,7 @@ def cmd_ask(conn, args) -> None:
     scenario = parse_scenario(
         args.question, amount_eur=args.amount, kind=args.kind, country=args.country, days=args.days
     )
-    advisor = build_advisor(conn, args.mode)
+    advisor = build_advisor(conn)
     fees = advisor.resolve(args.question)
     if sys.stdin.isatty():
         fees = choose_products(conn, fees, advisor.choices)
@@ -129,7 +128,7 @@ def cmd_ask(conn, args) -> None:
 
 
 def cmd_matrix(conn, args) -> None:
-    advisor = build_advisor(conn, args.mode)
+    advisor = build_advisor(conn)
     fees = advisor.resolve("Bargeldauszahlung Fremdwährung")
     countries = args.countries.split(",")
     used = parse_usage(args.used)
@@ -171,10 +170,11 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging()
     ap = argparse.ArgumentParser(prog="cardcost", description="German credit-card cost advisor")
     ap.add_argument("--db", default=None, help="SQLite path (default $CARDCOST_DB or cardcost.db)")
-    ap.add_argument("--mode", default="hybrid", choices=["bm25", "vector", "hybrid"])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("ingest", help="queue PDFs and process queued ingest jobs")
-    p.add_argument("paths", nargs="*")
+    p = sub.add_parser("ingest", help="extract the fees of changed price lists into the fees file (default: catalog)")
+    p.add_argument("paths", nargs="*", help=f"PDFs (default {CATALOG_DOCS}/*.pdf)")
+    p.add_argument("--fees", default=str(CATALOG_FEES), help="fees file to update")
+    p.add_argument("--mode", default="hybrid", choices=["bm25", "vector", "hybrid"], help="retrieval of the fee pages")
     sub.add_parser("products", help="list card products found in the documents")
     p = sub.add_parser("wallet", help="choose which cards/products you own, e.g. beta_card:Gold")
     p.add_argument("entries", nargs="*")
