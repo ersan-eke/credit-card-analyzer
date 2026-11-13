@@ -242,9 +242,9 @@ Expected answer "4" (`free_count`)
   - `Kalendermonat) ⏎ Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7 20 x 0,00 EUR7 -`
   - `Kalendermonat) ⏎ Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7 20 x 0,00 EUR7 -`
 
-## r18 (VERIFY): Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?
+## r18: Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?
 
-`dkb:Kreditkarte`, page 2. Hand: VERIFY: the ranking depends on the user's products and usage (operator review): c24 0 with free withdrawals left (4 a month), else 2.00; revolut 200 EUR free, then 2%; dkb depends on Aktivstatus (#5); hvb 2% or free by account. Draft without usage: dkb 0; tr 0; c24 2.00; ing 22.00; hvb 37.50. Check: if dkb and tr stay at 0 either way, #9's 'ask only when it changes the winner' would answer directly
+`dkb:Kreditkarte`, page 2. Hand: The ranking depends on the user's products and usage, so ask (operator review): c24 0 with free withdrawals left (4 a month), else 2.00; revolut 200 EUR free, then 2%; dkb depends on Aktivstatus (#5); hvb 2% or free by account. Draft without usage: dkb 0; tr 0; c24 2.00; ing 22.00; hvb 37.50
 
 Expected a question back: usage
 
@@ -280,7 +280,7 @@ Expected cost 2.50 EUR
 
 ## r20: Ich habe mit Revolut diesen Monat erst 400 EUR umgetauscht. Was kostet ein Einkauf über 300 EUR in den USA?
 
-`revolut_standard`, page 5. Hand: 400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60. Operator review: it also depends on whether the user already holds dollars (no exchange at all), so ask
+`revolut_standard`, page 5. Hand: 400 + 300 <= 1000 -> rev FX 0.00; c24/dkb/tr 0.00; hvb 5.25; ing 6.60. Operator review: ask, because the cost depends on how much was exchanged this month (Revolut shows it) and on dollars already held: with 100 USD held only 200 need exchanging. Without an answer the whole 300 counts as newly exchanged
 
 Expected a question back: usage for revolut_standard
 
