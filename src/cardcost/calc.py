@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from cardcost.models import CostLine, FeeSchedule, Scenario, Usage
+from cardcost.models import CostLine, FeeSchedule, Rule, Scenario, Usage
 from cardcost.numbers import to_cents
 
 ZERO = Decimal(0)
@@ -48,9 +48,101 @@ def fx_base(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[Deci
     return max(ZERO, amount - left), f"Wechsellimit {fee.fx_free_eur} EUR, bisher {used.fx_eur} EUR umgetauscht"
 
 
+def rule_matches(rule: Rule, event: str, s: Scenario) -> bool:
+    w = rule.when
+    return (
+        event in rule.event
+        and (w.currency is None or s.currency in w.currency)
+        and (w.region is None or s.region in w.region)
+        and (w.country is None or s.country.upper() in w.country)
+    )
+
+
+def rule_base(rule: Rule, amount: Decimal, used: Usage | None) -> tuple[Decimal, str | None]:
+    """Amount a rule's price applies to after its allowance. Unknown usage counts as used up: never assume free.
+    A use that only partly fits a free amount is charged on the part above the limit. An allowance on a foreign-currency
+    rule counts EUR exchanged (fx_eur), any other counts EUR withdrawn (eur)."""
+    a = rule.allowance
+    if a is None:
+        return amount, None
+    spent = None if used is None else used.fx_eur if rule.is_fx else used.eur
+    if used is None or (a.amount_eur is not None and spent is None):
+        return amount, f"Freikontingent {rule.name} als verbraucht angenommen (bisherige Nutzung nicht angegeben)"
+    if a.count is not None and used.count >= a.count:
+        base = amount
+    elif a.amount_eur is None:
+        base = ZERO
+    else:
+        base = max(ZERO, amount - max(ZERO, a.amount_eur - spent))
+    limits = " / ".join(
+        [*([f"{a.count} Nutzungen"] if a.count is not None else []), *([f"{a.amount_eur} EUR"] if a.amount_eur else [])]
+    )
+    state = "kostenlos" if base == ZERO else "verbraucht" if base == amount else f"berechnet auf {base} EUR"
+    so_far = f"{used.count}" + (f" / {spent} EUR" if spent is not None else "")
+    return base, f"Freikontingent {rule.name} {limits} ({a.period}), bisher {so_far}: {state}"
+
+
+def rule_fee(rule: Rule, base: Decimal) -> Decimal:
+    p = rule.price
+    if not base:
+        return ZERO
+    fee = base * (p.percent or ZERO) / 100 + (p.flat_eur or ZERO)
+    fee = max(fee, p.min_eur or ZERO)
+    return to_cents(min(fee, p.max_eur) if p.max_eur is not None else fee)
+
+
+def applicable(fee: FeeSchedule, event: str, s: Scenario) -> tuple[Rule | None, list[Rule]]:
+    """The base rule (most specific of those that match; a tie is an error) and the rules that stack on it."""
+    hits = [r for r in fee.rules if rule_matches(r, event, s)]
+    base = [r for r in hits if not r.stacks]
+    top = max((r.when.specificity for r in base), default=0)
+    best = [r for r in base if r.when.specificity == top]
+    if len(best) > 1:
+        raise ValueError(f"{fee.card} {fee.product or ''}: rules tie for {event}: {', '.join(r.name for r in best)}")
+    return (best[0] if best else None), [r for r in hits if r.stacks]
+
+
+def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
+    comps: dict[str, Decimal] = {}
+    missing: list[str] = []
+    notes: list[str] = []
+    used: list[Rule] = []
+    events = ["atm"] if s.kind == "cash" else ["payment"]
+    for event in events + (["credit"] if s.kind == "cash" and s.days else []):
+        base, stacked = applicable(fee, event, s)
+        if base is None and event != "payment":  # a payment is free of base fees unless the list says otherwise
+            missing.append("cash_interest" if event == "credit" else "cash_fee")
+        for rule in [*([base] if base else []), *stacked]:
+            used.append(rule)
+            if rule.price is None:
+                missing.append(rule.name)
+                continue
+            if event == "credit":
+                interest = to_cents(s.amount_eur * (rule.price.percent or ZERO) / 100 * s.days / 365)
+                comps[rule.name] = comps.get(rule.name, ZERO) + interest
+                continue
+            amount, note = rule_base(rule, s.amount_eur, s.usage_for(label))
+            comps[rule.name] = comps.get(rule.name, ZERO) + rule_fee(rule, amount)
+            notes += [note] if note else []
+    if s.currency != "EUR" and not any(r.is_fx for r in used):
+        missing.append("fx_fee")
+    pages = sorted({r.page for r in used} or {fee.source_page})
+    return CostLine(
+        label=label,
+        components=comps,
+        missing=missing,
+        total=None if missing else sum(comps.values(), ZERO),
+        source=f"{fee.source_file} p.{', '.join(map(str, pages))}",
+        quote="\n".join(dict.fromkeys(r.quote for r in used)) or fee.quote,
+        notes=notes,
+    )
+
+
 def cost_line(label: str, fee: FeeSchedule | None, s: Scenario) -> CostLine:
     if fee is None:
         return CostLine(label=label, missing=["fee document"])
+    if fee.rules:
+        return rules_cost_line(label, fee, s)
     comps: dict[str, Decimal] = {}
     missing: list[str] = []
     notes: list[str] = []

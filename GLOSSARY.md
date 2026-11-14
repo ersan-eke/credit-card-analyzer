@@ -32,3 +32,6 @@ _Avoid_: My cards, portfolio
 
 **Allowance**:
 A number or amount of fee-free uses per period (e.g. 4 free withdrawals a month); whether it is left depends on the user.
+
+**Rule**:
+One priced event of a product under conditions: what it is called, which events (payment, atm, credit), when it applies (currency, region, country), its price, an optional allowance, and the quote it comes from. The most specific matching rule wins; a rule that stacks adds to it. No price means the document does not state it: the cost is unknown.

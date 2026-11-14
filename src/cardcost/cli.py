@@ -63,26 +63,20 @@ def ask_usage(
     for label, fee in fees.items():
         if not fee or label in used or label.partition(":")[0] in used:
             continue
-        cash = scenario.kind == "cash" and (fee.free_count is not None or fee.free_amount_eur is not None)
-        fx = scenario.foreign_currency and fee.fx_free_eur is not None
+        free_count, free_amount, fx_free, period = fee.limits
+        cash = scenario.kind == "cash" and (free_count is not None or free_amount is not None)
+        fx = scenario.foreign_currency and fx_free is not None
         if not (cash or fx):
             continue
         if not cash:  # the withdrawal count only matters for cash
-            fx_eur = parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
+            fx_eur = parse_german_decimal(ask(f"{label} (Wechsellimit {fx_free} EUR): EUR exchanged so far? "))
             used[label] = Usage(count=0, fx_eur=fx_eur)
             continue
-        limit = " / ".join(
-            x
-            for x in (fee.free_count and f"{fee.free_count} free", fee.free_amount_eur and f"{fee.free_amount_eur} EUR")
-            if x
-        )
-        period = fee.conditions or "per period"
-        count = int(ask(f"{label} ({limit}, {period}): withdrawals so far? "))
-        eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if fee.free_amount_eur is not None else None
+        limit = " / ".join(x for x in (free_count and f"{free_count} free", free_amount and f"{free_amount} EUR") if x)
+        count = int(ask(f"{label} ({limit}, {period or 'per period'}): withdrawals so far? "))
+        eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if free_amount is not None else None
         fx_eur = (
-            parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
-            if fx
-            else None
+            parse_german_decimal(ask(f"{label} (Wechsellimit {fx_free} EUR): EUR exchanged so far? ")) if fx else None
         )
         used[label] = Usage(count=count, eur=eur, fx_eur=fx_eur)
     return used
@@ -141,12 +135,11 @@ def cmd_matrix(conn, args) -> None:
         for country in countries:
             bands = matrix(fees, kind, country, args.max, used)
             print(f"{kind:8} {country}: " + "; ".join(f"{a}-{b} EUR -> {w}" for a, b, w in bands))
-    allowance = ("free_count", "free_amount_eur", "fx_free_eur")
     state = Scenario(kind="cash", amount_eur=Decimal(1), used=used)
     assumed = [
         label
         for label, fee in fees.items()
-        if fee and any(getattr(fee, f) is not None for f in allowance) and not state.usage_for(label)
+        if fee and any(x is not None for x in fee.limits[:3]) and not state.usage_for(label)
     ]
     if assumed:
         print("allowance assumed used up (pass --used): " + ", ".join(assumed))
