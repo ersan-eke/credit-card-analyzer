@@ -47,6 +47,14 @@ class FakeLLM:
         return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
 
 
+@pytest.fixture(autouse=True)
+def plain_reader(monkeypatch):
+    # the tests change PDFs, so their text is converted again; the plain reader needs no layout extractor
+    from cardcost import ingest
+
+    monkeypatch.setattr(ingest, "convert", ingest.read_pdf)
+
+
 @pytest.fixture
 def conn():
     from cardcost import db
@@ -58,13 +66,13 @@ def test_extract_once_and_unchanged_sources_change_nothing(tmp_path, conn):
     pdf = tmp_path / "beta_card.pdf"
     shutil.copy(ROOT / "samples/beta_card.pdf", pdf)
     out, llm = tmp_path / "fees.json", FakeLLM()
-    assert update_fees([pdf], out, llm, conn, "bm25") == ["beta_card"]
+    assert update_fees([pdf], out, llm, conn, "bm25") == {"beta_card": "extracted"}
     first = out.read_bytes()
     assert [f.product for f in read_fees([out])["beta_card"]] == ["Beta Classic", "Beta Gold"]
-    assert update_fees([pdf], out, llm, conn, "bm25") == []
+    assert update_fees([pdf], out, llm, conn, "bm25") == {}
     assert (llm.calls, out.read_bytes()) == (1, first)
     pdf.write_bytes(pdf.read_bytes() + b"\n%changed")  # a changed source is extracted again
-    assert update_fees([pdf], out, llm, conn, "bm25") == ["beta_card"]
+    assert update_fees([pdf], out, llm, conn, "bm25") == {"beta_card": "extracted"}
     assert llm.calls == 2
 
 
@@ -78,7 +86,7 @@ def test_card_without_fees_is_retried(tmp_path, conn):
             return {"content": []}
 
     update_fees([pdf], out, Nothing(), conn, "bm25")
-    assert update_fees([pdf], out, FakeLLM(), conn, "bm25") == ["beta_card"]
+    assert update_fees([pdf], out, FakeLLM(), conn, "bm25") == {"beta_card": "extracted"}
 
 
 def test_stored_fee_keeps_the_quote_validation(tmp_path):
@@ -167,4 +175,37 @@ def test_a_crash_keeps_the_cards_already_extracted(tmp_path, conn):
     with pytest.raises(RuntimeError):
         update_fees(pdfs, out, DiesOnSecond(), conn, "bm25")
     assert set(json.loads(out.read_text())) == {"beta_card"}
-    assert update_fees(pdfs, out, ok, conn, "bm25") == ["other_card"]  # resumes with the missing card only
+    assert set(update_fees(pdfs, out, ok, conn, "bm25")) == {"other_card"}  # resumes with the missing card only
+
+
+def test_price_list_that_lost_numbers_is_flagged_not_extracted(tmp_path, conn, monkeypatch):
+    from cardcost import ingest
+
+    pdf = tmp_path / "beta_card.pdf"
+    shutil.copy(ROOT / "samples/beta_card.pdf", pdf)
+    monkeypatch.setattr(ingest, "convert", lambda path: [p.replace("7,50", "17,50") for p in ingest.read_pdf(path)])
+    llm, out = FakeLLM(), tmp_path / "fees.json"
+    assert update_fees([pdf], out, llm, conn, "bm25") == {"beta_card": "flagged: numbers lost in extraction: 7,50"}
+    assert llm.calls == 0 and not out.exists()
+
+
+def test_converted_text_is_cached_beside_the_pdf_until_it_changes(tmp_path, conn, monkeypatch):
+    from cardcost import ingest
+
+    pdf = tmp_path / "beta_card.pdf"
+    shutil.copy(ROOT / "samples/beta_card.pdf", pdf)
+    converted = []
+    monkeypatch.setattr(ingest, "convert", lambda path: converted.append(path) or ingest.read_pdf(path))
+
+    class Nothing:
+        def create(self, *a, **kw):
+            return {"content": []}
+
+    out = tmp_path / "fees.json"
+    update_fees([pdf], out, Nothing(), conn, "bm25")  # no fees: retried on the next run, from the cached text
+    assert ROW in pdf.with_suffix(".md").read_text()
+    update_fees([pdf], out, FakeLLM(), conn, "bm25")
+    assert len(converted) == 1
+    pdf.write_bytes(pdf.read_bytes() + b"\n%changed")
+    update_fees([pdf], out, FakeLLM(), conn, "bm25")
+    assert len(converted) == 2

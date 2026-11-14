@@ -5,6 +5,7 @@ description = "German credit-card cost advisor: RAG + structured extraction + de
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pdfplumber>=0.11",
+    "pypdfium2>=4.30",
     "rank-bm25>=0.2.2",
     "sentence-transformers>=3.0",
     "anthropic>=0.40",
@@ -14,6 +15,10 @@ dependencies = [
     "mcp>=1.2",
     "numpy>=1.26",
 ]
+
+[project.optional-dependencies]
+# Layout extractor for ingest only (ADR 0003); questions are answered from the fees file without it.
+ingest = ["docling>=2.150"]
 
 [project.scripts]
 cardcost = "cardcost.cli:main"

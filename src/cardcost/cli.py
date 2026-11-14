@@ -18,8 +18,10 @@ from cardcost.numbers import parse_german_decimal
 
 def cmd_ingest(conn, args) -> None:
     paths = [Path(p) for p in args.paths] or sorted(CATALOG_DOCS.glob("*.pdf"))
-    refreshed = update_fees(paths, Path(args.fees), LLM(conn=conn), conn, args.mode)
-    print(f"{args.fees}: extracted {', '.join(refreshed) or 'nothing'}; {len(paths) - len(refreshed)} unchanged")
+    done = update_fees(paths, Path(args.fees), LLM(conn=conn), conn, args.mode)
+    for card, status in done.items():
+        print(f"{card}: {status}")
+    print(f"{args.fees}: {len(done)} processed, {len(paths) - len(done)} unchanged")
 
 
 def cmd_products(conn, args) -> None:

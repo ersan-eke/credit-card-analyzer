@@ -55,10 +55,11 @@ def test_two_column_page_is_read_column_by_column():
     assert "– an allen anderen Geldautomaten 2% mind. 5 EUR" in page5.splitlines()
     # label/value layouts are not split: ING keeps label and fee on one line
     ing = ingest_paths([p for p in CATALOG if p.name == "ing.pdf"])
-    assert any("bei Casinobetrieben, Lotteriegesellschaften und Wettbüros: 3,00% vom Umsatz" in p.text for p in ing)
-    # fee tables with a central gutter (C24, DKB) are not split either
+    assert any("bei Casinobetrieben, Lotteriegesellschaften und Wettbüros: | 3,00 % vom Umsatz" in p.text for p in ing)
+    # fee tables with a central gutter (C24, DKB) stay tables
     c24 = ingest_paths([p for p in CATALOG if p.name == "c24.pdf"])
-    assert any("Mit der C24 Mastercard (kostenlos) 4 x 0,00 EUR7 20 x 0,00 EUR7" in p.text for p in c24 if p.page == 3)
+    row = "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7"
+    assert any(row in p.text for p in c24 if p.page == 3)
 
 
 def test_full_width_heading_on_column_page_stays_whole():

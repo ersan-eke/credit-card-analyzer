@@ -23,7 +23,7 @@ CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_A
 
 | step | module | LLM? |
 |---|---|---|
-| PDF → per-page text (tables as `cell \| cell` rows), NFC, ~200-word line windows, never across files | `ingest.py` | no |
+| PDF → per-page text (Docling Markdown tables, ADR 0003), cached as `<id>.md` beside the PDF; a list missing numbers of the PDF is flagged; NFC, ~200-word line windows, never across files | `ingest.py` | no |
 | Hybrid retrieval per card: BM25 (indexed per card) + `multilingual-e5-small` embeddings, RRF k=60 | `retrieval.py` | no |
 | Fee extraction via a strict tool schema into `FeeSchedule`; every number must appear in `quote`, the quote must be verbatim on the cited page; one retry with the error, then review queue | `extract.py` | yes |
 | Cost = `max(amount·pct/100, min)` + FX (non-EUR) + ATM operator fee (abroad) + interest (`--days`), Decimal, half-up per component; unknown fee ⇒ no total, ranked last. Free allowances (see below) can make the cash fee 0 | `calc.py` | no |
@@ -37,7 +37,7 @@ are redacted before anything is logged.
 ## Commands
 
 ```bash
-uv run cardcost ingest [file.pdf ...]          # extract changed price lists (default catalog/docs/) into catalog/fees.json; --fees to use another file
+uv run cardcost ingest [file.pdf ...]          # extract changed price lists (default catalog/docs/) into catalog/fees.json; --fees to use another file; needs `uv sync --extra ingest` to convert a new or changed PDF
 uv run cardcost products                       # card products found, e.g. beta_card:Beta Classic, beta_card:Beta Gold
 uv run cardcost wallet --choose                # per bank, pick the cards/account models its documents name
 uv run cardcost wallet alpha_card beta_card:Gold   # or name them directly (default: all)
