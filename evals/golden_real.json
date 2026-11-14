@@ -1,5 +1,5 @@
 {
- "_note": "Reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md); questions still marked VERIFY need another check. Drafted from the extracted page text of catalog/docs/*.pdf. Cash at ATMs only; ATM-operator fees without a stated amount are not added; unknown free-allowance usage counts as used up. expected_fact: a stated fee or count, not a cost; expected_question: the advisor should ask back (allowance usage, or which product) instead of answering.",
+ "_note": "Questions reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md). `rules` is the expected extraction in the rule format, drafted by Claude (#19) from the extracted text of catalog/docs/*.md for the operator to correct (#20): per product, each rule has the quote and page it comes from, and `review` marks a reading that needs a decision. Where the price list gives one price for several cases the draft is one rule. Events drafted: payment, atm, counter_cash, credit; holding fees come with #25. `when` keys beyond currency/region/country (network, amount {min inclusive, max exclusive}, weekend, merchant, facts) are not in the calculator yet; scenario keys facts, network, weekend, event, operator_fee_eur likewise, so questions marked `pending` are not scored until the ticket they name lands. expected_fact names the rule whose number answers the question; expected_question: the advisor should ask back (allowance usage, or a missing wallet fact) instead of answering.",
  "wallet": [
   "c24:Smartkonto",
   "dkb:Kreditkarte",
@@ -8,17 +8,2007 @@
   "revolut_standard",
   "traderepublik"
  ],
+ "rules": {
+  "traderepublik": [
+   {
+    "id": "tr.atm.small",
+    "name": "Abhebung unter 100 EUR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "amount": {
+      "max": "100"
+     }
+    },
+    "price": {
+     "flat_eur": "1"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Kosten bei Einsatz der Debitkarte | 1 € für Abhebungen unter 100 €",
+    "page": 1,
+    "review": "Withdrawals from 100 EUR are free by implication only; the list states no 0."
+   },
+   {
+    "id": "tr.fx",
+    "name": "Währungsumrechnungsentgelt",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Währungsumrechnungsentgelt | 0 €",
+    "page": 1
+   }
+  ],
+  "hanseatic_genialcard": [
+   {
+    "id": "gc.atm.home",
+    "name": "Bargeldabhebung Inland",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "region": [
+      "home"
+     ]
+    },
+    "price": {
+     "flat_eur": "3.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | 3,95 € pro Auftrag",
+    "page": 1
+   },
+   {
+    "id": "gc.atm.abroad",
+    "name": "Bargeldabhebung Ausland",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "region": [
+      "EEA",
+      "outside_EEA"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldabhebungen am Geldautomaten außerhalb Deutschlands 1 | 0 €",
+    "page": 1
+   },
+   {
+    "id": "gc.fx",
+    "name": "Entgelt für den Auslandseinsatz",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Entgelt für den Auslandseinsatz weltweit 2 | 0 €",
+    "page": 1
+   },
+   {
+    "id": "gc.gambling",
+    "name": "Casino, Lotterie, Wetten",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "3",
+     "min_eur": "3.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags, mind. 3,95 €",
+    "page": 1
+   },
+   {
+    "id": "gc.financial",
+    "name": "Wertpapierhandel, Finanzinstitute, Geldtransfer, Krypto",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "financial"
+     ]
+    },
+    "price": {
+     "percent": "3",
+     "min_eur": "3.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "den Einsatz bei Finanzinstituten (MCC 6012), für die Ausführung eines Geldtransfers (MCC 4829) und den Kauf von Kryptowährungen (MCC 6051) 3 | 3 % des Betrags, mind. 3,95 €",
+    "page": 1,
+    "review": "The list names no merchant class for these MCCs; 'financial' is my name for it."
+   },
+   {
+    "id": "gc.credit",
+    "name": "Sollzinssatz",
+    "event": [
+     "credit"
+    ],
+    "when": {},
+    "price": {
+     "percent": "18.30"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Sollzinssatz | 18,30 %",
+    "page": 1,
+    "review": "The list states the rate for instalment use only; whether purchases are interest-free is not stated."
+   }
+  ],
+  "hanseatic_goldcard": [
+   {
+    "id": "gold.atm",
+    "name": "Bargeldabhebung",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldabhebungen am Geldautomaten 1 | 0 €",
+    "page": 1
+   },
+   {
+    "id": "gold.fx",
+    "name": "Entgelt für den Auslandseinsatz",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Entgelt für den Auslandseinsatz weltweit 2 | 0 €",
+    "page": 1
+   },
+   {
+    "id": "gold.gambling",
+    "name": "Casino, Lotterie, Wetten",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "3",
+     "min_eur": "3.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags, mind. 3,95 €",
+    "page": 1
+   },
+   {
+    "id": "gold.financial",
+    "name": "Wertpapierhandel, Finanzinstitute, Geldtransfer, Krypto",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "financial"
+     ]
+    },
+    "price": {
+     "percent": "3",
+     "min_eur": "3.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "den Einsatz bei Finanzinstituten (MCC 6012), für die Ausführung eines Geldtransfers (MCC 4829) und den Kauf von Kryptowährungen (MCC 6051) 3 | 3 % des Betrags, mind. 3,95 €",
+    "page": 1,
+    "review": "The list names no merchant class for these MCCs; 'financial' is my name for it."
+   },
+   {
+    "id": "gold.credit",
+    "name": "Sollzinssatz",
+    "event": [
+     "credit"
+    ],
+    "when": {},
+    "price": {
+     "percent": "16.30"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Sollzinssatz | 16,30 %",
+    "page": 1,
+    "review": "The list states the rate for instalment use only; whether purchases are interest-free is not stated."
+   }
+  ],
+  "tfbank_mastercard_gold": [
+   {
+    "id": "tf.atm",
+    "name": "Bargeldabhebung weltweit",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldabhebungen weltweit (Manche ausgebenden Stellen erheben eigene Gebühren, welche wir nicht beeinflussen können und nicht erstatten) | 0,- €",
+    "page": 1
+   },
+   {
+    "id": "tf.fx",
+    "name": "Auslandseinsatzgebühr",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Zahlungen in Fremdwährungen werden nach dem Referenzwechselkurs der Kartenorganisation Mastercard in Euro umgerechnet. | 0,- €",
+    "page": 1
+   },
+   {
+    "id": "tf.credit",
+    "name": "Sollzins",
+    "event": [
+     "credit"
+    ],
+    "when": {},
+    "price": {
+     "percent": "22.60"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "22,60 % (veränderlich*)",
+    "page": 1,
+    "review": "Purchases carry no interest when the statement is paid in full by the due date; cash and transfers are excluded. The rule format cannot say that yet (#25)."
+   }
+  ],
+  "bbva:Debitkarte": [
+   {
+    "id": "bbvad.pay",
+    "name": "Zahlung mit Debitkarte",
+    "event": [
+     "payment"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldlose Zahlungen mit Debitkarte weltweit in allen Währungen der Welt | Kostenlos Umrechnung in realen Wechselkurs ohne Fremdwährungszuschlag",
+    "page": 3
+   },
+   {
+    "id": "bbvad.atm.big",
+    "name": "Abhebung ab 150 EUR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "amount": {
+      "min": "150"
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €.",
+    "page": 3,
+    "review": "Basiskonto holders pay nothing at any amount; not drafted (account model)."
+   },
+   {
+    "id": "bbvad.atm.small",
+    "name": "Abhebung unter 150 EUR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "amount": {
+      "max": "150"
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €.",
+    "page": 3
+   },
+   {
+    "id": "bbvad.atm.fx",
+    "name": "Abhebung in Fremdwährung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Geldautomaten in Fremdwährung (außer | 2 € pro Abhebung.",
+    "page": 3
+   },
+   {
+    "id": "bbvad.atm.es",
+    "name": "Abhebung an BBVA-Automaten in Spanien",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "country": [
+      "ES"
+     ],
+     "network": [
+      "own"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldabhebungen mit der Debitkarte an BBVA-Geldautomaten in Spanien | Kostenlos",
+    "page": 4,
+    "review": "The operator fee at BBVA's own Spanish machines is not stated."
+   }
+  ],
+  "bbva:Kreditkarte": [
+   {
+    "id": "bbvac.atm",
+    "name": "Bargeldauszahlung",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "4",
+     "min_eur": "3"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldauszahlung (In- und Ausland) | 4,00 % (mind. 3,00 €)",
+    "page": 2
+   },
+   {
+    "id": "bbvac.fx",
+    "name": "Währungsumrechnungsentgelt",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Währungsumrechnungsentgelt | 0,00 %",
+    "page": 2
+   }
+  ],
+  "c24": [
+   {
+    "id": "c24.atm.eur.smart",
+    "name": "Bargeldauszahlung eur Smartkonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Smartkonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 4,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3,
+    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7). The list states no foreign-currency fee for card payments, so none is drafted."
+   },
+   {
+    "id": "c24.atm.eur.plusmax",
+    "name": "Bargeldauszahlung eur Pluskonto/Maxkonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Pluskonto",
+       "C24 Maxkonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 20,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3,
+    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+   },
+   {
+    "id": "c24.atm.eur.basis",
+    "name": "Bargeldauszahlung eur Basiskonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Basiskonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3
+   },
+   {
+    "id": "c24.atm.fx.smart",
+    "name": "Bargeldauszahlung fx Smartkonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Smartkonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 4,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3,
+    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+   },
+   {
+    "id": "c24.atm.fx.plusmax",
+    "name": "Bargeldauszahlung fx Pluskonto/Maxkonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Pluskonto",
+       "C24 Maxkonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 20,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3,
+    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+   },
+   {
+    "id": "c24.atm.fx.basis",
+    "name": "Bargeldauszahlung fx Basiskonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "C24 Basiskonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
+    "page": 3
+   }
+  ],
+  "consorsbank:Visa Card Debit": [
+   {
+    "id": "cvd.atm.small",
+    "name": "Bargeldauszahlung EWR in Euro unter 50",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "amount": {
+      "max": "50"
+     }
+    },
+    "price": {
+     "flat_eur": "1.95"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Beträge unter 50,00 Euro - 1,95 Euro 2 Beträge ab einschl. 50,00 Euro - kostenlos 2",
+    "page": 8,
+    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+   },
+   {
+    "id": "cvd.atm.big",
+    "name": "Bargeldauszahlung EWR in Euro ab 50",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "amount": {
+      "min": "50"
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Beträge unter 50,00 Euro - 1,95 Euro 2 Beträge ab einschl. 50,00 Euro - kostenlos 2",
+    "page": 8,
+    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+   },
+   {
+    "id": "cvd.atm.eea",
+    "name": "Bargeldauszahlung EWR in anderer Währung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR"
+     ]
+    },
+    "price": {
+     "percent": "2.10"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "im EWR auf den jeweiligen, nicht auf Euro lautenden Auszahlungsbetrag | 2,10 % 2",
+    "page": 8
+   },
+   {
+    "id": "cvd.atm.out",
+    "name": "Bargeldauszahlung außerhalb des EWR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "region": [
+      "outside_EEA"
+     ]
+    },
+    "price": {
+     "percent": "2.10"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR auf den jeweiligen Auszahlungsbetrag | 2,10 % 2",
+    "page": 8
+   },
+   {
+    "id": "cvd.pay.eur",
+    "name": "Karteneinsatz in Euro",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz im Europäischen Wirtschaftsraum (EWR) in Euro | kostenlos 2",
+    "page": 8
+   },
+   {
+    "id": "cvd.pay.fx",
+    "name": "Karteneinsatz in Fremdwährung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "2.10"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz im EWR auf den jeweiligen, nicht auf Euro lautenden Umsatz | 2,10 % 2",
+    "page": 8,
+    "review": "The list gives one price inside and one outside the EWR; merged because both are 2,10 %."
+   },
+   {
+    "id": "cvd.gambling",
+    "name": "Wettbüros, Casinos, Lotterien",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "2.50",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz in Wettbüros, Casinobetrieben und Lotteriegesell- schaften | 2,50 %, mind. 5,00 Euro 8",
+    "page": 8
+   }
+  ],
+  "consorsbank:Credit Card Gold Light": [
+   {
+    "id": "ccgl.atm",
+    "name": "Bargeldauszahlung",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldauszahlung an allen Visa-zugänglichen Geldausgabe automaten | kostenlos 2 | kostenlos 2 | -",
+    "page": 8,
+    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+   },
+   {
+    "id": "ccgl.pay",
+    "name": "Karteneinsatz",
+    "event": [
+     "payment"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz außerhalb des EWR auf den jeweiligen Umsatz | kostenlos 2 | kostenlos 2 | -",
+    "page": 8,
+    "review": "Free in euro, in other EWR currencies and outside the EWR (three lines), merged."
+   },
+   {
+    "id": "ccgl.gambling",
+    "name": "Wettbüros, Casinos, Lotterien",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "2.50",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz in Wettbüros, Casinobetrieben und Lotterie gesellschaften | 2,50 %, mind. 5,00 Euro | 2,50 %, mind. 5,00 Euro | -",
+    "page": 8
+   }
+  ],
+  "consorsbank:Visa Card Gold": [
+   {
+    "id": "cvg.atm",
+    "name": "Bargeldauszahlung",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldauszahlung an allen Visa-zugänglichen Geldausgabe automaten | kostenlos 2 | kostenlos 2 | kostenlos 2",
+    "page": 8,
+    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+   },
+   {
+    "id": "cvg.pay",
+    "name": "Karteneinsatz",
+    "event": [
+     "payment"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz im Europäischen Wirtschaftsraum (EWR) in Euro | kostenlos 2 | kostenlos 2 | kostenlos 2",
+    "page": 8,
+    "review": "Free in every currency (four lines), merged."
+   },
+   {
+    "id": "cvg.gambling",
+    "name": "Wettbüros, Casinos, Lotterien",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "2.50",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Karteneinsatz in Wettbüros, Casinobetrieben und Lotterie gesellschaften | 2,50 %, mind. 5,00 Euro | 2,50 %, mind. 5,00 Euro | 2,50 %, mind. 5,00 Euro",
+    "page": 8
+   }
+  ],
+  "n26": [
+   {
+    "id": "n26.atm.standard",
+    "name": "Abhebung in Euro N26 Standard",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Standard"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 2,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "- Für N26 Standard und N26 Business Standard Kontoinhaber | 2 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
+    "page": 3,
+    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+   },
+   {
+    "id": "n26.atm.smart",
+    "name": "Abhebung in Euro N26 Smart",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Smart"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 3,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "- Für N26 Smart, N26 Business Smart Kunden | 3 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
+    "page": 3,
+    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+   },
+   {
+    "id": "n26.atm.go",
+    "name": "Abhebung in Euro N26 Go",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Go"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 5,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "- N26 Go und N26 Business Go Kunden | 5 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
+    "page": 3,
+    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+   },
+   {
+    "id": "n26.atm.metal",
+    "name": "Abhebung in Euro N26 Metal",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Metal"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": {
+     "count": 8,
+     "period": "calendar_month"
+    },
+    "stacks": false,
+    "quote": "- Für N26 Metal und N26 Business Metal Kunden | 8 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
+    "page": 3,
+    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+   },
+   {
+    "id": "n26.atm.fx.free",
+    "name": "Abhebung in sonstigen Währungen Go/Metal",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Go",
+       "N26 Metal"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Für N26 Go, N26 Metal, N26 Business Go und N26 Business Metal Kunden | Kostenlos",
+    "page": 3
+   },
+   {
+    "id": "n26.atm.fx",
+    "name": "Abhebung in sonstigen Währungen Standard/Smart",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Standard",
+       "N26 Smart"
+      ]
+     }
+    },
+    "price": {
+     "percent": "1.7"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "| 1,7% des Umsatzes",
+    "page": 3,
+    "review": "Row has no plan label in the extracted text; read as the rest after the Go/Metal row. Whether the free withdrawals also apply in foreign currency is not stated."
+   },
+   {
+    "id": "n26.pay",
+    "name": "Zahlung weltweit",
+    "event": [
+     "payment"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bargeldlose Zahlungen mit Mastercard & Maestro Karte weltweit und in allen Währungen | Kostenlos Umrechnung zum echten Devisenmittelkurs ohne Fremdwährungszuschlag",
+    "page": 3
+   },
+   {
+    "id": "n26.atm.flex.eur",
+    "name": "Abhebung in Euro Flex/Basiskonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Flex",
+       "N26 Basiskonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "2,00 € pro Geldabhebung am Automaten",
+    "page": 7
+   },
+   {
+    "id": "n26.atm.flex.fx",
+    "name": "Abhebung in sonstigen Währungen Flex/Basiskonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Flex",
+       "N26 Basiskonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "2,00 € pro Geldabhebung am Geldautomaten zzgl. 1,7% vom Umsatz",
+    "page": 7,
+    "review": "Flat 2,00 and 1,7 % are one fee; drafted as two rules (flat + stacked percent)."
+   },
+   {
+    "id": "n26.atm.flex.fxpct",
+    "name": "Auslandsanteil Flex/Basiskonto",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "plan": [
+       "N26 Flex",
+       "N26 Basiskonto"
+      ]
+     }
+    },
+    "price": {
+     "percent": "1.7"
+    },
+    "allowance": null,
+    "stacks": true,
+    "quote": "2,00 € pro Geldabhebung am Geldautomaten zzgl. 1,7% vom Umsatz",
+    "page": 7
+   }
+  ],
+  "ing:VISA": [
+   {
+    "id": "ing.atm.home",
+    "name": "Bargeldauszahlung Deutschland",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "region": [
+      "home"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "an allen Geldautomaten mit VISA Zeichen in Deutschland Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere Beträge abgehoben werden: | kostenlos",
+    "page": 2
+   },
+   {
+    "id": "ing.atm.euro",
+    "name": "Bargeldauszahlung Eurowährung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "region": [
+      "EEA"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in Ländern mit Eurowährung Mindestabhebebetrag 50 €. Liegt der auf dem Konto verfügbare Betrag darunter, können auch niedrigere Beträge abgehoben werden: | kostenlos, ggf. zuzüglich Entgelt des Geldautomatenbetreibers",
+    "page": 2
+   },
+   {
+    "id": "ing.atm.eea",
+    "name": "Bargeldauszahlung EWR-Fremdwährung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR"
+     ]
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in Ländern des EWR 2 mit anderer EWR-Währung: | Auf den Betrag in Euro 2,20 % Auslandseinsatzentgelt",
+    "page": 2
+   },
+   {
+    "id": "ing.atm.other",
+    "name": "Bargeldauszahlung andere Länder",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in allen anderen Ländern mit Fremdwährung 4 : | Auf den Betrag in Euro 2,20 % Auslandseinsatzentgelt",
+    "page": 2
+   },
+   {
+    "id": "ing.pay.euro",
+    "name": "Bezahlen Eurowährung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in Ländern mit Eurowährung: | kostenlos |",
+    "page": 2
+   },
+   {
+    "id": "ing.pay.eea",
+    "name": "Bezahlen EWR-Fremdwährung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR"
+     ]
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in Ländern des EWR 2 mit anderer EWR-Währung: | auf den Betrag in Euro 2,20 % Auslandseinsatzentgelt",
+    "page": 2
+   },
+   {
+    "id": "ing.pay.other",
+    "name": "Bezahlen andere Länder",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "in allen anderen Ländern mit Fremdwährung 4 : Ausgabe nur in Verbindung mit einem Zahlungskonto | auf den Betrag in Euro 2,20 % Auslandseinsatzentgelt",
+    "page": 3
+   }
+  ],
+  "dkb:Visa Debitkarte": [
+   {
+    "id": "dkbd.pay.fx.std",
+    "name": "Kartenzahlung in Fremdwährung Standardleistung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "status": [
+       "Standardleistung"
+      ]
+     }
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR 1G in jeder Fremdwährung 1K | 2,20 % vom Zahlungsbetrag 1J | kostenlos",
+    "page": 1
+   },
+   {
+    "id": "dkbd.pay.fx.akt",
+    "name": "Kartenzahlung in Fremdwährung Aktivstatus",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "status": [
+       "Aktivstatus"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR 1G in jeder Fremdwährung 1K | 2,20 % vom Zahlungsbetrag 1J | kostenlos",
+    "page": 1
+   },
+   {
+    "id": "dkbd.gamb.std",
+    "name": "Spiele mit Geldeinsatz Standardleistung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ],
+     "facts": {
+      "status": [
+       "Standardleistung"
+      ]
+     }
+    },
+    "price": {
+     "percent": "3"
+    },
+    "allowance": null,
+    "stacks": true,
+    "quote": "Bei Lotterien, Casinos, Wett- und sonstigen Anbietern von Spielen mit Geldeinsatz | zzgl. 3,00 % vom Zahlungsbetrag 1L | 3,00 % vom Umsatz 1L",
+    "page": 1
+   },
+   {
+    "id": "dkbd.gamb.akt",
+    "name": "Spiele mit Geldeinsatz Aktivstatus",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ],
+     "facts": {
+      "status": [
+       "Aktivstatus"
+      ]
+     }
+    },
+    "price": {
+     "percent": "3"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "Bei Lotterien, Casinos, Wett- und sonstigen Anbietern von Spielen mit Geldeinsatz | zzgl. 3,00 % vom Zahlungsbetrag 1L | 3,00 % vom Umsatz 1L",
+    "page": 1
+   },
+   {
+    "id": "dkbd.atm.eur",
+    "name": "Geldautomat in Euro",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "An Geldautomaten in Euro innerhalb des EWR 1G in EWR-Währung 1H (außer Euro) 1I | kostenlos seitens der DKB AG 1N 2,20 % vom Umsatz seitens DKB AG 1J 1N | kostenlos seitens der DKB AG 1N kostenlos seitens der DKB AG 1N",
+    "page": 1,
+    "review": "The row for euro and for other EWR currencies is merged in the extracted text; euro read as free for both statuses."
+   },
+   {
+    "id": "dkbd.atm.fx.std",
+    "name": "Geldautomat in Fremdwährung Standardleistung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "status": [
+       "Standardleistung"
+      ]
+     }
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR 1G in jeder Fremdwährung 1K | 2,20 % vom Umsatz seitens DKB AG 1J 1N | kostenlos seitens der DKB AG 1N",
+    "page": 1
+   },
+   {
+    "id": "dkbd.atm.fx.akt",
+    "name": "Geldautomat in Fremdwährung Aktivstatus",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "status": [
+       "Aktivstatus"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR 1G in jeder Fremdwährung 1K | 2,20 % vom Umsatz seitens DKB AG 1J 1N | kostenlos seitens der DKB AG 1N",
+    "page": 1
+   },
+   {
+    "id": "dkbd.cnt",
+    "name": "Auszahlung am Schalter",
+    "event": [
+     "counter_cash"
+    ],
+    "when": {},
+    "price": {
+     "percent": "3",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "| in Euro | 3,00 % vom verfügten Betrag, mind. 5,00 EUR 2A | 3,00 % vom verfügten Betrag, mind. 5,00 EUR 2A |",
+    "page": 2
+   },
+   {
+    "id": "dkbd.cnt.fx.std",
+    "name": "Schalter in Fremdwährung Standardleistung",
+    "event": [
+     "counter_cash"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "status": [
+       "Standardleistung"
+      ]
+     }
+    },
+    "price": {
+     "percent": "2.20"
+    },
+    "allowance": null,
+    "stacks": true,
+    "quote": "außerhalb des EWR 2B in jeder Fremdwährung 2F | 3,00 % vom verfügten Betrag, mind. 5,00 EUR zzgl. 2,20 % vom verfügten Betrag 2A 2E | 3,00 % vom verfügten Betrag, mind. 5,00 EUR 2A",
+    "page": 2
+   }
+  ],
+  "dkb:Visa Kreditkarte": [
+   {
+    "id": "dkbk.pay",
+    "name": "Kartenzahlung",
+    "event": [
+     "payment"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "innerhalb des EWR 2B in Nicht-EWR-Währung 2C, 2F | kostenlos |",
+    "page": 2,
+    "review": "Free in euro, EWR currencies and elsewhere (four lines), merged."
+   },
+   {
+    "id": "dkbk.gamb",
+    "name": "Spiele mit Geldeinsatz",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "merchant": [
+      "gambling"
+     ]
+    },
+    "price": {
+     "percent": "3"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "bei Lotterien, Casinos, Wett- und sonstigen Anbietern von Spielen mit Geldeinsatz | 3,00% vom Umsatz 2A",
+    "page": 2
+   },
+   {
+    "id": "dkbk.atm",
+    "name": "Geldautomat",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "außerhalb des EWR 2B in jeder Fremdwährung 2F | kostenlos seitens der DKB AG 2N",
+    "page": 2
+   },
+   {
+    "id": "dkbk.cnt",
+    "name": "Auszahlung am Schalter",
+    "event": [
+     "counter_cash"
+    ],
+    "when": {},
+    "price": {
+     "percent": "3",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "| in Euro | 3,00 % vom verfügten Betrag, mind. 5,00 EUR 2A |",
+    "page": 2
+   }
+  ],
+  "hvb:HVB Mastercard": [
+   {
+    "id": "hvb.atm.own",
+    "name": "Geldautomat der HypoVereinsbank in EUR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "network": [
+      "own"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung mit der Kreditkarte am Geldautomaten innerhalb\nder EU/EWR-Staaten in EUR\n– an Geldautomaten der HypoVereinsbank kostenfrei\n– an allen anderen Geldautomaten 2% mind. 5 EUR",
+    "page": 5
+   },
+   {
+    "id": "hvb.atm.other",
+    "name": "Geldautomat anderer Banken in EUR",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "network": [
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "2",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung mit der Kreditkarte am Geldautomaten innerhalb\nder EU/EWR-Staaten in EUR\n– an Geldautomaten der HypoVereinsbank kostenfrei\n– an allen anderen Geldautomaten 2% mind. 5 EUR",
+    "page": 5,
+    "review": "Account models outside the three named are priced as the 'all other' default; the list also has other cards with other prices (not drafted)."
+   },
+   {
+    "id": "hvb.atm.other.ex",
+    "name": "Geldautomat anderer Banken in EUR (Exklusiv/Depot Global/Platinum)",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "network": [
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "HVB ExklusivKonto",
+       "HVB Depot Global Konto",
+       "HVB PlatinumKonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung mit der Kreditkarte am Geldautomaten innerhalb\nder EU/EWR-Staaten in EUR\n– an Geldautomaten der HypoVereinsbank kostenfrei\n– an allen anderen Geldautomaten 2% mind. 5 EUR\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB ExklusivKonto, Depot Global, HVB Platinumkonto\n(Hauptkonto) kostenfrei",
+    "page": 5
+   },
+   {
+    "id": "hvb.atm.other.ap",
+    "name": "Geldautomat anderer Banken in EUR (Aktiv/Plus)",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ],
+     "network": [
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "HVB AktivKonto",
+       "HVB PlusKonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2.50"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– an allen anderen Geldautomaten 2% mind. 5 EUR\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB ExklusivKonto, Depot Global, HVB Platinumkonto\n(Hauptkonto) kostenfrei\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB AktivKonto und HVB PlusKonto 2,50 EUR",
+    "page": 5
+   },
+   {
+    "id": "hvb.atm.fx",
+    "name": "Geldautomat in Fremdwährung",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "2",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung mit der Kreditkarte an fremden\nGeldautomaten in Fremdwährung (Umrechnungskurs\nsiehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR",
+    "page": 5
+   },
+   {
+    "id": "hvb.atm.fx.ex",
+    "name": "Geldautomat in Fremdwährung (Exklusiv/Depot Global/Platinum)",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "HVB ExklusivKonto",
+       "HVB Depot Global Konto",
+       "HVB PlatinumKonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung mit der Kreditkarte an fremden\nGeldautomaten in Fremdwährung (Umrechnungskurs\nsiehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB ExklusivKonto, Depot Global, HVB Platinumkonto\n(Hauptkonto) kostenfrei",
+    "page": 5
+   },
+   {
+    "id": "hvb.atm.fx.ap",
+    "name": "Geldautomat in Fremdwährung (Aktiv/Plus)",
+    "event": [
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "facts": {
+      "account_model": [
+       "HVB AktivKonto",
+       "HVB PlusKonto"
+      ]
+     }
+    },
+    "price": {
+     "flat_eur": "2.50"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "siehe Teil B, letztes Unterkapitel) 2% mind. 5 EUR\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB ExklusivKonto, Depot Global, HVB Platinumkonto\n(Hauptkonto) kostenfrei\nAusnahme: Mit der HVB Mastercard / HVB Mastercard Gold\nim HVB AktivKonto und HVB PlusKonto 2,50 EUR",
+    "page": 5
+   },
+   {
+    "id": "hvb.cnt",
+    "name": "Auszahlung am Schalter fremder Kreditinstitute",
+    "event": [
+     "counter_cash"
+    ],
+    "when": {},
+    "price": {
+     "percent": "3",
+     "min_eur": "5"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Bargeldauszahlung am Schalter fremder Kreditinstitute\nmit einer von der Bank ausgegebenen Kreditkarte in EUR\nund in Fremdwährung 3% mind. 5 EUR",
+    "page": 5,
+    "review": "Stated for 'a credit card issued by the bank', not for the Mastercard by name."
+   },
+   {
+    "id": "hvb.pay.eur",
+    "name": "Einsatz zum Bezahlen in EUR",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EUR"
+     ]
+    },
+    "price": {
+     "flat_eur": "0"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Einsatz der Kreditkarte zum Bezahlen in EUR kostenfrei",
+    "page": 8
+   },
+   {
+    "id": "hvb.pay.fx",
+    "name": "Einsatz zum Bezahlen in Fremdwährung",
+    "event": [
+     "payment"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "1.75"
+    },
+    "allowance": null,
+    "stacks": false,
+    "quote": "– Einsatz der Kreditkarte zum Bezahlen in Fremdwährung\n(Umrechnungskurs siehe Teil B, letztes Unterkapitel) 1,75% vom Umsatz",
+    "page": 8
+   }
+  ],
+  "revolut_standard": [
+   {
+    "id": "revs.atm",
+    "name": "Bargeldabhebung nach Freikontingent",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "2",
+     "min_eur": "1"
+    },
+    "allowance": {
+     "count": 5,
+     "amount_eur": "200",
+     "period": "rolling_month"
+    },
+    "stacks": false,
+    "quote": "Bis zu 5 Abhebungen am Geldautomaten oder 200 € (je nachdem, was zuerst eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag höher ist.",
+    "page": 3
+   },
+   {
+    "id": "revs.fx",
+    "name": "Faire Nutzungsgebühr Währungswechsel",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "0.5"
+    },
+    "allowance": {
+     "amount_eur": "1000",
+     "period": "calendar_month"
+    },
+    "stacks": true,
+    "quote": "Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.",
+    "page": 5,
+    "review": "Calendar or rolling month for the exchange limit is not stated ('pro Monat'); drafted as calendar month."
+   },
+   {
+    "id": "revs.weekend",
+    "name": "Wochenendgebühr Währungswechsel",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "weekend": true
+    },
+    "price": {
+     "percent": "1"
+    },
+    "allowance": null,
+    "stacks": true,
+    "quote": "Wenn du am Wochenende (zwischen 17 Uhr New Yorker Zeit am Freitag und 18 Uhr New Yorker Zeit am Sonntag) wechselst, fällt eine Gebühr von 1 % an.",
+    "page": 5,
+    "review": "Whether the weekend fee replaces the 0,5 % beyond the limit or adds to it is not stated; 'currency already held' fact not drafted."
+   }
+  ],
+  "revolut_plus": [
+   {
+    "id": "revp.atm",
+    "name": "Bargeldabhebung nach Freikontingent",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "2",
+     "min_eur": "1"
+    },
+    "allowance": {
+     "amount_eur": "200",
+     "period": "rolling_month"
+    },
+    "stacks": false,
+    "quote": "Kostenlose Bargeldabhebungen bis zu 200 € pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1 € pro Abhebung.",
+    "page": 12
+   },
+   {
+    "id": "revp.fx",
+    "name": "Faire Nutzungsgebühr Währungswechsel",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ]
+    },
+    "price": {
+     "percent": "0.5"
+    },
+    "allowance": {
+     "amount_eur": "3000",
+     "period": "calendar_month"
+    },
+    "stacks": true,
+    "quote": "Plus: Wechsellimit von 3.000 EUR pro Monat. Für jeden zusätzlichen Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.",
+    "page": 6,
+    "review": "Calendar or rolling month for the exchange limit is not stated ('pro Monat'); drafted as calendar month. The same list says elsewhere 'Standard und Plus: Wechsellimit von 1.000 EUR pro Monat' (p.14); the two contradict."
+   },
+   {
+    "id": "revp.weekend",
+    "name": "Wochenendgebühr Währungswechsel",
+    "event": [
+     "payment",
+     "atm"
+    ],
+    "when": {
+     "currency": [
+      "EEA_non_EUR",
+      "other"
+     ],
+     "weekend": true
+    },
+    "price": {
+     "percent": "0.5"
+    },
+    "allowance": null,
+    "stacks": true,
+    "quote": "Wenn du am Wochenende (zwischen 17 Uhr New Yorker Zeit am Freitag und 18 Uhr New Yorker Zeit am Sonntag) wechselst, fällt eine Gebühr von 0,5 % an.",
+    "page": 6,
+    "review": "Whether the weekend fee replaces the 0,5 % beyond the limit or adds to it is not stated; 'currency already held' fact not drafted."
+   }
+  ],
+  "revolut_premium": [
+   {
+    "id": "revpr.atm",
+    "name": "Bargeldabhebung nach Freikontingent",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "2",
+     "min_eur": "1"
+    },
+    "allowance": {
+     "amount_eur": "400",
+     "period": "rolling_month"
+    },
+    "stacks": false,
+    "quote": "Kostenlose Bargeldabhebungen bis zu 400 € pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1 € pro Abhebung.",
+    "page": 12,
+    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+   }
+  ],
+  "revolut_metal": [
+   {
+    "id": "revm.atm",
+    "name": "Bargeldabhebung nach Freikontingent",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "2",
+     "min_eur": "1"
+    },
+    "allowance": {
+     "amount_eur": "800",
+     "period": "rolling_month"
+    },
+    "stacks": false,
+    "quote": "Kostenlose Bargeldabhebungen bis zu 800 € pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1 € pro Abhebung.",
+    "page": 13,
+    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+   }
+  ],
+  "revolut_ultra": [
+   {
+    "id": "revu.atm",
+    "name": "Bargeldabhebung nach Freikontingent",
+    "event": [
+     "atm"
+    ],
+    "when": {},
+    "price": {
+     "percent": "2",
+     "min_eur": "1"
+    },
+    "allowance": {
+     "amount_eur": "2000",
+     "period": "rolling_month"
+    },
+    "stacks": false,
+    "quote": "Kostenlose Bargeldabhebungen bis zu 2.000€ pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1€ pro Abhebung.",
+    "page": 13,
+    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+   }
+  ]
+ },
  "questions": [
   {
    "id": "r01",
    "question": "Was kostet eine Bargeldabhebung von 300 EUR mit der C24 Mastercard, wenn ich diesen Monat schon 2 Mal abgehoben habe?",
    "card": "c24",
    "product": "Smartkonto",
-   "expected_page": 3,
-   "expected_fields": {
-    "min_eur": "2.00",
-    "free_count": "4"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -38,11 +2028,6 @@
    "question": "Ich habe mit der C24 Mastercard diesen Monat schon 4 Mal Geld abgehoben. Was kostet die nächste Abhebung von 300 EUR?",
    "card": "c24",
    "product": "Smartkonto",
-   "expected_page": 3,
-   "expected_fields": {
-    "min_eur": "2.00",
-    "free_count": "4"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -62,13 +2047,6 @@
    "question": "Ich habe mit Revolut diesen Monat 2 Mal insgesamt 150 EUR abgehoben. Was kostet eine weitere Abhebung von 40 EUR?",
    "card": "revolut_standard",
    "product": null,
-   "expected_page": 3,
-   "expected_fields": {
-    "percent": "2",
-    "min_eur": "1",
-    "free_count": "5",
-    "free_amount_eur": "200"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -89,13 +2067,6 @@
    "question": "Revolut: 2 Abhebungen mit zusammen 150 EUR schon gemacht. Was kostet es, jetzt 100 EUR abzuheben?",
    "card": "revolut_standard",
    "product": null,
-   "expected_page": 3,
-   "expected_fields": {
-    "percent": "2",
-    "min_eur": "1",
-    "free_count": "5",
-    "free_amount_eur": "200"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -116,13 +2087,6 @@
    "question": "Ich habe mit Revolut diesen Monat schon 5 Mal 50 EUR abgehoben. Was kosten 20 EUR am Automaten?",
    "card": "revolut_standard",
    "product": null,
-   "expected_page": 3,
-   "expected_fields": {
-    "percent": "2",
-    "min_eur": "1",
-    "free_count": "5",
-    "free_amount_eur": "200"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -143,11 +2107,6 @@
    "question": "Was kostet es, mit der Trade Republic Karte 50 EUR abzuheben?",
    "card": "traderepublik",
    "product": null,
-   "expected_page": 1,
-   "expected_fields": {
-    "min_eur": "1",
-    "free_from_eur": "100"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -162,11 +2121,6 @@
    "question": "Kostet eine Abhebung von 100 EUR mit Trade Republic etwas?",
    "card": "traderepublik",
    "product": null,
-   "expected_page": 1,
-   "expected_fields": {
-    "min_eur": "1",
-    "free_from_eur": "100"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -181,10 +2135,6 @@
    "question": "Kostet Geld abheben am Automaten mit der DKB Visa Kreditkarte etwas?",
    "card": "dkb",
    "product": "Kreditkarte",
-   "expected_page": 2,
-   "expected_fields": {
-    "percent": "0"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -199,20 +2149,16 @@
    "question": "Welche Gebühr nimmt die HVB Mastercard für eine Abhebung von 500 EUR an fremden Geldautomaten?",
    "card": "hvb",
    "product": "HVB Mastercard",
-   "expected_page": 5,
-   "expected_fields": {
-    "percent": "2",
-    "min_eur": "5"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
     "days": 0,
     "amount_eur": "500"
    },
-   "_hand": "'– an allen anderen Geldautomaten 2% mind. 5 EUR' -> plain HVB Mastercard 10.00, but the price depends on the account (AktivKonto/PlusKonto 2,50 EUR, ExklusivKonto free): ask which HVB product (operator review)",
+   "_hand": "'– an allen anderen Geldautomaten 2% mind. 5 EUR' -> plain HVB Mastercard 10.00, but the price depends on the account (AktivKonto/PlusKonto 2,50 EUR, ExklusivKonto free): ask which HVB product (operator review) [#19: the account model is now a wallet fact, so the advisor asks for the fact, not the product]",
    "expected_question": {
-    "ask": "product",
+    "ask": "fact",
+    "fact": "account_model",
     "card": "hvb"
    }
   },
@@ -221,20 +2167,16 @@
    "question": "Was kostet die HVB Mastercard für 200 EUR am Geldautomaten einer anderen Bank?",
    "card": "hvb",
    "product": "HVB Mastercard",
-   "expected_page": 5,
-   "expected_fields": {
-    "percent": "2",
-    "min_eur": "5"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
     "days": 0,
     "amount_eur": "200"
    },
-   "_hand": "'– an allen anderen Geldautomaten 2% mind. 5 EUR' -> plain HVB Mastercard 5.00, but the price depends on the account (AktivKonto/PlusKonto 2,50 EUR, ExklusivKonto free): ask which HVB product (operator review)",
+   "_hand": "'– an allen anderen Geldautomaten 2% mind. 5 EUR' -> plain HVB Mastercard 5.00, but the price depends on the account (AktivKonto/PlusKonto 2,50 EUR, ExklusivKonto free): ask which HVB product (operator review) [#19: the account model is now a wallet fact, so the advisor asks for the fact, not the product]",
    "expected_question": {
-    "ask": "product",
+    "ask": "fact",
+    "fact": "account_model",
     "card": "hvb"
    }
   },
@@ -243,11 +2185,6 @@
    "question": "Ich hebe 300 EUR in den USA ab. Was kostet das mit der ING VISA Card?",
    "card": "ing",
    "product": "VISA",
-   "expected_page": 2,
-   "expected_fields": {
-    "percent": "0",
-    "fx_percent": "2.20"
-   },
    "scenario": {
     "kind": "cash",
     "country": "US",
@@ -262,10 +2199,6 @@
    "question": "Kostet Geld abheben in Frankreich mit der ING VISA Card etwas?",
    "card": "ing",
    "product": "VISA",
-   "expected_page": 2,
-   "expected_fields": {
-    "percent": "0"
-   },
    "scenario": {
     "kind": "cash",
     "country": "FR",
@@ -280,11 +2213,6 @@
    "question": "Was kostet Revolut beim Bezahlen in US-Dollar?",
    "card": "revolut_standard",
    "product": null,
-   "expected_page": 5,
-   "expected_fields": {
-    "fx_percent": "0.5",
-    "fx_free_eur": "1000"
-   },
    "scenario": {
     "kind": "purchase",
     "country": "US",
@@ -302,10 +2230,6 @@
    "question": "Wie hoch ist das Auslandseinsatzentgelt der ING VISA Card?",
    "card": "ing",
    "product": "VISA",
-   "expected_page": 2,
-   "expected_fields": {
-    "fx_percent": "2.20"
-   },
    "scenario": {
     "kind": "purchase",
     "country": "US",
@@ -314,7 +2238,7 @@
    },
    "_hand": "compound word split by PDF kerning: 'Aus lands einsatz entgelt'; the answer is the rate 2,20 %, the cost depends on the amount (operator review)",
    "expected_fact": {
-    "field": "fx_percent",
+    "rule": "ing.pay.eea",
     "answer": "2,20 %"
    }
   },
@@ -323,31 +2247,21 @@
    "question": "Was kostet die HVB Mastercard beim Bezahlen in Fremdwährung?",
    "card": "hvb",
    "product": "HVB Mastercard",
-   "expected_page": 8,
-   "expected_fields": {
-    "fx_percent": "1.75"
-   },
    "scenario": {
     "kind": "purchase",
     "country": "US",
     "days": 0,
     "amount_eur": "100"
    },
-   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block), but the Mastercard für Firmenkunden is 1%: ask which HVB product (operator review)",
-   "expected_question": {
-    "ask": "product",
-    "card": "hvb"
-   }
+   "_hand": "'Einsatz der Kreditkarte zum Bezahlen in Fremdwährung ... 1,75% vom Umsatz' (HVB Mastercard block): 100 * 1.75 % = 1.75; one product now, so no question back [#19]",
+   "expected_cost": "1.75",
+   "pending": "#21: the HVB Mastercard has no fees in the old fee form"
   },
   {
    "id": "r16",
    "question": "Gibt es bei Trade Republic ein Währungsumrechnungsentgelt?",
    "card": "traderepublik",
    "product": null,
-   "expected_page": 1,
-   "expected_fields": {
-    "fx_percent": "0"
-   },
    "scenario": {
     "kind": "purchase",
     "country": "US",
@@ -362,10 +2276,6 @@
    "question": "Wie viele kostenlose Abhebungen pro Monat habe ich mit dem C24 Smartkonto?",
    "card": "c24",
    "product": "Smartkonto",
-   "expected_page": 3,
-   "expected_fields": {
-    "free_count": "4"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -379,7 +2289,7 @@
    },
    "_hand": "Smartkonto 4 x 0,00 EUR (Plus/Max 20, Basis none); the answer is the count 4, a cost depends on the user's usage (operator review)",
    "expected_fact": {
-    "field": "free_count",
+    "rule": "c24.atm.eur.smart",
     "answer": "4"
    }
   },
@@ -388,11 +2298,6 @@
    "question": "Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?",
    "card": "dkb",
    "product": "Kreditkarte",
-   "expected_page": 2,
-   "expected_fields": {
-    "percent": "0",
-    "fx_percent": "0"
-   },
    "scenario": {
     "kind": "cash",
     "country": "TH",
@@ -409,11 +2314,6 @@
    "question": "Ich habe ein HVB AktivKonto. Was kostet eine Abhebung von 300 EUR mit der HVB Mastercard an einem fremden Automaten?",
    "card": "hvb",
    "product": "HVB Mastercard AktivKonto",
-   "expected_page": 5,
-   "expected_fields": {
-    "percent": null,
-    "min_eur": "2.50"
-   },
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -432,11 +2332,6 @@
    "question": "Ich habe mit Revolut diesen Monat erst 400 EUR umgetauscht. Was kostet ein Einkauf über 300 EUR in den USA?",
    "card": "revolut_standard",
    "product": null,
-   "expected_page": 5,
-   "expected_fields": {
-    "fx_percent": "0.5",
-    "fx_free_eur": "1000"
-   },
    "scenario": {
     "kind": "purchase",
     "country": "US",
@@ -460,11 +2355,6 @@
    "question": "Was kostet eine Abhebung von 200 EUR in den USA mit der DKB Visa Debitkarte ohne Aktivstatus?",
    "card": "dkb",
    "product": "Visa Debitkarte / ohne Aktivstatus",
-   "expected_page": 1,
-   "expected_fields": {
-    "percent": "0",
-    "fx_percent": "2.2"
-   },
    "scenario": {
     "kind": "cash",
     "country": "US",
@@ -482,11 +2372,6 @@
    "question": "Was kostet eine Abhebung von 200 EUR in den USA mit der DKB Visa Debitkarte mit Aktivstatus?",
    "card": "dkb",
    "product": "Visa Debitkarte / mit Aktivstatus",
-   "expected_page": 1,
-   "expected_fields": {
-    "percent": "0",
-    "fx_percent": "0"
-   },
    "scenario": {
     "kind": "cash",
     "country": "US",
@@ -498,6 +2383,273 @@
    ],
    "_hand": "Visa Debitkarte, p.1: 'in Euro kostenlos seitens der DKB AG' for both columns; outside the EWR in foreign currency the Standardleistung column adds 2,20 % vom Umsatz (Währungsumrechnungsentgelt), the Aktivstatus column does not. 200 * 2.2 % = 4.40 / 0",
    "expected_cost": "0.00"
+  },
+  {
+   "id": "r23",
+   "question": "Was kostet eine Bargeldabhebung von 30 EUR in Deutschland mit der Consorsbank Visa Card Debit?",
+   "card": "consorsbank",
+   "product": "Visa Card Debit",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "30"
+   },
+   "wallet": [
+    "consorsbank:Visa Card Debit"
+   ],
+   "_hand": "Visa Card Debit, EWR in Euro: 'Beträge unter 50,00 Euro - 1,95 Euro': 30 < 50 -> 1.95",
+   "expected_cost": "1.95",
+   "pending": "#18: amount thresholds"
+  },
+  {
+   "id": "r24",
+   "question": "Was kostet eine Bargeldabhebung von 50 EUR in Deutschland mit der Consorsbank Visa Card Debit?",
+   "card": "consorsbank",
+   "product": "Visa Card Debit",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "50"
+   },
+   "wallet": [
+    "consorsbank:Visa Card Debit"
+   ],
+   "_hand": "'Beträge ab einschl. 50,00 Euro - kostenlos': 50 is on the free side of the boundary -> 0.00",
+   "expected_cost": "0.00",
+   "pending": "#18: amount thresholds"
+  },
+  {
+   "id": "r25",
+   "question": "Was kostet eine Abhebung von 100 EUR am Geldautomaten in Deutschland mit der BBVA Debitkarte?",
+   "card": "bbva",
+   "product": "Debitkarte",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "100"
+   },
+   "wallet": [
+    "bbva:Debitkarte"
+   ],
+   "_hand": "'Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €': 100 < 150 -> 2.00",
+   "expected_cost": "2.00",
+   "pending": "#18: amount thresholds"
+  },
+  {
+   "id": "r26",
+   "question": "Was kostet eine Abhebung von 150 EUR am Geldautomaten in Deutschland mit der BBVA Debitkarte?",
+   "card": "bbva",
+   "product": "Debitkarte",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "150"
+   },
+   "wallet": [
+    "bbva:Debitkarte"
+   ],
+   "_hand": "150 is 'mindestens 150 €' -> 0.00",
+   "expected_cost": "0.00",
+   "pending": "#18: amount thresholds"
+  },
+  {
+   "id": "r27",
+   "question": "Ich habe ein HVB PlatinumKonto. Was kostet die HVB Mastercard für 400 EUR am Geldautomaten einer anderen Bank?",
+   "card": "hvb",
+   "product": "HVB Mastercard",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "400",
+    "facts": {
+     "account_model": "HVB PlatinumKonto"
+    },
+    "network": "other"
+   },
+   "_hand": "'Ausnahme: Mit der HVB Mastercard ... im HVB ExklusivKonto, Depot Global, HVB Platinumkonto (Hauptkonto) kostenfrei' -> 0.00 (default would be 2% = 8.00)",
+   "expected_cost": "0.00",
+   "pending": "#18/#26: account model as a wallet fact"
+  },
+  {
+   "id": "r28",
+   "question": "Ich habe ein HVB AktivKonto. Was kostet die HVB Mastercard für 300 EUR am Geldautomaten der HypoVereinsbank?",
+   "card": "hvb",
+   "product": "HVB Mastercard",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "300",
+    "facts": {
+     "account_model": "HVB AktivKonto"
+    },
+    "network": "own"
+   },
+   "_hand": "'an Geldautomaten der HypoVereinsbank kostenfrei': the own network is free whatever the account model -> 0.00",
+   "expected_cost": "0.00",
+   "pending": "#18/#26: account model as a wallet fact"
+  },
+  {
+   "id": "r29",
+   "question": "Ich habe ein HVB AktivKonto. Der Betreiber des fremden Geldautomaten verlangt 3,50 EUR bei Mastercard. Was kostet die HVB Mastercard für 200 EUR dort?",
+   "card": "hvb",
+   "product": "HVB Mastercard",
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "200",
+    "facts": {
+     "account_model": "HVB AktivKonto"
+    },
+    "network": "other",
+    "operator_fee_eur": {
+     "Mastercard": "3.50"
+    }
+   },
+   "_hand": "AktivKonto at another bank's ATM: 2.50 flat; the operator's fee for the card's network (Mastercard) 3.50 is added -> 6.00",
+   "expected_cost": "6.00",
+   "pending": "#18: network operator fee, #26: facts"
+  },
+  {
+   "id": "r30",
+   "question": "Ich habe N26 Go und diesen Kalendermonat schon 5 Mal Geld abgehoben. Was kostet die nächste Abhebung von 100 EUR in Deutschland mit der N26 Mastercard?",
+   "card": "n26",
+   "product": null,
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "100",
+    "used": {
+     "n26": {
+      "count": 5
+     }
+    },
+    "facts": {
+     "plan": "N26 Go"
+    }
+   },
+   "wallet": [
+    "n26"
+   ],
+   "_hand": "N26 Go: '5 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung'; 5 used this calendar month -> 2.00",
+   "expected_cost": "2.00",
+   "pending": "#18/#26: account model as a wallet fact"
+  },
+  {
+   "id": "r31",
+   "question": "Ich habe ein C24 Maxkonto und diesen Monat 19 Mal abgehoben. Was kostet die nächste Abhebung von 200 EUR in Deutschland mit der C24 Mastercard?",
+   "card": "c24",
+   "product": null,
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 0,
+    "amount_eur": "200",
+    "used": {
+     "c24": {
+      "count": 19
+     }
+    },
+    "facts": {
+     "account_model": "C24 Maxkonto"
+    }
+   },
+   "wallet": [
+    "c24"
+   ],
+   "_hand": "Maxkonto: '20 x 0,00 EUR' per calendar month; the 20th is free -> 0.00 (Smartkonto would have had 4)",
+   "expected_cost": "0.00",
+   "pending": "#18/#26: account model as a wallet fact"
+  },
+  {
+   "id": "r32",
+   "question": "Was kostet eine Auszahlung von 1.000 EUR am Schalter in den USA mit der DKB Visa Debitkarte ohne Aktivstatus?",
+   "card": "dkb",
+   "product": "Visa Debitkarte / ohne Aktivstatus",
+   "scenario": {
+    "kind": "cash",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "1000",
+    "event": "counter_cash"
+   },
+   "wallet": [
+    "dkb:Visa Debitkarte / ohne Aktivstatus"
+   ],
+   "_hand": "Am Schalter außerhalb des EWR, Standardleistung: '3,00 % vom verfügten Betrag, mind. 5,00 EUR zzgl. 2,20 %': 30.00 + 22.00 = 52.00 (the stacked 2.20 % adds to the base fee)",
+   "expected_cost": "52.00",
+   "pending": "#18: stacked fees, counter cash"
+  },
+  {
+   "id": "r33",
+   "question": "Ich zahle am Samstag 200 EUR in US-Dollar mit Revolut Standard. Diesen Monat habe ich noch nichts umgetauscht. Was kostet das?",
+   "card": "revolut_standard",
+   "product": null,
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 0,
+    "amount_eur": "200",
+    "used": {
+     "revolut_standard": {
+      "count": 0,
+      "fx_eur": "0"
+     }
+    },
+    "weekend": true
+   },
+   "wallet": [
+    "revolut_standard"
+   ],
+   "_hand": "Exchange within the 1.000 EUR limit is free on weekdays; at the weekend 'fällt eine Gebühr von 1 % an': 200 * 1 % = 2.00 (operator review: whether the weekend fee is on top of the 0,5 % beyond the limit is not stated, no excess here)",
+   "expected_cost": "2.00",
+   "pending": "#18: weekend window"
+  },
+  {
+   "id": "r34",
+   "question": "Ich hebe mit der TF Bank Mastercard Gold 300 EUR in Deutschland ab und zahle nach 30 Tagen zurück. Was kostet das?",
+   "card": "tfbank_mastercard_gold",
+   "product": null,
+   "scenario": {
+    "kind": "cash",
+    "country": "DE",
+    "days": 30,
+    "amount_eur": "300"
+   },
+   "wallet": [
+    "tfbank_mastercard_gold"
+   ],
+   "_hand": "Cash fee 0,- €; the interest-free period excludes cash, so interest from day one: 300 * 22.60 % * 30 / 365 = 5.5726 -> 5.57",
+   "expected_cost": "5.57",
+   "pending": "#25: credit interest"
+  },
+  {
+   "id": "r35",
+   "question": "Ich zahle 500 EUR mit der TF Bank Mastercard Gold in den USA und zahle die Rechnung vollständig zum Fälligkeitsdatum. Was kostet das?",
+   "card": "tfbank_mastercard_gold",
+   "product": null,
+   "scenario": {
+    "kind": "purchase",
+    "country": "US",
+    "days": 20,
+    "amount_eur": "500",
+    "facts": {
+     "repayment_mode": "pays_in_full"
+    }
+   },
+   "wallet": [
+    "tfbank_mastercard_gold"
+   ],
+   "_hand": "FX fee 0,- €; purchases paid in full by the due date carry no interest -> 0.00 (with instalments: 500 * 22.60 % * 20 / 365 = 6.19)",
+   "expected_cost": "0.00",
+   "pending": "#25: credit interest"
   }
  ]
 }

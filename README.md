@@ -122,11 +122,7 @@ extraction gets: the fee-terms query rescues most misses. Context recall was 0.9
 holds every name the six price lists use for each fee (one line per fee; Währungsumrechnungsentgelt, Wechselgebühr/Wechsellimit,
 Abhebung were missing). Context recall is 1.00 in every mode; synthetic is unchanged.
 
-**Checking the draft:** `uv run python evals/verify_golden.py evals/golden_real.json > evals/golden_real_sheet.md` reads each PDF
-with plain pdfplumber (not our ingest). For every expected number it lists the lines on the expected page that contain it, each
-with the line before as context. All 20 questions' numbers are found. I read the sheet against the hand notes and found
-no contradiction. A human sign-off is still missing, and the `VERIFY` questions (r04, r09, r11, r18, r19) rest on interpretations
-that only a person, or the bank, can settle.
+**Checking the draft:** `evals/verify_golden.py` is gone (#19). The expected rules in `evals/golden_real.json` each carry their quote and page, and `tests/test_golden.py` checks that every quote is on its page of `catalog/docs/*.md`. The README's eval tables above predate the rule format and are rewritten in #15.
 
 Retrieval@1 (synthetic): bm25 0.65, vector 0.65, hybrid 0.71. The remaining hybrid miss is q02 *"Ich hebe 300 EUR … ab"*: a separable
 German verb ("hebe … ab" means "abheben", to withdraw), and neither side links it to "Bargeldauszahlung". Extraction does not depend on this question's retrieval,

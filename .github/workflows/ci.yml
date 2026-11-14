@@ -19,5 +19,5 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
-      # scores the committed fees files, no API key needed; exits 1 if hybrid extraction accuracy < 0.9
+      # scores the committed fees files, no API key needed; exits 1 if rule recall or precision < 0.9
       - run: uv run python evals/run_eval.py
