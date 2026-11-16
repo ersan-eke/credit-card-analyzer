@@ -1,5 +1,5 @@
 {
- "_note": "Questions reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md). `rules` is the expected extraction in the rule format, drafted by Claude (#19) from the extracted text of catalog/docs/*.md for the operator to correct (#20): per product, each rule has the quote and page it comes from, and `review` marks a reading that needs a decision. Where the price list gives one price for several cases the draft is one rule. Events drafted: payment, atm, counter_cash, credit; holding fees come with #25. `when` keys beyond currency/region/country (network, amount {min inclusive, max exclusive}, weekend, merchant, facts) are not in the calculator yet; scenario keys facts, network, weekend, event, operator_fee_eur likewise, so questions marked `pending` are not scored until the ticket they name lands. expected_fact names the rule whose number answers the question; expected_question: the advisor should ask back (allowance usage, or a missing wallet fact) instead of answering.",
+ "_note": "Questions reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md). `rules` is the expected extraction in the rule format, drafted by Claude (#19) from the extracted text of catalog/docs/*.md and reviewed by the operator (#20): per product, each rule has the quote and page it comes from. Where the price list gives one price for several cases the draft is one rule. Events drafted: payment, atm, counter_cash, credit; holding fees come with #25. `when` keys beyond currency/region/country (network, amount {min inclusive, max exclusive}, weekend, merchant, facts) are not in the calculator yet; scenario keys facts, network, weekend, event, operator_fee_eur likewise, so questions marked `pending` are not scored until the ticket they name lands. expected_fact names the rule whose number answers the question; expected_question: the advisor should ask back (allowance usage, or a missing wallet fact) instead of answering.",
  "wallet": [
   "c24:Smartkonto",
   "dkb:Kreditkarte",
@@ -27,8 +27,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Kosten bei Einsatz der Debitkarte | 1 € für Abhebungen unter 100 €",
-    "page": 1,
-    "review": "Withdrawals from 100 EUR are free by implication only; the list states no 0."
+    "page": 1
    },
    {
     "id": "tr.fx",
@@ -151,8 +150,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "den Einsatz bei Finanzinstituten (MCC 6012), für die Ausführung eines Geldtransfers (MCC 4829) und den Kauf von Kryptowährungen (MCC 6051) 3 | 3 % des Betrags, mind. 3,95 €",
-    "page": 1,
-    "review": "The list names no merchant class for these MCCs; 'financial' is my name for it."
+    "page": 1
    },
    {
     "id": "gc.credit",
@@ -167,8 +165,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Sollzinssatz | 18,30 %",
-    "page": 1,
-    "review": "The list states the rate for instalment use only; whether purchases are interest-free is not stated."
+    "page": 1
    }
   ],
   "hanseatic_goldcard": [
@@ -246,8 +243,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "den Einsatz bei Finanzinstituten (MCC 6012), für die Ausführung eines Geldtransfers (MCC 4829) und den Kauf von Kryptowährungen (MCC 6051) 3 | 3 % des Betrags, mind. 3,95 €",
-    "page": 1,
-    "review": "The list names no merchant class for these MCCs; 'financial' is my name for it."
+    "page": 1
    },
    {
     "id": "gold.credit",
@@ -262,8 +258,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Sollzinssatz | 16,30 %",
-    "page": 1,
-    "review": "The list states the rate for instalment use only; whether purchases are interest-free is not stated."
+    "page": 1
    }
   ],
   "tfbank_mastercard_gold": [
@@ -316,8 +311,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "22,60 % (veränderlich*)",
-    "page": 1,
-    "review": "Purchases carry no interest when the statement is paid in full by the due date; cash and transfers are excluded. The rule format cannot say that yet (#25)."
+    "page": 1
    }
   ],
   "bbva:Debitkarte": [
@@ -356,8 +350,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €.",
-    "page": 3,
-    "review": "Basiskonto holders pay nothing at any amount; not drafted (account model)."
+    "page": 3
    },
    {
     "id": "bbvad.atm.small",
@@ -421,8 +414,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Bargeldabhebungen mit der Debitkarte an BBVA-Geldautomaten in Spanien | Kostenlos",
-    "page": 4,
-    "review": "The operator fee at BBVA's own Spanish machines is not stated."
+    "page": 4
    }
   ],
   "bbva:Kreditkarte": [
@@ -490,8 +482,7 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3,
-    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7). The list states no foreign-currency fee for card payments, so none is drafted."
+    "page": 3
    },
    {
     "id": "c24.atm.eur.plusmax",
@@ -519,8 +510,7 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3,
-    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+    "page": 3
    },
    {
     "id": "c24.atm.eur.basis",
@@ -572,8 +562,7 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3,
-    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+    "page": 3
    },
    {
     "id": "c24.atm.fx.plusmax",
@@ -602,8 +591,7 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3,
-    "review": "The 4 / 20 free withdrawals are shared between EUR and foreign-currency ATMs (footnote 7)."
+    "page": 3
    },
    {
     "id": "c24.atm.fx.basis",
@@ -652,8 +640,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Beträge unter 50,00 Euro - 1,95 Euro 2 Beträge ab einschl. 50,00 Euro - kostenlos 2",
-    "page": 8,
-    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+    "page": 8
    },
    {
     "id": "cvd.atm.big",
@@ -675,8 +662,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Beträge unter 50,00 Euro - 1,95 Euro 2 Beträge ab einschl. 50,00 Euro - kostenlos 2",
-    "page": 8,
-    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+    "page": 8
    },
    {
     "id": "cvd.atm.eea",
@@ -753,8 +739,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Karteneinsatz im EWR auf den jeweiligen, nicht auf Euro lautenden Umsatz | 2,10 % 2",
-    "page": 8,
-    "review": "The list gives one price inside and one outside the EWR; merged because both are 2,10 %."
+    "page": 8
    },
    {
     "id": "cvd.gambling",
@@ -791,8 +776,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Bargeldauszahlung an allen Visa-zugänglichen Geldausgabe automaten | kostenlos 2 | kostenlos 2 | -",
-    "page": 8,
-    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+    "page": 8
    },
    {
     "id": "ccgl.pay",
@@ -807,8 +791,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Karteneinsatz außerhalb des EWR auf den jeweiligen Umsatz | kostenlos 2 | kostenlos 2 | -",
-    "page": 8,
-    "review": "Free in euro, in other EWR currencies and outside the EWR (three lines), merged."
+    "page": 8
    },
    {
     "id": "ccgl.gambling",
@@ -845,8 +828,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Bargeldauszahlung an allen Visa-zugänglichen Geldausgabe automaten | kostenlos 2 | kostenlos 2 | kostenlos 2",
-    "page": 8,
-    "review": "Columns of the Girokonto price table are unnamed in the extracted text (first two equal, third '-'); drafted from the first."
+    "page": 8
    },
    {
     "id": "cvg.pay",
@@ -861,8 +843,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "Karteneinsatz im Europäischen Wirtschaftsraum (EWR) in Euro | kostenlos 2 | kostenlos 2 | kostenlos 2",
-    "page": 8,
-    "review": "Free in every currency (four lines), merged."
+    "page": 8
    },
    {
     "id": "cvg.gambling",
@@ -911,8 +892,7 @@
     },
     "stacks": false,
     "quote": "- Für N26 Standard und N26 Business Standard Kontoinhaber | 2 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
-    "page": 3,
-    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+    "page": 3
    },
    {
     "id": "n26.atm.smart",
@@ -939,8 +919,7 @@
     },
     "stacks": false,
     "quote": "- Für N26 Smart, N26 Business Smart Kunden | 3 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
-    "page": 3,
-    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+    "page": 3
    },
    {
     "id": "n26.atm.go",
@@ -967,8 +946,7 @@
     },
     "stacks": false,
     "quote": "- N26 Go und N26 Business Go Kunden | 5 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
-    "page": 3,
-    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+    "page": 3
    },
    {
     "id": "n26.atm.metal",
@@ -995,8 +973,7 @@
     },
     "stacks": false,
     "quote": "- Für N26 Metal und N26 Business Metal Kunden | 8 Abhebungen kostenlos pro Kalendermonat, 2,00 € für jede weitere Abhebung",
-    "page": 3,
-    "review": "The list calls this 'Fair Use Policy'; it does not apply to customers with an Austrian delivery address."
+    "page": 3
    },
    {
     "id": "n26.atm.fx.free",
@@ -1048,8 +1025,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "| 1,7% des Umsatzes",
-    "page": 3,
-    "review": "Row has no plan label in the extracted text; read as the rest after the Go/Metal row. Whether the free withdrawals also apply in foreign currency is not stated."
+    "page": 3
    },
    {
     "id": "n26.pay",
@@ -1115,8 +1091,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "2,00 € pro Geldabhebung am Geldautomaten zzgl. 1,7% vom Umsatz",
-    "page": 7,
-    "review": "Flat 2,00 and 1,7 % are one fee; drafted as two rules (flat + stacked percent)."
+    "page": 7
    },
    {
     "id": "n26.atm.flex.fxpct",
@@ -1399,8 +1374,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "An Geldautomaten in Euro innerhalb des EWR 1G in EWR-Währung 1H (außer Euro) 1I | kostenlos seitens der DKB AG 1N 2,20 % vom Umsatz seitens DKB AG 1J 1N | kostenlos seitens der DKB AG 1N kostenlos seitens der DKB AG 1N",
-    "page": 1,
-    "review": "The row for euro and for other EWR currencies is merged in the extracted text; euro read as free for both statuses."
+    "page": 1
    },
    {
     "id": "dkbd.atm.fx.std",
@@ -1508,8 +1482,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "innerhalb des EWR 2B in Nicht-EWR-Währung 2C, 2F | kostenlos |",
-    "page": 2,
-    "review": "Free in euro, EWR currencies and elsewhere (four lines), merged."
+    "page": 2
    },
    {
     "id": "dkbk.gamb",
@@ -1606,8 +1579,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "– Bargeldauszahlung mit der Kreditkarte am Geldautomaten innerhalb\nder EU/EWR-Staaten in EUR\n– an Geldautomaten der HypoVereinsbank kostenfrei\n– an allen anderen Geldautomaten 2% mind. 5 EUR",
-    "page": 5,
-    "review": "Account models outside the three named are priced as the 'all other' default; the list also has other cards with other prices (not drafted)."
+    "page": 5
    },
    {
     "id": "hvb.atm.other.ex",
@@ -1754,8 +1726,7 @@
     "allowance": null,
     "stacks": false,
     "quote": "– Bargeldauszahlung am Schalter fremder Kreditinstitute\nmit einer von der Bank ausgegebenen Kreditkarte in EUR\nund in Fremdwährung 3% mind. 5 EUR",
-    "page": 5,
-    "review": "Stated for 'a credit card issued by the bank', not for the Mastercard by name."
+    "page": 5
    },
    {
     "id": "hvb.pay.eur",
@@ -1836,12 +1807,11 @@
     },
     "allowance": {
      "amount_eur": "1000",
-     "period": "calendar_month"
+     "period": "rolling_month"
     },
     "stacks": true,
     "quote": "Standard:Wechsellimit von 1.000 EUR pro Monat. Für jeden zusätzlichen Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.",
-    "page": 5,
-    "review": "Calendar or rolling month for the exchange limit is not stated ('pro Monat'); drafted as calendar month."
+    "page": 5
    },
    {
     "id": "revs.weekend",
@@ -1863,8 +1833,7 @@
     "allowance": null,
     "stacks": true,
     "quote": "Wenn du am Wochenende (zwischen 17 Uhr New Yorker Zeit am Freitag und 18 Uhr New Yorker Zeit am Sonntag) wechselst, fällt eine Gebühr von 1 % an.",
-    "page": 5,
-    "review": "Whether the weekend fee replaces the 0,5 % beyond the limit or adds to it is not stated; 'currency already held' fact not drafted."
+    "page": 5
    }
   ],
   "revolut_plus": [
@@ -1905,12 +1874,11 @@
     },
     "allowance": {
      "amount_eur": "3000",
-     "period": "calendar_month"
+     "period": "rolling_month"
     },
     "stacks": true,
     "quote": "Plus: Wechsellimit von 3.000 EUR pro Monat. Für jeden zusätzlichen Währungswechsel fällt eine faire Nutzungsgebühr von 0,5 % an.",
-    "page": 6,
-    "review": "Calendar or rolling month for the exchange limit is not stated ('pro Monat'); drafted as calendar month. The same list says elsewhere 'Standard und Plus: Wechsellimit von 1.000 EUR pro Monat' (p.14); the two contradict."
+    "page": 6
    },
    {
     "id": "revp.weekend",
@@ -1932,8 +1900,7 @@
     "allowance": null,
     "stacks": true,
     "quote": "Wenn du am Wochenende (zwischen 17 Uhr New Yorker Zeit am Freitag und 18 Uhr New Yorker Zeit am Sonntag) wechselst, fällt eine Gebühr von 0,5 % an.",
-    "page": 6,
-    "review": "Whether the weekend fee replaces the 0,5 % beyond the limit or adds to it is not stated; 'currency already held' fact not drafted."
+    "page": 6
    }
   ],
   "revolut_premium": [
@@ -1954,8 +1921,7 @@
     },
     "stacks": false,
     "quote": "Kostenlose Bargeldabhebungen bis zu 400 € pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1 € pro Abhebung.",
-    "page": 12,
-    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+    "page": 12
    }
   ],
   "revolut_metal": [
@@ -1976,8 +1942,7 @@
     },
     "stacks": false,
     "quote": "Kostenlose Bargeldabhebungen bis zu 800 € pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1 € pro Abhebung.",
-    "page": 13,
-    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+    "page": 13
    }
   ],
   "revolut_ultra": [
@@ -1998,8 +1963,7 @@
     },
     "stacks": false,
     "quote": "Kostenlose Bargeldabhebungen bis zu 2.000€ pro rollierendem Monat, danach fällt eine Gebühr an. Diese Gebühr beträgt 2 % des abgehobenen Betrags bei einer Mindestgebühr von 1€ pro Abhebung.",
-    "page": 13,
-    "review": "Premium, Metal and Ultra: 'Kein Wechsellimit. Keine faire Nutzungsgebühr.' states no number, so no rule is drafted and the foreign-currency cost stays unknown."
+    "page": 13
    }
   ]
  },

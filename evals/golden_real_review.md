@@ -55,7 +55,7 @@ Expected cost 0 EUR: correct
 
 `revolut_standard`, page 3. Hand: VERIFY: 250>200 -> charged in full max(2,1)=2.00 (doc does not say whether only the 50 EUR overrun is charged); tr 0; c24 2.00; hvb 5.00
 
-Expected cost 2.00 EUR: incorrect, shouldnt be charged in full, first until the limit of 200 is still free, everything after that is charged
+Expected cost 2.00 EUR: incorrect, shouldnt be charged in full, first until the limit of 200 is still free, everything after that is charged. that meaning only the 50 euro overrun is charged -> max (1,1) = 1.00
 
 - `percent` = 2: 
   - `eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden ⏎ mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag`
