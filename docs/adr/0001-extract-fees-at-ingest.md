@@ -5,3 +5,5 @@ every price list is known before any question is asked. We extract each price li
 review the result, and answer questions from the stored fees with no LLM call. Per-question extraction (the earlier design,
 with an LLM cache to avoid paying twice) would make every visitor cost tokens and seconds and let anyone run up the bill.
 Retrieval and extraction remain, but as the ingestion pipeline that turns PDFs into reviewed fee data.
+
+_Superseded in part by [ADR 0004](0004-whole-document-extraction.md): ingest no longer retrieves._

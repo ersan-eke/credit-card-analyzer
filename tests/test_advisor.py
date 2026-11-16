@@ -69,12 +69,6 @@ def test_account_model_products_resolve_exactly():
     assert [f.product for f in resolved.values()] == ["HVB Mastercard", "HVB Mastercard / HVB AktivKonto"]
 
 
-def test_extraction_prompt_asks_for_account_model_products():
-    from cardcost.extract import SYSTEM
-
-    assert "Kontomodell" in SYSTEM and "<card> / <Kontomodell>" in SYSTEM
-
-
 def test_match_product_by_words():
     from cardcost.advisor import match_product
     from cardcost.models import FeeSchedule
@@ -125,14 +119,11 @@ def test_one_card_question_resolves_only_that_card():
     assert list(a.resolve("Was kostet die Beta Gold für 300 EUR?")) == ["beta_card:Gold"]
 
 
-def test_status_products_are_extracted_separately_and_priced_by_the_chosen_one():
+def test_status_products_are_priced_by_the_chosen_one():
     from decimal import Decimal
 
     from cardcost.calc import cost_line
-    from cardcost.extract import SYSTEM
     from cardcost.models import Scenario
-
-    assert "Aktivstatus" in SYSTEM and "<card> / mit Aktivstatus" in SYSTEM
 
     def dkb(status, fx, quote):
         return FeeSchedule(

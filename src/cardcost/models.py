@@ -46,14 +46,6 @@ NUMERIC_FIELDS = (
 FREE_WORDS = re.compile(r"kostenlos|kostenfrei|gebührenfrei|entgeltfrei|\bfree\b", re.IGNORECASE)
 
 
-class Passage(BaseModel):
-    id: str
-    card_id: str
-    file: str
-    page: int
-    text: str
-
-
 Currency = Literal["EUR", "EEA_non_EUR", "other"]
 Region = Literal["home", "EEA", "outside_EEA"]  # EEA = the EEA outside the home country
 Event = Literal["payment", "atm", "counter_cash", "credit"]

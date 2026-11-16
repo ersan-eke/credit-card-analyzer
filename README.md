@@ -15,7 +15,7 @@ Set `CARDCOST_PROVIDER` to `google` (AI Studio key in `GEMINI_API_KEY`) or `open
 and are translated to the Anthropic response shape, so retry, audit and review work the same.
 
 ```bash
-CARDCOST_PROVIDER=google CARDCOST_MODEL=gemini-3.8-flash GEMINI_API_KEY=... uv run cardcost ingest --mode hybrid
+CARDCOST_PROVIDER=google CARDCOST_MODEL=gemini-3.8-flash GEMINI_API_KEY=... uv run cardcost ingest
 CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_API_KEY=... uv run cardcost ask "300 EUR Bargeld in den USA"
 ```
 
@@ -23,9 +23,8 @@ CARDCOST_PROVIDER=openrouter CARDCOST_MODEL=google/gemini-3.8-flash OPENROUTER_A
 
 | step | module | LLM? |
 |---|---|---|
-| PDF → per-page text (Docling Markdown tables, ADR 0003), cached as `<id>.md` beside the PDF; a list missing numbers of the PDF is flagged; NFC, ~200-word line windows, never across files | `ingest.py` | no |
-| Hybrid retrieval per card: BM25 (indexed per card) + `multilingual-e5-small` embeddings, RRF k=60 | `retrieval.py` | no |
-| Fee extraction via a strict tool schema into `FeeSchedule`; every number must appear in `quote`, the quote must be verbatim on the cited page; one retry with the error, then review queue | `extract.py` | yes |
+| PDF → per-page text (Docling Markdown tables, ADR 0003), cached as `<id>.md` beside the PDF; a list missing numbers of the PDF is flagged | `ingest.py` | no |
+| Fee extraction, one call per changed price list with the whole text (ADR 0004, no retrieval; a text over the token budget is flagged), via a strict tool schema into rules; every number must appear in its rule's `quote`, the quote must be verbatim on the cited page; one retry with the error, then review queue | `extract.py` | yes |
 | Cost = `max(amount·pct/100, min)` + FX (non-EUR) + ATM operator fee (abroad) + interest (`--days`), Decimal, half-up per component; unknown fee ⇒ no total, ranked last. Free allowances (see below) can make the cash fee 0 | `calc.py` | no |
 | ≤3-sentence answer; every number in it must be in the computed table, else regenerate once, else a template | `answer.py` | yes |
 | Audit: `agent_run` (prompt_version, model, tokens, cost_eur), `extraction`, `review` (one decision per extraction) | `db.py` | no |
@@ -160,7 +159,6 @@ gutter and must stay whole (tested).
 - The FX fee is applied to non-EUR countries for both cash and purchases. The ATM operator fee is applied to cash abroad only. Interest uses simple act/365
   on the withdrawn amount.
 - Reviewed values are keyed by card and product, not by document version. Re-ingesting a changed PDF keeps old corrections.
-- Passages and embeddings are rebuilt per process, which takes a few seconds and only suits a handful of PDFs.
 - The `matrix` command scans whole euros from 1 to `--max` instead of solving the crossovers analytically.
 - The API has no auth. The MCP tools are read-only for callers but still write audit rows.
 - On google/openrouter the Anthropic-only `strict` flag is dropped, so tool arguments are not schema-guaranteed. The Pydantic and quote

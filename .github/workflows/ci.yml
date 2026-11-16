@@ -12,10 +12,6 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/huggingface
-          key: hf-multilingual-e5-small
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
