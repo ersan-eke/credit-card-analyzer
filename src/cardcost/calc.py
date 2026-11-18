@@ -1,5 +1,6 @@
 """All money maths. Decimal only, no floats, no LLM. Each component is rounded half-up to cents, then summed."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from cardcost.models import CostLine, FeeSchedule, Rule, Scenario, Usage
@@ -55,6 +56,11 @@ def rule_matches(rule: Rule, event: str, s: Scenario) -> bool:
         and (w.currency is None or s.currency in w.currency)
         and (w.region is None or s.region in w.region)
         and (w.country is None or s.country.upper() in w.country)
+        and (w.amount is None or w.amount.min is None or s.amount_eur >= w.amount.min)
+        and (w.amount is None or w.amount.max is None or s.amount_eur < w.amount.max)
+        and (w.network is None or s.atm_network in w.network)
+        and (w.merchant is None or s.merchant in w.merchant)
+        and (w.weekend is None or w.weekend.contains(s.at or datetime.now(UTC)))
     )
 
 
@@ -121,9 +127,15 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
                 interest = to_cents(s.amount_eur * (rule.price.percent or ZERO) / 100 * s.days / 365)
                 comps[rule.name] = comps.get(rule.name, ZERO) + interest
                 continue
-            amount, note = rule_base(rule, s.amount_eur, s.usage_for(label))
+            exchanged = max(ZERO, s.amount_eur - s.held_eur) if rule.is_fx else s.amount_eur
+            amount, note = rule_base(rule, exchanged, s.usage_for(label))
             comps[rule.name] = comps.get(rule.name, ZERO) + rule_fee(rule, amount)
             notes += [note] if note else []
+    if s.kind == "cash" and s.operator_fee:
+        if fee.network in s.operator_fee:
+            comps["atm_operator_fee"] = to_cents(s.operator_fee[fee.network])
+        else:
+            missing.append("atm_operator_fee")  # which network's fee applies is not known: never assume free
     if s.currency != "EUR" and not any(r.is_fx for r in used):
         missing.append("fx_fee")
     pages = sorted({r.page for r in used} or {fee.source_page})

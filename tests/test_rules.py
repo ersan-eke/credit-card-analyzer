@@ -1,6 +1,7 @@
 """Rule format, priced through the advisor (the seam the CLI and MCP use)."""
 
 import json
+from datetime import datetime
 from decimal import Decimal as D
 from pathlib import Path
 
@@ -24,8 +25,8 @@ def rule(price: dict | None, quote: str = "1", name: str = "fee", **kw) -> dict:
     return {"name": name, "event": ["atm"], "price": price, "quote": quote, "page": 1} | kw
 
 
-def cost(fees, amount="100", country="DE", kind="cash", used=None, days=0):
-    s = Scenario(kind=kind, amount_eur=D(amount), country=country, used=used or {}, days=days)
+def cost(fees, amount="100", country="DE", kind="cash", used=None, days=0, **kw):
+    s = Scenario(kind=kind, amount_eur=D(amount), country=country, used=used or {}, days=days, **kw)
     (line,) = Advisor(fees).cost_table("Bargeld", s)
     return line
 
@@ -153,3 +154,100 @@ def test_rule_numbers_must_come_from_its_quote():
             card="c", source_file="c.pdf", source_page=1, confidence=1, rules=[rule({"percent": "3"}, quote="2 %")]
         )
     assert cost(product(rule({"flat_eur": "0"}, quote="kostenlos"))).total == D("0.00")
+
+
+def test_amount_thresholds_switch_the_price():
+    fees = product(
+        rule({"flat_eur": "1.95"}, quote="1,95 50", name="small", when={"amount": {"max": "50"}}),
+        rule({"flat_eur": "1"}, quote="1 50 100", name="mid", when={"amount": {"min": "50", "max": "100"}}),
+        rule({"flat_eur": "0"}, quote="kostenlos 100", name="big", when={"amount": {"min": "100"}}),
+    )
+    totals = [cost(fees, a).total for a in ("49.99", "50", "99.99", "100")]
+    assert totals == [D("1.95"), D("1.00"), D("1.00"), D("0.00")]
+
+
+def test_atm_network_picks_the_rule_and_operator_fee_follows_the_card_network():
+    base = [
+        rule({"flat_eur": "0"}, quote="kostenlos", name="own", when={"network": ["own"]}),
+        rule({"flat_eur": "2"}, quote="2", name="group", when={"network": ["Cash Group"]}),
+        rule({"flat_eur": "5"}, quote="5", name="other", when={"network": ["other"]}),
+    ]
+    fees = {
+        "mc": [
+            FeeSchedule(card="mc", network="Mastercard", source_file="c.pdf", source_page=1, confidence=1, rules=base)
+        ],
+        "visa": [
+            FeeSchedule(card="visa", network="Visa", source_file="c.pdf", source_page=1, confidence=1, rules=base)
+        ],
+        "unk": [FeeSchedule(card="unk", source_file="c.pdf", source_page=1, confidence=1, rules=base)],
+    }
+    s = lambda **kw: {  # noqa: E731
+        ln.label: ln for ln in Advisor(fees).cost_table("Bargeld", Scenario(kind="cash", amount_eur=D(100), **kw))
+    }
+    assert s(atm_network="own")["mc"].total == D("0.00")
+    assert s(atm_network="Cash Group")["mc"].components == {"group": D("2.00")}
+    assert s()["mc"].components == {"other": D("5.00")}  # unknown ATM: the dearest case
+    fee = s(operator_fee={"Mastercard": D("3.50"), "Visa": D(0)})
+    assert (fee["mc"].total, fee["visa"].total) == (D("8.50"), D("5.00"))
+    assert fee["mc"].components["atm_operator_fee"] == D("3.50")
+    assert (fee["unk"].total, fee["unk"].missing) == (None, ["atm_operator_fee"])  # card network unknown: not free
+
+
+def test_stacked_rule_adds_to_the_base_rule():
+    fees = product(
+        rule({"percent": "1"}, quote="1", name="base"),
+        rule({"percent": "2.2"}, quote="zzgl. 2,20", name="extra", stacks=True),
+    )
+    assert cost(fees, "100").components == {"base": D("1.00"), "extra": D("2.20")}
+
+
+@pytest.mark.parametrize(
+    ("at", "want"),
+    [
+        ("2026-11-20T22:00:00+00:00", "1.00"),  # Fri 17:00 New York (UTC-5) is Fri 22:00 UTC
+        ("2026-11-20T21:59:00+00:00", "0.00"),
+        ("2026-11-22T22:59:00+00:00", "1.00"),  # Sun 17:59 New York
+        ("2026-11-22T23:00:00+00:00", "0.00"),  # Sun 18:00 New York
+        ("2026-11-18T12:00:00+00:00", "0.00"),
+    ],
+)
+def test_weekend_window_is_the_banks_own_in_its_time_zone(at, want):
+    fees = product(rule({"percent": "1"}, quote="1", event=["payment"], when={"weekend": True}, stacks=True))
+    assert cost(fees, kind="purchase", at=datetime.fromisoformat(at)).total == D(want)
+
+
+def test_weekend_defaults_to_now():
+    fees = product(rule({"percent": "1"}, quote="1", event=["payment"], when={"weekend": True}, stacks=True))
+    assert cost(fees, kind="purchase").total in (D("0.00"), D("1.00"))
+
+
+def test_held_currency_reduces_the_amount_exchanged():
+    fees = product(
+        rule(
+            {"percent": "1"},
+            quote="1 1000",
+            name="fx",
+            event=["payment"],
+            when={"currency": FX},
+            allowance={"amount_eur": "1000", "period": "calendar_month"},
+        )
+    )
+    used = {"c": Usage(count=0, fx_eur=D(1000))}  # allowance used up
+    assert cost(fees, "400", "US", "purchase", used).total == D("4.00")
+    assert cost(fees, "400", "US", "purchase", used, held_eur=D(150)).total == D("2.50")
+    assert cost(fees, "400", "US", "purchase", used, held_eur=D(900)).total == D("0.00")
+
+
+def test_gambling_merchant_surcharge():
+    fees = product(
+        rule(
+            {"percent": "3"},
+            quote="3",
+            name="gambling",
+            event=["payment"],
+            when={"merchant": ["gambling"]},
+            stacks=True,
+        )
+    )
+    assert cost(fees, kind="purchase").total == D("0.00")
+    assert cost(fees, kind="purchase", merchant="gambling").components == {"gambling": D("3.00")}

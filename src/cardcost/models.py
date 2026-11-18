@@ -1,8 +1,10 @@
 import re
+from datetime import datetime, time
 from decimal import Decimal
 from typing import Literal, NamedTuple
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from cardcost.numbers import find_numbers
 
@@ -52,6 +54,35 @@ Event = Literal["payment", "atm", "counter_cash", "credit"]
 Period = Literal["calendar_month", "rolling_month", "year"]
 
 
+class Window(BaseModel):
+    """A weekly window as the bank states it. Days: Monday = 0. The default is Revolut's (Fri 17:00 - Sun 18:00 New
+    York), the only one in the catalog: `weekend: true` in a rule means it."""
+
+    # shortcut: one default window; upgrade to a window the extractor reads from the quote when a second bank has one
+    start_day: int = Field(4, ge=0, le=6)
+    start_time: time = time(17)
+    end_day: int = Field(6, ge=0, le=6)
+    end_time: time = time(18)
+    tz: str = "America/New_York"
+
+    def contains(self, at: datetime) -> bool:
+        local = at.astimezone(ZoneInfo(self.tz))
+        week = lambda d, t: (d * 24 + t.hour) * 60 + t.minute  # noqa: E731
+        now, start, end = (
+            week(local.weekday(), local.time()),
+            week(self.start_day, self.start_time),
+            week(self.end_day, self.end_time),
+        )
+        return start <= now < end if start < end else now >= start or now < end
+
+
+class Amount(BaseModel):
+    """The transaction amount in EUR: at least min ("ab 50 EUR"), below max ("unter 50 EUR")."""
+
+    min: Decimal | None = Field(None, ge=0)
+    max: Decimal | None = Field(None, ge=0)
+
+
 class When(BaseModel):
     """Conditions a rule needs; each is a list of accepted values, and a rule with more conditions is more specific.
     Unset = any."""
@@ -59,10 +90,20 @@ class When(BaseModel):
     currency: list[Currency] | None = Field(None, min_length=1)
     region: list[Region] | None = Field(None, min_length=1)
     country: list[str] | None = Field(None, min_length=1)  # ISO codes, where the bank words it by country
+    amount: Amount | None = None
+    network: list[str] | None = Field(None, min_length=1)  # who owns the ATM: "own", a named group, or "other"
+    merchant: list[str] | None = Field(None, min_length=1)
+    weekend: Window | None = None
+
+    @field_validator("weekend", mode="before")
+    @classmethod
+    def _weekend_flag(cls, v):
+        return Window() if v is True else v
 
     @property
     def specificity(self) -> int:
-        return sum(v is not None for v in (self.currency, self.region, self.country))
+        conditions = (self.currency, self.region, self.country, self.amount, self.network, self.merchant, self.weekend)
+        return sum(v is not None for v in conditions)
 
 
 class Price(BaseModel):
@@ -156,6 +197,7 @@ class FeeSchedule(BaseModel):
     free_amount_eur: Decimal | None = Field(None, ge=0)  # free amount per period; whichever limit ends first
     free_from_eur: Decimal | None = Field(None, ge=0)  # withdrawals of at least this amount are free
     fx_free_eur: Decimal | None = Field(None, ge=0)  # exchange amount per period without FX fee; fx_percent beyond
+    network: str | None = None  # card network (Mastercard, Visa): picks the ATM operator fee the user gave for it
     source_file: str
     source_page: int
     confidence: float = Field(ge=0, le=1)
@@ -199,6 +241,11 @@ class Scenario(BaseModel):
     country: str = Field(HOME, min_length=2, max_length=2)
     days: int = Field(0, ge=0)
     used: dict[str, Usage] = {}  # by wallet label or card id
+    atm_network: str = "other"  # owner of the ATM; unstated = the dearest case
+    operator_fee: dict[str, Decimal] = {}  # the ATM operator's fee by card network; empty = not asked
+    merchant: str | None = None
+    at: AwareDatetime | None = None  # when the transaction happens; default now
+    held_eur: Decimal = Field(Decimal(0), ge=0)  # already held in the transaction currency: not exchanged
 
     @property
     def foreign_currency(self) -> bool:
