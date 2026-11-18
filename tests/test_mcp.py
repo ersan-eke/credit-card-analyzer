@@ -29,6 +29,12 @@ class FakeAdvisor:
     def choice_labels(self):
         return {}
 
+    def scenario(self, s):
+        return s
+
+    def missing_facts(self, table):
+        return {}
+
 
 def test_tools_are_read_only_and_compute(monkeypatch):
     monkeypatch.setattr(mcp_server, "_advisor", FakeAdvisor)
@@ -36,8 +42,8 @@ def test_tools_are_read_only_and_compute(monkeypatch):
     async def run():
         async with Client(mcp_server.mcp) as client:
             tools = {t.name: t for t in (await client.list_tools()).tools}
-            assert set(tools) == {"get_fee", "compare_cards"}
-            assert all(t.annotations.read_only_hint for t in tools.values())
+            assert set(tools) == {"get_fee", "compare_cards", "set_wallet_fact"}
+            assert all(t.annotations.read_only_hint for n, t in tools.items() if n != "set_wallet_fact")
             fee = await client.call_tool("get_fee", {"card": "beta_card:Gold", "amount_eur": "1000"})
             ranked = await client.call_tool("compare_cards", {"amount_eur": "300", "country": "US"})
             return json.loads(fee.content[0].text), ranked.structured_content or json.loads(ranked.content[0].text)

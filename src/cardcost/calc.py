@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from cardcost.models import CostLine, FeeSchedule, Rule, Scenario, Usage
+from cardcost.models import REPAYMENT, CostLine, FeeSchedule, Rule, Scenario, Usage
 from cardcost.numbers import to_cents
 
 ZERO = Decimal(0)
@@ -49,7 +49,8 @@ def fx_base(fee: FeeSchedule, amount: Decimal, used: Usage | None) -> tuple[Deci
     return max(ZERO, amount - left), f"Wechsellimit {fee.fx_free_eur} EUR, bisher {used.fx_eur} EUR umgetauscht"
 
 
-def rule_matches(rule: Rule, event: str, s: Scenario) -> bool:
+def rule_matches(rule: Rule, event: str, s: Scenario, facts: dict[str, str] | None = None) -> bool:
+    """`facts` None ignores the fact conditions: used to find which facts a question still needs."""
     w = rule.when
     return (
         event in rule.event
@@ -61,6 +62,7 @@ def rule_matches(rule: Rule, event: str, s: Scenario) -> bool:
         and (w.network is None or s.atm_network in w.network)
         and (w.merchant is None or s.merchant in w.merchant)
         and (w.weekend is None or w.weekend.contains(s.at or datetime.now(UTC)))
+        and (facts is None or all(facts.get(n) in vs for n, vs in (w.facts or {}).items()))
     )
 
 
@@ -97,9 +99,9 @@ def rule_fee(rule: Rule, base: Decimal) -> Decimal:
     return to_cents(min(fee, p.max_eur) if p.max_eur is not None else fee)
 
 
-def applicable(fee: FeeSchedule, event: str, s: Scenario) -> tuple[Rule | None, list[Rule]]:
+def applicable(fee: FeeSchedule, event: str, s: Scenario, facts: dict[str, str]) -> tuple[Rule | None, list[Rule]]:
     """The base rule (most specific of those that match; a tie is an error) and the rules that stack on it."""
-    hits = [r for r in fee.rules if rule_matches(r, event, s)]
+    hits = [r for r in fee.rules if rule_matches(r, event, s, facts)]
     base = [r for r in hits if not r.stacks]
     top = max((r.when.specificity for r in base), default=0)
     best = [r for r in base if r.when.specificity == top]
@@ -108,7 +110,6 @@ def applicable(fee: FeeSchedule, event: str, s: Scenario) -> tuple[Rule | None, 
     return (best[0] if best else None), [r for r in hits if r.stacks]
 
 
-REPAYMENT = ("pays_in_full", "instalments")
 PER = {"month": "Monat", "year": "Jahr"}
 
 
@@ -142,14 +143,19 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
     used: list[Rule] = []
     given: list[str] = []
     cash = s.kind == "cash"
+    facts = s.facts_for(label)
     borrows = bool(s.days) and (cash or any("credit" in r.event for r in fee.rules))
     for event in ["atm" if cash else "payment"] + (["credit"] if borrows else []):
-        if event == "credit" and not cash and s.facts.get("repayment_mode") not in REPAYMENT:
+        if event == "credit" and not cash and facts.get("repayment_mode") not in REPAYMENT:
             missing.append(
                 "repayment_mode"
             )  # a purchase is interest-free or not by how it is repaid: ask, never assume
             continue
-        base, stacked = applicable(fee, event, s)
+        unknown = {n for r in fee.rules if rule_matches(r, event, s) for n in r.when.facts or {} if n not in facts}
+        if unknown:  # which rule applies depends on a fact the user has not given: ask, never assume
+            missing += sorted(unknown - set(missing))
+            continue
+        base, stacked = applicable(fee, event, s, facts)
         if base is None and event != "payment":  # a payment is free of base fees unless the list says otherwise
             missing.append("cash_interest" if event == "credit" else "cash_fee")
         for rule in [*([base] if base else []), *stacked]:
@@ -163,7 +169,7 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
                 continue
             if event == "credit":
                 free = rule.interest_free_days
-                if not cash and s.facts["repayment_mode"] == "pays_in_full" and (free is None or s.days <= free):
+                if not cash and facts["repayment_mode"] == "pays_in_full" and (free is None or s.days <= free):
                     comps[rule.name] = ZERO  # cash is excluded from the interest-free period: it accrues from day one
                     notes.append(
                         "Zinsfrei bei vollständiger Rückzahlung" + (f" innerhalb {free} Tagen" if free else "")
@@ -178,7 +184,7 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
             notes += [note] if note else []
     holding = []
     for rule in fee.rules:
-        if rule_matches(rule, "holding", s):
+        if rule_matches(rule, "holding", s, facts):
             rule, own = with_user_value(rule, label, s)
             holding.append(holding_text(rule, own))
             given += [rule.name] if own else []

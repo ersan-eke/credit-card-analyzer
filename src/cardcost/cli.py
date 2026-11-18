@@ -46,14 +46,32 @@ def choose_wallet(labels: list[str], ask=input) -> list[str]:
     return chosen
 
 
+def ask_facts(conn, advisor, asks: dict[str, dict[str, list[str]]], ask=input) -> None:
+    """Ask for each fact the cost needs and save the answer once for the card."""
+    for label, facts in asks.items():
+        for name, options in facts.items():
+            print(f"{label}: {name}?")
+            for i, option in enumerate(options, 1):
+                print(f"  {i}) {option}")
+            advisor.set_fact(conn, label.partition(":")[0], name, options[int(ask("number: ")) - 1])
+
+
 def cmd_wallet(conn, args) -> None:
+    advisor = build_advisor(conn) if args.fact or args.choose else None
+    for item in args.fact:
+        card, _, rest = item.partition("=")
+        name, sep, value = rest.partition("=")
+        if not sep:
+            raise ValueError(f"fact must look like card=name=value, got {item!r}")
+        advisor.set_fact(conn, card.strip(), name.strip(), value.strip())
     if args.choose:
-        advisor = build_advisor(conn)
         cards = sorted(advisor.by_card)
         db.wallet_set(conn, choose_wallet(list(advisor.resolve("Bargeld Entgelt", wallet=cards))))
     for entry in args.entries:
         db.wallet_add(conn, entry)
     print("\n".join(db.wallet(conn)) or "wallet empty: every ingested card/product is compared")
+    for card, facts in db.wallet_facts(conn).items():
+        print(f"{card}: " + ", ".join(f"{n}={v}" for n, v in sorted(facts.items())))
 
 
 def ask_usage(
@@ -121,8 +139,16 @@ def cmd_ask(conn, args) -> None:
             "ambiguous products, choose one with `cardcost wallet`: "
             + "; ".join(f"{e} -> {', '.join(f.product for f in fs)}" for e, fs in advisor.choices.items())
         )
+    advisor.fees = fees
     scenario = scenario.model_copy(update={"used": used})
-    table = rank(fees, scenario)
+    table = rank(fees, advisor.scenario(scenario))
+    if asks := advisor.missing_facts(table):
+        if sys.stdin.isatty():
+            ask_facts(conn, advisor, asks)
+            table = rank(fees, advisor.scenario(scenario))
+        else:
+            print("missing facts, set them with `cardcost wallet --fact card=name=value`: " + json.dumps(asks))
+    scenario = advisor.scenario(scenario)
     text, source = answer(args.question, scenario, table, fees, advisor.llm)
     print(f"{text}\n\n{render_table(table)}\n\n(answer: {source}, run {run_id}, scenario {scenario.model_dump_json()})")
     if pending := db.pending_reviews(conn):
@@ -179,6 +205,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("wallet", help="choose which cards/products you own, e.g. beta_card:Gold")
     p.add_argument("entries", nargs="*")
     p.add_argument("--choose", action="store_true", help="pick from the products the documents name (replaces wallet)")
+    p.add_argument(
+        "--fact",
+        action="append",
+        default=[],
+        help="a fact about you, set once per card: card=account_model=HVB AktivKonto (or card=value:rule=3 EUR)",
+    )
     p = sub.add_parser("ask", help='e.g. "Welche Karte ist am günstigsten für 300 EUR Bargeld in den USA?"')
     p.add_argument("question")
     p.add_argument("--amount", type=Decimal)

@@ -61,6 +61,12 @@ def test_ask_returns_product_choices_and_takes_a_wallet(client, monkeypatch):
             seen["wallet"] = wallet
             return []
 
+        def scenario(self, s):
+            return s
+
+        def missing_facts(self, table):
+            return {}
+
         def choice_labels(self):
             return {"hvb:Mastercard": ["hvb:HVB Mastercard", "hvb:HVB Mastercard / HVB AktivKonto"]}
 

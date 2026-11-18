@@ -17,21 +17,32 @@ _Avoid_: Kosten- und Leistungsbericht, Preis-Leistungsbericht, Entgeltinformatio
 Where a price list is fetched from: one URL per price list, recorded by the operator.
 
 **Product**:
-One card or account type a price list prices separately (e.g. Revolut Premium, HVB Mastercard in the AktivKonto).
+One card a price list prices separately (e.g. Revolut Premium, HVB Mastercard). An account model, status or plan inside
+the price list is not a product but a **Fact** the product's rules are conditioned on.
 
 **Status**:
-A condition the user meets at a bank that changes its prices (e.g. DKB Aktivstatus); stated by the user, never inferred.
+A condition the user meets at a bank that changes its prices (e.g. DKB Aktivstatus); a Fact, stated by the user, never
+inferred.
 
 **Catalog**:
 All price lists the tool knows, maintained by the operator, not by the user.
 _Avoid_: Corpus, uploads
 
 **Wallet**:
-The products (with status) a user says they own, picked from the catalog. Only wallet products are ever compared.
+The products a user says they own, picked from the catalog, with the Facts they set for each card. Only wallet products
+are ever compared.
 _Avoid_: My cards, portfolio
 
 **Allowance**:
-A number or amount of fee-free uses per period (e.g. 4 free withdrawals a month); whether it is left depends on the user.
+A number or amount of fee-free uses per period (e.g. 4 free withdrawals a month); how much is left depends on the user's
+usage this period, asked per question and never assumed: unknown counts as used up.
 
 **Rule**:
 One priced event of a product under conditions: what it is called, which events (payment, atm, credit), when it applies (currency, region, country), its price, an optional allowance, and the quote it comes from. The most specific matching rule wins; a rule that stacks adds to it. No price means the document does not state it: the cost is unknown.
+
+**Fact**:
+Something about the user that a Rule is conditioned on (account model, status, plan, main or partner card, age, monthly
+incoming money, sign-up date, repayment mode) or a price the user gives where the document states none. Set once per
+card in the wallet, never inferred; only the facts a card's rules declare are asked for, and a missing one is asked back
+and saved. A cost that needs a fact the user has not given is unknown, with the fact named.
+_Avoid_: Profile, setting

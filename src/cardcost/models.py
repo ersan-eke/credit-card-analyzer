@@ -52,6 +52,8 @@ Currency = Literal["EUR", "EEA_non_EUR", "other"]
 Region = Literal["home", "EEA", "outside_EEA"]  # EEA = the EEA outside the home country
 Event = Literal["payment", "atm", "counter_cash", "credit", "holding"]
 Period = Literal["calendar_month", "rolling_month", "year"]
+REPAYMENT = ("pays_in_full", "instalments")
+VALUE_PREFIX = "value:"  # a wallet fact named value:<rule> is the user's own price for that rule
 
 
 class Window(BaseModel):
@@ -94,6 +96,13 @@ class When(BaseModel):
     network: list[str] | None = Field(None, min_length=1)  # who owns the ATM: "own", a named group, or "other"
     merchant: list[str] | None = Field(None, min_length=1)
     weekend: Window | None = None
+    facts: dict[str, list[str]] | None = None  # wallet facts the rule needs: name -> accepted values
+
+    @field_validator("facts", mode="before")
+    @classmethod
+    def _facts_pairs(cls, v):
+        # the extraction schema is strict, so it sends [{name, values}]; an empty list means no condition
+        return {i["name"]: i["values"] for i in v} or None if isinstance(v, list) else v
 
     @field_validator("weekend", mode="before")
     @classmethod
@@ -103,7 +112,7 @@ class When(BaseModel):
     @property
     def specificity(self) -> int:
         conditions = (self.currency, self.region, self.country, self.amount, self.network, self.merchant, self.weekend)
-        return sum(v is not None for v in conditions)
+        return sum(v is not None for v in conditions) + len(self.facts or {})
 
 
 class Price(BaseModel):
@@ -210,6 +219,17 @@ class FeeSchedule(BaseModel):
     rules: list[Rule] = []  # the rule format; when present the calculator prices from it, not from the fields above
 
     @property
+    def fact_options(self) -> dict[str, list[str]]:
+        """The wallet facts this product's rules need, with the values they distinguish: the only facts asked for."""
+        options: dict[str, list[str]] = {}
+        for rule in self.rules:
+            for name, values in (rule.when.facts or {}).items():
+                options[name] = list(dict.fromkeys([*options.get(name, []), *values]))
+            if "credit" in rule.event:
+                options["repayment_mode"] = list(REPAYMENT)
+        return options
+
+    @property
     def limits(self) -> Limits:
         if not self.rules:
             return Limits(self.free_count, self.free_amount_eur, self.fx_free_eur, self.conditions)
@@ -251,7 +271,8 @@ class Scenario(BaseModel):
     at: AwareDatetime | None = None  # when the transaction happens; default now
     held_eur: Decimal = Field(Decimal(0), ge=0)  # already held in the transaction currency: not exchanged
 
-    facts: dict[str, str] = {}  # what the user said about themselves, e.g. repayment_mode: pays_in_full | instalments
+    facts: dict[str, str] = {}  # this question's facts for every card, e.g. repayment_mode: pays_in_full | instalments
+    wallet_facts: dict[str, dict[str, str]] = {}  # the facts set once per card (by card id), see facts_for
     provided: dict[str, dict[str, Price]] = {}  # the user's own price for a rule the document leaves unstated, by label
 
     @property
@@ -274,6 +295,9 @@ class Scenario(BaseModel):
 
     def provided_for(self, label: str, name: str) -> Price | None:
         return (self.provided.get(label) or self.provided.get(label.partition(":")[0]) or {}).get(name)
+
+    def facts_for(self, label: str) -> dict[str, str]:
+        return self.wallet_facts.get(label.partition(":")[0], {}) | self.facts
 
     def usage_for(self, label: str) -> Usage | None:
         return self.used.get(label) or self.used.get(label.partition(":")[0])

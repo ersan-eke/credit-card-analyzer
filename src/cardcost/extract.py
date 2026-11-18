@@ -10,7 +10,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v6"
+PROMPT_VERSION = "extract-v7"
 REVIEW_BELOW = 0.7
 # The largest price list is ~27k tokens; Haiku reads 200k. Estimated at 3 characters per token (German, digits), so a
 # text far over this fails loudly instead of being cut.
@@ -38,6 +38,8 @@ A rule:
 - when: the conditions under which it applies, null where the price list does not distinguish.
   currency: EUR, EEA_non_EUR (another EEA currency) or other. region: home (Germany), EEA (the rest of the EEA),
   outside_EEA. country: ISO codes, only where the list words it by country.
+  facts: where the price depends on the customer's account model, status or plan: one entry per such condition, with
+  its name (account_model, status, plan) and the values of the price list that share this price, copied as worded.
 - price: percent (of the amount), flat_eur, min_eur, max_eur, any combination the text states; null if the document
   does not state the price ("siehe Preisverzeichnis", "in der App angezeigt"). Never guess, never use a typical value.
   "kostenlos" / "gebührenfrei" is a price of 0 (percent "0").
@@ -52,8 +54,8 @@ A rule:
 - page: the page the quote is on.
 
 Write numbers as plain decimals with a dot ("2.0", "5.00"), copying the digits from the text. Every number of a rule
-must appear in its quote. If a fee differs by account model, status or plan, write one rule per variant and say which in
-the name. confidence: 0-1, how sure you are that the rules of the product are complete and right."""
+must appear in its quote. If a fee differs by account model, status or plan, write one rule per variant, with it in
+when.facts. confidence: 0-1, how sure you are that the rules of the product are complete and right."""
 
 
 def _nullable(schema: dict) -> dict:
@@ -76,6 +78,12 @@ _RULE = _object(
         currency=_nullable({"type": "array", "items": _choice("EUR", "EEA_non_EUR", "other")}),
         region=_nullable({"type": "array", "items": _choice("home", "EEA", "outside_EEA")}),
         country=_nullable({"type": "array", "items": {"type": "string"}}),
+        facts=_nullable(
+            {
+                "type": "array",
+                "items": _object(name={"type": "string"}, values={"type": "array", "items": {"type": "string"}}),
+            }
+        ),
     ),
     price=_nullable(_object(percent=_NUM, flat_eur=_NUM, min_eur=_NUM, max_eur=_NUM)),
     allowance=_nullable(

@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 from cardcost import db
 from cardcost.calc import rank
 from cardcost.fees import read_fees
-from cardcost.models import CostLine, FeeSchedule, Price, Scenario, Usage
+from cardcost.models import VALUE_PREFIX, CostLine, FeeSchedule, Price, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 log = logging.getLogger("cardcost.advisor")
@@ -57,8 +57,15 @@ def mentioned(question: str, wallet: list[str]) -> list[str]:
 
 
 class Advisor:
-    def __init__(self, fees: dict[str, list[FeeSchedule]], llm=None, wallet: list[str] | None = None):
+    def __init__(
+        self,
+        fees: dict[str, list[FeeSchedule]],
+        llm=None,
+        wallet: list[str] | None = None,
+        facts: dict[str, dict[str, str]] | None = None,
+    ):
         self.by_card, self.llm = fees, llm
+        self.facts = facts or {}  # per card id: what the user set once, see set_fact
         self.wallet = wallet or sorted(fees)
         self.fees: dict[str, FeeSchedule | None] = {}
         self.choices: dict[str, list[FeeSchedule]] = {}  # wallet entry -> products the user must choose between
@@ -94,8 +101,38 @@ class Advisor:
         """Unresolved wallet entry -> the 'card:Product' entries the user can choose from."""
         return {e: [f"{e.partition(':')[0]}:{f.product}" for f in fs] for e, fs in self.choices.items()}
 
+    def scenario(self, s: Scenario) -> Scenario:
+        """The question plus the wallet's facts; the user's own prices saved in the wallet yield to this question's."""
+        provided = {
+            card: {n.removeprefix(VALUE_PREFIX): parse_price(v) for n, v in f.items() if n.startswith(VALUE_PREFIX)}
+            for card, f in self.facts.items()
+        }
+        for label, prices in s.provided.items():
+            provided.setdefault(label, {}).update(prices)
+        return s.model_copy(update={"wallet_facts": self.facts, "provided": provided})
+
     def cost_table(self, question: str, scenario: Scenario, wallet: list[str] | None = None) -> list[CostLine]:
-        return rank(self.resolve(question, wallet), scenario)
+        return rank(self.resolve(question, wallet), self.scenario(scenario))
+
+    def set_fact(self, conn, card: str, name: str, value: str) -> None:
+        """Save a fact once per card; it must be one the card's rules distinguish (or the user's own price)."""
+        if name.startswith(VALUE_PREFIX):
+            parse_price(value)
+        else:
+            options = {n: o for f in self.by_card.get(card, []) for n, o in f.fact_options.items()}
+            if value not in options.get(name, []):
+                raise ValueError(f"{card}: {name} must be one of {options.get(name) or 'none (no rule needs it)'}")
+        db.wallet_set_fact(conn, card, name, value)
+        self.facts.setdefault(card, {})[name] = value
+
+    def missing_facts(self, table: list[CostLine]) -> dict[str, dict[str, list[str]]]:
+        """Per wallet entry, the facts its cost needs and the values to choose from: the question to ask back."""
+        asks: dict[str, dict[str, list[str]]] = {}
+        for ln in table:
+            options = fee.fact_options if (fee := self.fees.get(ln.label)) else {}
+            if asked := {n: options[n] for n in ln.missing if n in options}:
+                asks[ln.label] = asked
+        return asks
 
 
 COUNTRIES = {
@@ -153,6 +190,14 @@ def parse_usage(items: list[str]) -> dict[str, Usage]:
     return used
 
 
+def parse_price(value: str) -> Price:
+    """'3 EUR' -> a flat price, '12,5%' -> a percent."""
+    value = value.strip()
+    if value.endswith("%"):
+        return Price(percent=parse_german_decimal(value.removesuffix("%")))
+    return Price(flat_eur=parse_german_decimal(re.sub(r"\s*(EUR|€)$", "", value, flags=re.IGNORECASE)))
+
+
 def parse_values(items: list[str]) -> dict[str, dict[str, Price]]:
     """['c24=cash_fee=3 EUR', 'tf:Gold=interest=12,5%'] -> the user's own price per card and unstated rule."""
     values: dict[str, dict[str, Price]] = {}
@@ -161,17 +206,11 @@ def parse_values(items: list[str]) -> dict[str, dict[str, Price]]:
         name, sep, value = rest.partition("=")
         if not sep:
             raise ValueError(f"value must look like card=rule=3 EUR or card=rule=12,5%, got {item!r}")
-        value = value.strip()
-        price = (
-            Price(percent=parse_german_decimal(value.removesuffix("%")))
-            if value.endswith("%")
-            else Price(flat_eur=parse_german_decimal(re.sub(r"\s*(EUR|€)$", "", value, flags=re.IGNORECASE)))
-        )
-        values.setdefault(label.strip(), {})[name.strip()] = price
+        values.setdefault(label.strip(), {})[name.strip()] = parse_price(value)
     return values
 
 
 def build_advisor(conn, live: bool = True) -> Advisor:
     from cardcost.llm import LLM
 
-    return Advisor(read_fees(), LLM(conn=conn, live=live), wallet=db.wallet(conn))
+    return Advisor(read_fees(), LLM(conn=conn, live=live), wallet=db.wallet(conn), facts=db.wallet_facts(conn))

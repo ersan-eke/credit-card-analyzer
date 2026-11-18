@@ -77,7 +77,7 @@ def ask(
         raise HTTPException(422, str(e)) from e
     advisor = build_advisor(conn)
     table = advisor.cost_table(q, scenario, wallet or None)
-    text, source = answer(q, scenario, table, advisor.fees, advisor.llm)
+    text, source = answer(q, advisor.scenario(scenario), table, advisor.fees, advisor.llm)
     return {
         "run_id": run_id,
         "answer": text,
@@ -85,4 +85,19 @@ def ask(
         "scenario": scenario,
         "table": [line.model_dump() for line in table],
         "choose_product": advisor.choice_labels(),  # ambiguous entries: ask again with wallet=<one of these>
+        "ask_facts": advisor.missing_facts(
+            table
+        ),  # per entry: fact -> values; save with PUT /wallet/{card}/facts/{name}
     }
+
+
+@app.put("/wallet/{card}/facts/{name}")
+def set_fact(card: str, name: str, value: str):
+    from cardcost.advisor import build_advisor
+
+    conn = db.connect()
+    try:
+        build_advisor(conn).set_fact(conn, card, name, value)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"card": card, "name": name, "value": value}
