@@ -10,7 +10,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v5"
+PROMPT_VERSION = "extract-v6"
 REVIEW_BELOW = 0.7
 # The largest price list is ~27k tokens; Haiku reads 200k. Estimated at 3 characters per token (German, digits), so a
 # text far over this fails loudly instead of being cut.
@@ -33,7 +33,8 @@ Then write, per product, one rule per priced event under its conditions.
 A rule:
 - name: what the fee is called, short and in snake_case ("cash_fee", "fx_fee", "gambling_surcharge", "interest").
 - event: which of atm (cash at a cash machine), counter_cash (cash at a counter), payment (paying with the card),
-  credit (interest on borrowed money; price.percent is the rate per year) it prices.
+  credit (interest on borrowed money; price.percent is the rate per year), holding (a recurring fee for having the
+  card: price.flat_eur, with per) it prices.
 - when: the conditions under which it applies, null where the price list does not distinguish.
   currency: EUR, EEA_non_EUR (another EEA currency) or other. region: home (Germany), EEA (the rest of the EEA),
   outside_EEA. country: ISO codes, only where the list words it by country.
@@ -42,6 +43,9 @@ A rule:
   "kostenlos" / "gebührenfrei" is a price of 0 (percent "0").
 - allowance: free uses before the price applies: count and/or amount_eur per period (calendar_month, rolling_month,
   year); with both, whichever is reached first.
+- per: for a holding fee, month or year; null otherwise. waiver: for a holding fee, the condition that waives it, in
+  the document's words (spend, income, age); null if none.
+- interest_free_days: for credit, the days a purchase repaid in full stays free of interest; null if not stated.
 - stacks: true if the fee is added to the matching base fee ("zzgl.", "zusätzlich"); otherwise the most specific
   matching rule replaces the broader ones.
 - quote: the exact sentence(s) or table row(s), copied verbatim from the page, that contain every number of the rule.
@@ -67,7 +71,7 @@ def _choice(*values: str) -> dict:
 _NUM = {"type": ["string", "null"], "description": "decimal with a dot, e.g. '2.0'; null if not stated"}
 _RULE = _object(
     name={"type": "string"},
-    event={"type": "array", "items": _choice("payment", "atm", "counter_cash", "credit")},
+    event={"type": "array", "items": _choice("payment", "atm", "counter_cash", "credit", "holding")},
     when=_object(
         currency=_nullable({"type": "array", "items": _choice("EUR", "EEA_non_EUR", "other")}),
         region=_nullable({"type": "array", "items": _choice("home", "EEA", "outside_EEA")}),
@@ -81,6 +85,9 @@ _RULE = _object(
             period=_choice("calendar_month", "rolling_month", "year"),
         )
     ),
+    per=_nullable(_choice("month", "year")),
+    waiver={"type": ["string", "null"]},
+    interest_free_days={"type": ["integer", "null"]},
     stacks={"type": "boolean"},
     quote={"type": "string"},
     page={"type": "integer"},

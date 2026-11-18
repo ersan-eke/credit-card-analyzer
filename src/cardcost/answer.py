@@ -29,6 +29,7 @@ def render_table(table: list[CostLine]) -> str:
             f"{i}. {ln.label}: {cost}"
             + (f" [{parts}]" if parts else "")
             + (f" ({'; '.join(ln.notes)})" if ln.notes else "")
+            + (f" Grundgebühren, nicht in den Kosten: {'; '.join(ln.holding)}." if ln.holding else "")
             + (f" Quelle {ln.source}" if ln.source else "")
         )
     return "\n".join(rows)
@@ -43,6 +44,7 @@ def allowed_numbers(table: list[CostLine], fees: dict[str, FeeSchedule | None], 
         nums |= {getattr(fee, f) for f in NUMERIC_FIELDS if fee and getattr(fee, f) is not None}
         nums |= {n for r in (fee.rules if fee else []) for n in r.numbers}
     nums |= set(range(1, len(table) + 1))  # rank positions
+    nums |= {n for prices in s.provided.values() for p in prices.values() for n in p.model_dump().values() if n}
     nums |= {n for u in s.used.values() for n in (u.count, u.eur, u.fx_eur) if n is not None}
     return {Decimal(n) for n in nums}
 
@@ -57,8 +59,8 @@ def template(table: list[CostLine], s: Scenario) -> str:
     unknown = [ln for ln in table if ln.total is None]
     out = []
     if len(table) == 1 and known:  # a one-card question gets its cost, not a ranking
-        return f"{known[0].label}: {eur(known[0].total)} EUR für {eur(s.amount_eur)} EUR {what} ({s.country})."
-    if known:
+        out.append(f"{known[0].label}: {eur(known[0].total)} EUR für {eur(s.amount_eur)} EUR {what} ({s.country}).")
+    elif known:
         best = known[0]
         out.append(
             f"Am günstigsten für {eur(s.amount_eur)} EUR {what} ({s.country}): {best.label} mit {eur(best.total)} EUR."
@@ -69,7 +71,17 @@ def template(table: list[CostLine], s: Scenario) -> str:
         out.append(
             "Nicht berechenbar: " + ", ".join(f"{ln.label} (fehlt: {', '.join(ln.missing)})" for ln in unknown) + "."
         )
-    return " ".join(out)
+    own = [f"{ln.label}: {', '.join(ln.provided)}" for ln in table if ln.provided]
+    held = [f"{ln.label}: {'; '.join(ln.holding)}" for ln in table if ln.holding]
+    return " ".join(
+        out
+        + (
+            ["Mit Ihrem eigenen Wert gerechnet (nicht aus dem Preisverzeichnis): " + "; ".join(own) + "."]
+            if own
+            else []
+        )
+        + (["Grundgebühren (nicht in den Kosten): " + ". ".join(held) + "."] if held else [])
+    )
 
 
 def answer(

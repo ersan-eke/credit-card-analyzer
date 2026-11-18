@@ -50,7 +50,7 @@ FREE_WORDS = re.compile(r"kostenlos|kostenfrei|gebührenfrei|entgeltfrei|\bfree\
 
 Currency = Literal["EUR", "EEA_non_EUR", "other"]
 Region = Literal["home", "EEA", "outside_EEA"]  # EEA = the EEA outside the home country
-Event = Literal["payment", "atm", "counter_cash", "credit"]
+Event = Literal["payment", "atm", "counter_cash", "credit", "holding"]
 Period = Literal["calendar_month", "rolling_month", "year"]
 
 
@@ -143,6 +143,9 @@ class Rule(BaseModel):
     when: When = When()
     price: Price | None
     allowance: Allowance | None = None
+    per: Literal["month", "year"] | None = None  # event holding: how often the fee is charged
+    waiver: str | None = None  # event holding: when it is waived, as worded; shown, never credited
+    interest_free_days: int | None = Field(None, ge=0)  # event credit: purchases repaid in full inside it cost 0
     stacks: bool = False  # adds to the matching base rule ("zzgl."); otherwise the most specific rule replaces
     quote: str = Field(min_length=1)
     page: int
@@ -156,6 +159,7 @@ class Rule(BaseModel):
         stated = [
             *(self.price.model_dump().values() if self.price else []),
             *([self.allowance.count, self.allowance.amount_eur] if self.allowance else []),
+            self.interest_free_days,
         ]
         return [Decimal(v) for v in stated if v is not None]
 
@@ -247,6 +251,9 @@ class Scenario(BaseModel):
     at: AwareDatetime | None = None  # when the transaction happens; default now
     held_eur: Decimal = Field(Decimal(0), ge=0)  # already held in the transaction currency: not exchanged
 
+    facts: dict[str, str] = {}  # what the user said about themselves, e.g. repayment_mode: pays_in_full | instalments
+    provided: dict[str, dict[str, Price]] = {}  # the user's own price for a rule the document leaves unstated, by label
+
     @property
     def foreign_currency(self) -> bool:
         return self.country.upper() not in EUROZONE
@@ -265,6 +272,9 @@ class Scenario(BaseModel):
     def abroad(self) -> bool:
         return self.country.upper() != HOME
 
+    def provided_for(self, label: str, name: str) -> Price | None:
+        return (self.provided.get(label) or self.provided.get(label.partition(":")[0]) or {}).get(name)
+
     def usage_for(self, label: str) -> Usage | None:
         return self.used.get(label) or self.used.get(label.partition(":")[0])
 
@@ -277,3 +287,5 @@ class CostLine(BaseModel):
     source: str = ""
     quote: str | None = None
     notes: list[str] = []
+    holding: list[str] = []  # recurring card fees, shown beside the cost, not part of it
+    provided: list[str] = []  # rules priced with the user's own value

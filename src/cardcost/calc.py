@@ -108,22 +108,67 @@ def applicable(fee: FeeSchedule, event: str, s: Scenario) -> tuple[Rule | None, 
     return (best[0] if best else None), [r for r in hits if r.stacks]
 
 
+REPAYMENT = ("pays_in_full", "instalments")
+PER = {"month": "Monat", "year": "Jahr"}
+
+
+def with_user_value(rule: Rule, label: str, s: Scenario) -> tuple[Rule, bool]:
+    """A rule the document leaves unpriced takes the user's own price, if they gave one."""
+    own = s.provided_for(label, rule.name) if rule.price is None else None
+    return (rule.model_copy(update={"price": own}), True) if own else (rule, False)
+
+
+def holding_text(rule: Rule, own: bool) -> str:
+    """A recurring fee as shown beside the cost. A waiver (often tied to spend) is worded, never credited."""
+    p = rule.price
+    price = " + ".join(
+        [
+            *([f"{p.flat_eur} EUR"] if p and p.flat_eur is not None else []),
+            *([f"{p.percent} %"] if p and p.percent else []),
+        ]
+    )
+    per = f" pro {PER[rule.per]}" if rule.per else ""
+    return (
+        (f"{rule.name} {price}{per}" if price else f"{rule.name} nicht angegeben")
+        + (f" (entfällt: {rule.waiver})" if rule.waiver else "")
+        + (" (Wert vom Nutzer)" if own else "")
+    )
+
+
 def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
     comps: dict[str, Decimal] = {}
     missing: list[str] = []
     notes: list[str] = []
     used: list[Rule] = []
-    events = ["atm"] if s.kind == "cash" else ["payment"]
-    for event in events + (["credit"] if s.kind == "cash" and s.days else []):
+    given: list[str] = []
+    cash = s.kind == "cash"
+    borrows = bool(s.days) and (cash or any("credit" in r.event for r in fee.rules))
+    for event in ["atm" if cash else "payment"] + (["credit"] if borrows else []):
+        if event == "credit" and not cash and s.facts.get("repayment_mode") not in REPAYMENT:
+            missing.append(
+                "repayment_mode"
+            )  # a purchase is interest-free or not by how it is repaid: ask, never assume
+            continue
         base, stacked = applicable(fee, event, s)
         if base is None and event != "payment":  # a payment is free of base fees unless the list says otherwise
             missing.append("cash_interest" if event == "credit" else "cash_fee")
         for rule in [*([base] if base else []), *stacked]:
+            rule, own = with_user_value(rule, label, s)
             used.append(rule)
+            if own:
+                given.append(rule.name)
+                notes.append(f"{rule.name}: Wert vom Nutzer, nicht aus dem Preisverzeichnis")
             if rule.price is None:
                 missing.append(rule.name)
                 continue
             if event == "credit":
+                free = rule.interest_free_days
+                if not cash and s.facts["repayment_mode"] == "pays_in_full" and (free is None or s.days <= free):
+                    comps[rule.name] = ZERO  # cash is excluded from the interest-free period: it accrues from day one
+                    notes.append(
+                        "Zinsfrei bei vollständiger Rückzahlung" + (f" innerhalb {free} Tagen" if free else "")
+                    )
+                    continue
                 interest = to_cents(s.amount_eur * (rule.price.percent or ZERO) / 100 * s.days / 365)
                 comps[rule.name] = comps.get(rule.name, ZERO) + interest
                 continue
@@ -131,6 +176,12 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
             amount, note = rule_base(rule, exchanged, s.usage_for(label))
             comps[rule.name] = comps.get(rule.name, ZERO) + rule_fee(rule, amount)
             notes += [note] if note else []
+    holding = []
+    for rule in fee.rules:
+        if rule_matches(rule, "holding", s):
+            rule, own = with_user_value(rule, label, s)
+            holding.append(holding_text(rule, own))
+            given += [rule.name] if own else []
     if s.kind == "cash" and s.operator_fee:
         if fee.network in s.operator_fee:
             comps["atm_operator_fee"] = to_cents(s.operator_fee[fee.network])
@@ -147,6 +198,8 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
         source=f"{fee.source_file} p.{', '.join(map(str, pages))}",
         quote="\n".join(dict.fromkeys(r.quote for r in used)) or fee.quote,
         notes=notes,
+        holding=holding,
+        provided=given,
     )
 
 

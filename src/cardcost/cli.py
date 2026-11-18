@@ -6,7 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from cardcost import db
-from cardcost.advisor import build_advisor, parse_scenario, parse_usage
+from cardcost.advisor import build_advisor, parse_scenario, parse_usage, parse_values
 from cardcost.answer import answer, render_table
 from cardcost.calc import matrix, rank
 from cardcost.fees import CATALOG_DOCS, CATALOG_FEES, update_fees
@@ -103,7 +103,13 @@ def cmd_ask(conn, args) -> None:
     run_id = new_run_id()
     used = parse_usage(args.used)
     scenario = parse_scenario(
-        args.question, amount_eur=args.amount, kind=args.kind, country=args.country, days=args.days
+        args.question,
+        amount_eur=args.amount,
+        kind=args.kind,
+        country=args.country,
+        days=args.days,
+        facts={"repayment_mode": args.repayment} if args.repayment else None,
+        provided=parse_values(args.value),
     )
     advisor = build_advisor(conn)
     fees = advisor.resolve(args.question)
@@ -179,6 +185,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--kind", choices=["cash", "purchase"])
     p.add_argument("--country", help="ISO code, e.g. US")
     p.add_argument("--days", type=int, help="days until repayment (adds cash-advance interest)")
+    p.add_argument(
+        "--repayment", choices=["pays_in_full", "instalments"], help="how a purchase is repaid (decides its interest)"
+    )
+    p.add_argument(
+        "--value",
+        action="append",
+        default=[],
+        help="your own price for a fee or rate the document leaves open: card=rule=3 EUR or card=rule=12,5%%",
+    )
     p.add_argument(
         "--used",
         action="append",

@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 from cardcost import db
 from cardcost.calc import rank
 from cardcost.fees import read_fees
-from cardcost.models import CostLine, FeeSchedule, Scenario, Usage
+from cardcost.models import CostLine, FeeSchedule, Price, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 log = logging.getLogger("cardcost.advisor")
@@ -151,6 +151,24 @@ def parse_usage(items: list[str]) -> dict[str, Usage]:
             fx_eur=parse_german_decimal(fx) if fx else None,
         )
     return used
+
+
+def parse_values(items: list[str]) -> dict[str, dict[str, Price]]:
+    """['c24=cash_fee=3 EUR', 'tf:Gold=interest=12,5%'] -> the user's own price per card and unstated rule."""
+    values: dict[str, dict[str, Price]] = {}
+    for item in items:
+        label, _, rest = item.partition("=")
+        name, sep, value = rest.partition("=")
+        if not sep:
+            raise ValueError(f"value must look like card=rule=3 EUR or card=rule=12,5%, got {item!r}")
+        value = value.strip()
+        price = (
+            Price(percent=parse_german_decimal(value.removesuffix("%")))
+            if value.endswith("%")
+            else Price(flat_eur=parse_german_decimal(re.sub(r"\s*(EUR|€)$", "", value, flags=re.IGNORECASE)))
+        )
+        values.setdefault(label.strip(), {})[name.strip()] = price
+    return values
 
 
 def build_advisor(conn, live: bool = True) -> Advisor:
