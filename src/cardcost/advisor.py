@@ -116,6 +116,7 @@ class Advisor:
 
     def set_fact(self, conn, card: str, name: str, value: str) -> None:
         """Save a fact once per card; it must be one the card's rules distinguish (or the user's own price)."""
+        card = card.partition(":")[0]
         if name.startswith(VALUE_PREFIX):
             parse_price(value)
         else:

@@ -115,3 +115,17 @@ def test_api_asks_back_and_saves(tmp_path, monkeypatch):
     assert client.put("/wallet/hvb/facts/account_model", params={"value": "PlatinKonto"}).status_code == 200
     second = ask()
     assert D(str(second["table"][0]["total"])) == 0 and second["ask_facts"] == {}
+
+
+def test_saved_price_survives_a_question_price_for_another_rule(conn):
+    a = Advisor(fees(rule("AktivKonto", None, "siehe App") | {"when": {}}))
+    a.set_fact(conn, "hvb:Gold", "value:cash_fee", "3 EUR")  # a wallet label means its card
+    s = a.scenario(CASH.model_copy(update={"provided": {"hvb:Gold": {}}}))
+    assert s.provided_for("hvb:Gold", "cash_fee").flat_eur == D("3")
+
+
+def test_cli_refuses_an_answer_outside_the_choices(conn):
+    a = Advisor(HVB)
+    with pytest.raises(ValueError, match="choose 1-2"):
+        ask_facts(conn, a, {"hvb": {"account_model": MODELS}}, ask=lambda q: "0")
+    assert db.wallet_facts(conn) == {}

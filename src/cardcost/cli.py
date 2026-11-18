@@ -53,7 +53,10 @@ def ask_facts(conn, advisor, asks: dict[str, dict[str, list[str]]], ask=input) -
             print(f"{label}: {name}?")
             for i, option in enumerate(options, 1):
                 print(f"  {i}) {option}")
-            advisor.set_fact(conn, label.partition(":")[0], name, options[int(ask("number: ")) - 1])
+            pick = int(ask("number: "))
+            if not 1 <= pick <= len(options):
+                raise ValueError(f"choose 1-{len(options)}, got {pick}")
+            advisor.set_fact(conn, label.partition(":")[0], name, options[pick - 1])
 
 
 def cmd_wallet(conn, args) -> None:

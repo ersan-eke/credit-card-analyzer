@@ -294,7 +294,8 @@ class Scenario(BaseModel):
         return self.country.upper() != HOME
 
     def provided_for(self, label: str, name: str) -> Price | None:
-        return (self.provided.get(label) or self.provided.get(label.partition(":")[0]) or {}).get(name)
+        card = label.partition(":")[0]
+        return ((self.provided.get(card) or {}) | (self.provided.get(label) or {})).get(name)
 
     def facts_for(self, label: str) -> dict[str, str]:
         return self.wallet_facts.get(label.partition(":")[0], {}) | self.facts
