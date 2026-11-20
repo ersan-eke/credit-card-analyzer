@@ -41,7 +41,7 @@ or counter; cash at a machine is atm. When the document prices one card, its pro
 printed in the document. The interest rate per year of a credit card ("Sollzins", "effektiver Jahreszins") is always a
 credit rule; interest_free_days only if the quote states the days.
 
-When the whole document is the price list of one plan, status or account model, that is not facts for the one plan it
+When the whole document is the price list of one plan, status or account model, give no facts for the one plan it
 prices; facts only where the list itself prices several variants side by side.
 
 Only these events are rules. A fee for none of them (card issuance or replacement, account or transfer fees, PIN or
