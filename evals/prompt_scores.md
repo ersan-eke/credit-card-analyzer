@@ -41,3 +41,12 @@ Dev findings, from the recording and the failure list: (1) **leaked example**: t
 ## extract-v10 change set and predictions
 
 Change set: inventory example made abstract and "never empty" added (finding 1); conventions stated in the prompt: foreign-currency fee = both currency values and both events, network only where the text names the machine, counter_cash only for Schalter, single card = null product, interest rate per year is a credit rule (findings 2, 3). No example from holdout banks. Predicted: lists returning nothing 3 -> 1; all recall 0.30, precision 0.45; holdout recall 0.20, precision 0.40.
+| extract-v10 | 9be45ba4 | 50ea5329 | 0 | 376474/58128 | 0.16/0.59 | 0.23/0.62 | 0.00/0.00 | 0.11/0.45 | 0.08/0.50 | 3: bbva c24 ing | 84 | 11 |  |
+
+## extract-v10 analysis
+
+v10: all 0.16 / 0.59, dev 0.23 / 0.62, holdout 0.00 / 0.00 (v9: 0.06 / 0.27): gain +0.10 / +0.32; predicted 0.30 / 0.45, so recall below and precision above. Lists returning nothing 3 (bbva, c24, ing). 84 missing, 11 extra. The v10 conventions worked (extras 16 -> 11, hanseatic and traderepublik now match). Remaining dev findings: (1) **products collapse**: in 8 of 20 answers the inventory has 17-60 lines but products holds one rule in total (consorsbank 23 -> 1, revolut_standard 38 -> 1, hvb 22 -> 1); when inventory and rules agree (11 -> 11, 19 -> 19) they score. Class d, the model stops after the first rule. (2) bbva fails on one quote not found (page 4), c24 on a number not in its quote (`0.00`): one bad rule rejects the whole list, class c. (3) Facts for the one plan a list is for (`plan: Standard (Teil I)` on revolut_standard) make a rule differ from the golden's unconditioned one (class b). (4) Golden question: no golden rule has the event holding, so every subscription or card fee the model records (revolut_plus 2.99, revolut_premium 7.99) is an extra; report to the operator whether holding belongs in the golden, no change made. Holdout: ing returns nothing, counts only.
+
+## extract-v11 change set and predictions
+
+Change set: each inventory line ends with `-> <event or skip>` and the prompt asks one rule per non-skip line, with a check before closing products (finding 1); no facts for the one plan a whole list is for (finding 3). Predicted: lists returning nothing 3 -> 2; all recall 0.30, precision 0.55; holdout recall 0.15, precision 0.40.
