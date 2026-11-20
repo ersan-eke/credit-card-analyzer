@@ -216,3 +216,21 @@ def test_a_model_that_rejects_the_forced_tool_is_asked_again_without_it():
     llm = LLM(client=type("C", (), {"messages": Messages()})(), model="m")
     llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
     assert ["tool_choice" in k for k in seen] == [True, False]
+
+
+def _bad_request(message):
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    return anthropic.BadRequestError(
+        "bad", response=httpx2.Response(400, request=req), body={"error": {"message": message}}
+    )
+
+
+def test_other_400s_about_the_forced_tool_are_raised_and_the_drop_is_logged(caplog):
+    llm, msgs, _ = _llm([_bad_request("tool_choice: unknown tool name record_fee")])
+    with pytest.raises(anthropic.BadRequestError):
+        llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert msgs.calls == 1
+    llm, msgs, _ = _llm([_bad_request('tool_choice: type "any" is not supported for this model'), FakeResponse()])
+    with caplog.at_level("WARNING", logger="cardcost.llm"):
+        llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert "tool_choice_dropped" in caplog.text

@@ -165,8 +165,10 @@ class LLM:
                     try:
                         return self.client.messages.create(**kwargs).model_dump(mode="json")
                     except anthropic.BadRequestError as e:
-                        if "tool_choice" not in kwargs or "tool_choice" not in f"{e} {e.body}":
+                        text = f"{e} {e.body}"
+                        if "tool_choice" not in kwargs or "tool_choice" not in text or "not supported" not in text:
                             raise
+                        log.warning("tool_choice_dropped", extra={"model": kwargs.get("model"), "error": text[:200]})
                         kwargs = {
                             k: v for k, v in kwargs.items() if k != "tool_choice"
                         }  # a model that cannot be forced

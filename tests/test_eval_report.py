@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 EVALS = Path(__file__).parent.parent / "evals"
 sys.path.insert(0, str(EVALS))  # run_eval imports rule_score as a sibling
 _spec = importlib.util.spec_from_file_location("run_eval", EVALS / "run_eval.py")
@@ -72,8 +74,6 @@ def test_a_product_with_no_rules_counts_as_returning_nothing():
 def test_no_history_row_for_a_run_without_a_recording(tmp_path, monkeypatch):
     monkeypatch.setattr(ev, "HISTORY", tmp_path / "scores.md")
     monkeypatch.setattr(sys, "argv", ["run_eval", "--record", "v1", "--runs", str(tmp_path / "missing.json")])
-    try:
+    with pytest.raises(SystemExit):
         ev.main()
-    except SystemExit as e:
-        assert e.code != 0
     assert not (tmp_path / "scores.md").exists()
