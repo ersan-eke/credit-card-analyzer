@@ -156,3 +156,19 @@ def test_max_tokens_is_not_retried():
     assert _extract(llm, conn) == []
     assert len(llm.requests) == 1
     assert "max_tokens" in db.pending_reviews(conn)[0]["error"]
+
+
+def test_inventory_comes_first_and_fees_outside_the_events_are_skipped():
+    schema = TOOL["input_schema"]
+    assert list(schema["properties"])[:2] == ["inventory", "products"] and "inventory" in schema["required"]
+    assert "not a rule" in SYSTEM and "card issuance" in SYSTEM
+
+
+def test_inventory_is_ignored_by_the_parser():
+    llm = FakeLLM(
+        {
+            "stop_reason": "tool_use",
+            "content": [{"type": "tool_use", "name": "record_fees", "input": {"inventory": ["x"], "products": [GOOD]}}],
+        }
+    )
+    assert len(_extract(llm)) == 1
