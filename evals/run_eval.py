@@ -181,6 +181,8 @@ def main() -> int:
     ap.add_argument("--runs", type=Path, help="recorded responses of the run, for the token counts of the row")
     ap.add_argument("--fees", type=Path, nargs="*", help="fees files to score (default: samples and catalog)")
     args = ap.parse_args()
+    if args.record and not (args.runs and args.runs.exists()):
+        ap.error("--record needs --runs with an existing recording: no row for a run that has none")
     golden = json.loads(args.golden.read_text())
     paths = [p for p in args.fees or FEES if p.exists()]
     rules = extracted_rules(paths, {label.partition(":")[0] for label in golden["rules"]})

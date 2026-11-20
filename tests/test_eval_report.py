@@ -67,3 +67,13 @@ def test_history_row_has_hashes_and_counts(tmp_path):
 
 def test_a_product_with_no_rules_counts_as_returning_nothing():
     assert ev.empty_lists(GOLDEN, GOT | {"ing": []}) == ["ing"]
+
+
+def test_no_history_row_for_a_run_without_a_recording(tmp_path, monkeypatch):
+    monkeypatch.setattr(ev, "HISTORY", tmp_path / "scores.md")
+    monkeypatch.setattr(sys, "argv", ["run_eval", "--record", "v1", "--runs", str(tmp_path / "missing.json")])
+    try:
+        ev.main()
+    except SystemExit as e:
+        assert e.code != 0
+    assert not (tmp_path / "scores.md").exists()
