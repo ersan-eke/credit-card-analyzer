@@ -59,3 +59,11 @@ v11: all 0.17 / 0.50, dev 0.24 / 0.50, holdout 0.00 / 1.00 (v10: 0.16 / 0.59): g
 ## extract-v12 change set and predictions
 
 Change set: schema order only, `rules` before `confidence` (one change, a test of the hypothesis). Predicted: collapsed answers 11 -> 5; all recall 0.28, precision 0.50; holdout recall 0.15; lists returning nothing 2.
+| extract-v12 | 9be45ba4 | e227673b | 0 | 347137/42675 | 0.19/0.73 | 0.27/0.76 | 0.00/0.00 | 0.14/0.63 | 0.12/0.78 | 3: c24 revolut_premium revolut_standard | 81 | 7 |  |
+
+## extract-v12 analysis
+
+v12: all 0.19 / 0.73, dev 0.27 / 0.76, holdout 0.00 / 0.00 (v11: 0.17 / 0.50): gain +0.02 recall, +0.23 precision; predicted 0.28 / 0.50, so precision far above, recall just under. Lists returning nothing 3 (c24, revolut_premium, revolut_standard); 81 missing, 7 extra. Moving `confidence` after `rules` removed most wrong rules (extras 17 -> 7) but not the collapse: 9 of 18 answers still hold under a third of their non-skip inventory lines as rules. Class d stays dominant; class c (c24 fails validation on every version, one bad rule rejects the list) is the second.
+Holdout vs dev: 0.00 against 0.27 recall, lag over 0.05, **stop rule (d) applies**. The label lists (the only holdout detail read) show a naming cause, class b, not only overfitting: the model names `dkb:Visa Debitkarte 1A` (golden `dkb:Visa Debitkarte`) and `ing:VISA Card [Debitkarte]` (golden `ing:VISA Card`): footnote markers and bracket suffixes copied into the product name; every rule under such a label is missing. Counts of holdout failures: dkb 13 missing, n26 10 missing and 1 extra, ing 7 missing.
+Suspected golden errors / open: no `holding` events in the golden (extras if recorded); golden questions for which `ing` and `dkb` labels carry no marker.
+Tuning stopped here by rule (d) with 5 of 6 runs used; recorded Ruling in the ledger. The operator may override (a run 6 with a naming rule: no footnote marker or bracket in a product name).
