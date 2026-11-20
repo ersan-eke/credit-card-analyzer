@@ -7,6 +7,7 @@ boundaries and fact values, plus the golden scenarios' countries, so two wording
 
 import functools
 import itertools
+from collections.abc import Callable
 from decimal import Decimal
 from typing import NamedTuple
 
@@ -18,12 +19,20 @@ PRICE = ("percent", "flat_eur", "min_eur", "max_eur")
 OTHER = "<other>"
 
 
+class Hit(NamedTuple):
+    label: str
+    rule_id: str | None  # the expected rule's id (for an extracted rule: the one it matched, None if unmatched)
+    hit: bool
+
+
 class Score(NamedTuple):
     recall: float
     precision: float
     found: dict  # expected rule id -> the extracted rule its first event matched, or None
     missing: list  # (label, event, expected rule) with no match
     extra: list  # (label, event, extracted rule) matching nothing
+    want: list  # one Hit per expected event
+    got: list  # one Hit per extracted event of a scored label
 
 
 def _dec(v) -> Decimal | None:
@@ -31,7 +40,12 @@ def _dec(v) -> Decimal | None:
 
 
 def _price(p) -> tuple | None:
-    return None if p is None else tuple(_dec(p.get(k)) for k in PRICE)
+    if p is None:
+        return None
+    percent, flat, low, high = (_dec(p.get(k)) for k in PRICE)
+    if percent == 0 and not low:  # a zero price is the same in either unit; every other price stays strict
+        percent, flat = None, flat if flat is not None else Decimal(0)
+    return percent, flat, low, high
 
 
 def _allowance(a) -> tuple | None:
@@ -107,26 +121,39 @@ def _atoms(rules: list[dict]) -> list[tuple[str, dict]]:
     return [(e, r) for r in rules for e in r["event"] if e in EVENTS]
 
 
-def score(expected: dict[str, list[dict]], extracted: dict[str, list[dict]], countries=()) -> Score:
-    """Both: product label -> rules. Greedy one-to-one matching per label and event."""
-    found, missing, extra = {}, [], []
-    hit_want = hit_got = n_want = n_got = 0
+def score(expected: dict[str, list[dict]], extracted: dict[str, list[dict]], countries=(), scored=None) -> Score:
+    """Both: product label -> rules. Greedy one-to-one matching per label and event. Extracted rules of a label
+    outside `scored` (None: all) count neither for nor against precision."""
+    found, missing, extra, want_hits, got_hits = {}, [], [], [], []
     for label in sorted({*expected, *extracted}):
-        want, got = _atoms(expected.get(label, [])), _atoms(extracted.get(label, []))
-        n_want += len(want)
-        n_got += len(got)
-        taken: set[int] = set()
+        want = _atoms(expected.get(label, []))
+        got = _atoms(extracted.get(label, [])) if scored is None or label in scored else []
+        taken: dict[int, str | None] = {}
         for event, w in want:
             i = next(
                 (i for i, (e, g) in enumerate(got) if i not in taken and e == event and matches(w, g, countries)), None
             )
+            want_hits.append(Hit(label, w.get("id"), i is not None))
             if i is None:
                 missing.append((label, event, w))
                 found.setdefault(w.get("id"), None)
                 continue
-            taken.add(i)
-            hit_want += 1
+            taken[i] = w.get("id")
             found.setdefault(w.get("id"), got[i][1])
-        hit_got += len(taken)
+        got_hits += [Hit(label, taken.get(i), i in taken) for i in range(len(got))]
         extra += [(label, e, g) for i, (e, g) in enumerate(got) if i not in taken]
-    return Score(hit_want / n_want if n_want else 1.0, hit_got / n_got if n_got else 1.0, found, missing, extra)
+    return Score(*tally_all(want_hits, got_hits), found, missing, extra, want_hits, got_hits)
+
+
+def _ratio(hits: list[Hit]) -> float:
+    return sum(h.hit for h in hits) / len(hits) if hits else 1.0
+
+
+def tally_all(want: list[Hit], got: list[Hit]) -> tuple[float, float]:
+    return _ratio(want), _ratio(got)
+
+
+def tally(s: Score, keep: Callable[[str, str | None], bool]) -> tuple[float, float]:
+    """Recall and precision over the events `keep(label, expected rule id)` selects; an extracted rule that matched
+    nothing has id None, so it stays in every view of its label."""
+    return tally_all([h for h in s.want if keep(h.label, h.rule_id)], [h for h in s.got if keep(h.label, h.rule_id)])

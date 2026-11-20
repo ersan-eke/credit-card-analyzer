@@ -94,3 +94,31 @@ def test_found_gives_the_extracted_rule_for_an_expected_id():
 def test_extracted_products_outside_the_golden_hurt_precision():
     s = rs.score({"c": [rule({"flat_eur": "1"})]}, {"c": [rule({"flat_eur": "1"})], "d": [rule({"flat_eur": "1"})]}, ())
     assert (s.recall, s.precision) == (1, 0.5)
+
+
+def test_zero_price_equal_in_either_unit():
+    assert rs.matches(rule({"percent": "0"}), rule({"flat_eur": "0"}))
+    assert not rs.matches(rule({"percent": "0", "min_eur": "3"}), rule({"flat_eur": "0"}))
+    assert not rs.matches(rule({"percent": "1"}), rule({"flat_eur": "1"}))
+
+
+def test_unscored_label_is_not_an_extra():
+    exp, got = {"c": [rule({"flat_eur": "1"})]}, {"c": [rule({"flat_eur": "1"})], "d": [rule({"flat_eur": "1"})]}
+    s = rs.score(exp, got, (), scored={"c"})
+    assert (s.recall, s.precision, s.extra) == (1, 1, [])
+    assert rs.score(exp, got, (), scored={"c", "d"}).precision == 0.5
+
+
+def test_tally_excludes_example_rule_and_its_match():
+    a, b = rule({"flat_eur": "1"}, id="ex"), rule({"flat_eur": "2"}, id="real")
+    s = rs.score({"c": [a, b]}, {"c": [rule({"flat_eur": "1"}), rule({"flat_eur": "2"}), rule({"flat_eur": "9"})]}, ())
+    assert rs.tally(s, lambda label, rid: True) == (1, 2 / 3)
+    assert rs.tally(s, lambda label, rid: rid != "ex") == (1, 0.5)  # one hit, one unmatched extra
+
+
+def test_tally_by_bank():
+    exp = {"dkb:Visa": [rule({"flat_eur": "1"}, id="d")], "ing": [rule({"flat_eur": "2"}, id="i")]}
+    got = {"dkb:Visa": [rule({"flat_eur": "1"})], "ing": []}
+    s = rs.score(exp, got, ())
+    assert rs.tally(s, lambda label, rid: label.partition(":")[0] == "dkb") == (1, 1)
+    assert rs.tally(s, lambda label, rid: label.partition(":")[0] == "ing") == (0, 1)
