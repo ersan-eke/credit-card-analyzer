@@ -162,7 +162,15 @@ class LLM:
         for attempt in range(MAX_RETRIES + 1):
             try:
                 if self.provider == "anthropic":
-                    return self.client.messages.create(**kwargs).model_dump(mode="json")
+                    try:
+                        return self.client.messages.create(**kwargs).model_dump(mode="json")
+                    except anthropic.BadRequestError as e:
+                        if "tool_choice" not in kwargs or "tool_choice" not in f"{e} {e.body}":
+                            raise
+                        kwargs = {
+                            k: v for k, v in kwargs.items() if k != "tool_choice"
+                        }  # a model that cannot be forced
+                        return self.client.messages.create(**kwargs).model_dump(mode="json")
                 r = self.client.post("chat/completions", json=to_openai(kwargs))
                 r.raise_for_status()
                 return from_openai(r.json())

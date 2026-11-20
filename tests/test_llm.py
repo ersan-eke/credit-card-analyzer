@@ -197,3 +197,22 @@ def test_anthropic_requests_carry_no_temperature():
     llm = LLM(client=type("C", (), {"messages": Messages()})(), model="test-model")
     llm.create("extract", "v", messages=[], temperature=0)
     assert "temperature" not in seen
+
+
+def test_a_model_that_rejects_the_forced_tool_is_asked_again_without_it():
+    seen = []
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.append(kwargs)
+            if "tool_choice" in kwargs:
+                req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+                message = 'tool_choice: type "tool" and "any" are not supported for this model.'
+                raise anthropic.BadRequestError(
+                    "bad", response=httpx2.Response(400, request=req), body={"error": {"message": message}}
+                )
+            return FakeResponse()
+
+    llm = LLM(client=type("C", (), {"messages": Messages()})(), model="m")
+    llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert ["tool_choice" in k for k in seen] == [True, False]
