@@ -63,3 +63,7 @@ def test_history_row_has_hashes_and_counts(tmp_path):
     row = ev.history_row("extract-v8", golden, ev.views(GOLDEN, _score()), ["ing"], (10, 5), 1, 2)
     assert row.startswith("| extract-v8 |") and row.endswith("|")
     assert ev.sha8(golden.read_bytes()) in row and "ing" in row and "10/5" in row
+
+
+def test_a_product_with_no_rules_counts_as_returning_nothing():
+    assert ev.empty_lists(GOLDEN, GOT | {"ing": []}) == ["ing"]

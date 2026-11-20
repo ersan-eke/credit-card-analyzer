@@ -5,7 +5,7 @@ import httpx2
 import pytest
 
 from cardcost import db
-from cardcost.llm import LLM, CacheMiss
+from cardcost.llm import LLM, CacheMiss, to_openai
 
 
 def _err(cls, status: int, headers: dict | None = None):
@@ -170,3 +170,17 @@ def test_openai_compatible_400_not_retried():
 def test_unknown_provider_rejected():
     with pytest.raises(RuntimeError, match="CARDCOST_PROVIDER"):
         LLM(model="m", provider="nope")
+
+
+def test_compat_providers_get_the_forced_tool_and_the_temperature():
+    body = to_openai(
+        {
+            "model": "m",
+            "max_tokens": 1,
+            "messages": [],
+            "tools": [{"name": "t", "description": "d", "input_schema": {"type": "object"}}],
+            "tool_choice": {"type": "any"},
+            "temperature": 0,
+        }
+    )
+    assert body["tool_choice"] == "required" and body["temperature"] == 0

@@ -16,7 +16,7 @@ REVIEW_BELOW = 0.7
 # text far over this fails loudly instead of being cut.
 MAX_INPUT_TOKENS = 60_000
 CHARS_PER_TOKEN = 3
-TEMPERATURE = 0  # extraction is read-off, not creative; the OpenAI-compatible providers ignore it
+TEMPERATURE = 0  # extraction is read-off, not creative
 
 
 class TooLong(ValueError):

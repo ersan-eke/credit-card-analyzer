@@ -87,7 +87,10 @@ def views(golden: dict, s) -> dict[str, tuple[float, float]]:
 
 def empty_lists(golden: dict, rules: dict) -> list[str]:
     """Golden cards (price lists) with no extracted product at all."""
-    return sorted({label.partition(":")[0] for label in golden["rules"]} - {label.partition(":")[0] for label in rules})
+    returned = {
+        label.partition(":")[0] for label, extracted in rules.items() if extracted
+    }  # a product with no rules is nothing
+    return sorted({label.partition(":")[0] for label in golden["rules"]} - returned)
 
 
 def label_diff(golden: dict, rules: dict) -> tuple[list[str], list[str]]:

@@ -61,7 +61,9 @@ def to_openai(kwargs: dict) -> dict:
             }
             for t in kwargs["tools"]
         ]
-        body["tool_choice"] = "auto"
+        body["tool_choice"] = "required" if kwargs.get("tool_choice", {}).get("type") == "any" else "auto"
+    if "temperature" in kwargs:
+        body["temperature"] = kwargs["temperature"]
     return body
 
 
