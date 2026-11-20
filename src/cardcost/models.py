@@ -98,6 +98,12 @@ class When(BaseModel):
     weekend: Window | None = None
     facts: dict[str, list[str]] | None = None  # wallet facts the rule needs: name -> accepted values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _empty_is_unset(cls, data):
+        # the extraction schema is strict and cannot say null for a list: an empty one means no condition
+        return {k: v for k, v in data.items() if v != []} if isinstance(data, dict) else data
+
     @field_validator("facts", mode="before")
     @classmethod
     def _facts_pairs(cls, v):

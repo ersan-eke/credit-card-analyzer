@@ -4,6 +4,7 @@ fees files (samples/fees.json, catalog/fees.json), so it needs no LLM and no emb
 
 uv run python evals/run_eval.py
 uv run python evals/run_eval.py --golden evals/golden_real.json   # the real price lists
+uv run python evals/run_eval.py --golden evals/golden_real.json --fees out.json   # a fresh extraction
 Exit 1 if rule recall or precision < 0.9. Questions marked `pending` name the ticket whose calculator they wait for and
 are listed, not scored.
 """
@@ -107,9 +108,10 @@ def run(golden: dict, fees, rules: dict[str, list[dict]]) -> tuple[dict, list[st
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--golden", type=Path, default=ROOT / "evals/golden.json")
+    ap.add_argument("--fees", type=Path, nargs="*", help="fees files to score (default: samples and catalog)")
     args = ap.parse_args()
     golden = json.loads(args.golden.read_text())
-    paths = [p for p in FEES if p.exists()]
+    paths = [p for p in args.fees or FEES if p.exists()]
     rules = extracted_rules(paths, {label.partition(":")[0] for label in golden["rules"]})
     scores, failures, pending = run(golden, read_fees(paths), rules)
     print(" ".join(f"{n:>10}" for n in scores))

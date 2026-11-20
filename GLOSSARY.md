@@ -18,7 +18,9 @@ Where a price list is fetched from: one URL per price list, recorded by the oper
 
 **Product**:
 One card a price list prices separately (e.g. Revolut Premium, HVB Mastercard). An account model, status or plan inside
-the price list is not a product but a **Fact** the product's rules are conditioned on.
+the price list is not a product but a **Fact** the product's rules are conditioned on. A product is named as the bank
+prints the card, without the issuing unit, the part of the document or the account model; it has no name when the price
+list prices exactly one card.
 
 **Status**:
 A condition the user meets at a bank that changes its prices (e.g. DKB Aktivstatus); a Fact, stated by the user, never
