@@ -58,3 +58,15 @@ def test_column_split_decisions_are_pinned():
         "hvb.pdf": [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12],
         "traderepublik.pdf": [1],
     }
+
+
+def test_read_text_drops_control_characters(tmp_path):
+    import hashlib
+
+    from cardcost.ingest import READER_VERSION
+
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"x")
+    header = f"<!-- cardcost text: sha256={hashlib.sha256(b'x').hexdigest()} reader={READER_VERSION} -->"
+    pdf.with_suffix(".md").write_text(f"{header}\n<!-- page 1 -->\n| \x07Auf den Betrag 2,20 %\n")
+    assert read_text(pdf) == ["| Auf den Betrag 2,20 %"]

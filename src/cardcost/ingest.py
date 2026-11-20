@@ -113,6 +113,7 @@ def convert(path: Path) -> list[str]:
 
 
 _PAGE = re.compile(r"^<!-- page \d+ -->$", re.M)
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f]")  # glyph artifacts the model cannot copy into a quote
 
 
 def read_text(path: Path) -> list[str]:
@@ -123,10 +124,10 @@ def read_text(path: Path) -> list[str]:
     if cache.exists():
         first, _, body = cache.read_text().partition("\n")
         if first == header:
-            return [page.strip("\n") for page in _PAGE.split(body)[1:]]
+            return [_CONTROL.sub("", page).strip("\n") for page in _PAGE.split(body)[1:]]
     pages = convert(path)
     cache.write_text(header + "\n" + "".join(f"<!-- page {n} -->\n{t}\n" for n, t in enumerate(pages, start=1)))
-    return pages
+    return [_CONTROL.sub("", page) for page in pages]
 
 
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")

@@ -1,11 +1,12 @@
 import json
-import re
 import tomllib
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
+from cardcost.extract import _squash
+from cardcost.ingest import read_text
 from cardcost.models import Rule
 from cardcost.numbers import find_numbers
 
@@ -85,16 +86,6 @@ def test_real_golden_has_rules_for_every_catalog_card():
     assert {label.partition(":")[0] for label in rules} == ids
 
 
-def _page(card: str, number: int) -> str:
-    text = (ROOT / f"catalog/docs/{card}.md").read_text()
-    parts = re.split(r"<!-- page (\d+) -->", text)
-    return {int(parts[i]): parts[i + 1] for i in range(1, len(parts), 2)}[number]
-
-
-def _squash(s: str) -> str:  # control characters are PDF glyph artifacts in the extracted text
-    return re.sub(r"\s+", " ", re.sub(r"[\x00-\x08\x0b-\x1f]", "", s)).strip()
-
-
 @pytest.mark.parametrize("name", ["golden.json", "golden_real.json"])
 def test_expected_rules_are_valid_rules(name):
     for label, rules in json.loads((EVALS / name).read_text())["rules"].items():
@@ -105,7 +96,13 @@ def test_expected_rules_are_valid_rules(name):
             assert r["id"], label
 
 
-def test_expected_quotes_are_on_their_page():
-    for label, rules in json.loads((EVALS / "golden_real.json").read_text())["rules"].items():
-        for r in rules:
-            assert _squash(r["quote"]) in _squash(_page(label.partition(":")[0], r["page"])), r["id"]
+def _golden_rules():
+    golden = json.loads((EVALS / "golden_real.json").read_text())
+    return [(label, r) for label, rules in golden["rules"].items() for r in rules]
+
+
+@pytest.mark.parametrize("label,rule", _golden_rules(), ids=lambda v: v if isinstance(v, str) else v["id"])
+def test_golden_quotes_are_verbatim(label, rule):
+    pages = read_text(ROOT / "catalog/docs" / f"{label.partition(':')[0]}.pdf")
+    assert 1 <= rule["page"] <= len(pages)
+    assert _squash(rule["quote"]) in _squash(pages[rule["page"] - 1])
