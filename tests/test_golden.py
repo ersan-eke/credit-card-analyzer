@@ -106,3 +106,27 @@ def test_golden_quotes_are_verbatim(label, rule):
     pages = read_text(ROOT / "catalog/docs" / f"{label.partition(':')[0]}.pdf")
     assert 1 <= rule["page"] <= len(pages)
     assert _squash(rule["quote"]) in _squash(pages[rule["page"] - 1])
+
+
+EXAMPLE_IDS = {  # rules whose wording the extract prompt's worked examples quote (or share the quote with)
+    "revs.atm", "revs.weekend", "bbvad.atm.big", "bbvad.atm.small", "bbvac.atm", "gc.atm.home", "gc.fx",
+    "gc.gambling", "gold.fx", "gold.gambling", "c24.atm.eur.plusmax", "c24.atm.fx.plusmax", "c24.atm.eur.smart",
+    "c24.atm.fx.smart",
+}  # fmt: skip
+
+
+def _bank(label: str) -> str:
+    return label.partition(":")[0].split("_")[0]
+
+
+def test_holdout_banks_supplied_no_example():
+    golden = json.loads((EVALS / "golden_real.json").read_text())
+    assert set(golden["holdout"]) == {"dkb", "n26", "ing"}
+    flagged = {r["id"]: label for label, r in _golden_rules() if r.get("used_as_example")}
+    assert set(flagged) == EXAMPLE_IDS
+    assert not {_bank(label) for label in flagged.values()} & set(golden["holdout"])
+
+
+def test_scored_products_are_golden_labels():
+    golden = json.loads((EVALS / "golden_real.json").read_text())
+    assert set(golden["scored_products"]) == set(golden["rules"])

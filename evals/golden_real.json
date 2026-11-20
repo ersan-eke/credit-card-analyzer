@@ -1,5 +1,32 @@
 {
  "_note": "Questions reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md). `rules` is the expected extraction in the rule format, drafted by Claude (#19) from the extracted text of catalog/docs/*.md and reviewed by the operator (#20): per product, each rule has the quote and page it comes from. Where the price list gives one price for several cases the draft is one rule. Events drafted: payment, atm, counter_cash, credit; holding fees (#25) are shown beside the cost, not scored. `when` keys beyond currency/region/country (network, amount {min inclusive, max exclusive}, weekend, merchant, facts) are not in the calculator yet; scenario keys facts, network, weekend, event, operator_fee_eur likewise, so questions marked `pending` are not scored until the ticket they name lands. expected_fact names the rule whose number answers the question; expected_question: the advisor should ask back (allowance usage, or a missing wallet fact) instead of answering.",
+ "holdout": [
+  "dkb",
+  "n26",
+  "ing"
+ ],
+ "scored_products": [
+  "traderepublik",
+  "hanseatic_genialcard",
+  "hanseatic_goldcard",
+  "tfbank_mastercard_gold",
+  "bbva:Debitkarte",
+  "bbva:Kreditkarte",
+  "c24",
+  "consorsbank:Visa Card Debit",
+  "consorsbank:Credit Card Gold Light",
+  "consorsbank:Visa Card Gold",
+  "n26",
+  "ing:VISA Card",
+  "dkb:Visa Debitkarte",
+  "dkb:Visa Kreditkarte",
+  "hvb:HVB Mastercard",
+  "revolut_standard",
+  "revolut_plus",
+  "revolut_premium",
+  "revolut_metal",
+  "revolut_ultra"
+ ],
  "wallet": [
   "c24",
   "dkb:Visa Kreditkarte",
@@ -69,7 +96,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | 3,95 € pro Auftrag",
-    "page": 1
+    "page": 1,
+    "used_as_example": true
    },
    {
     "id": "gc.atm.abroad",
@@ -110,7 +138,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Entgelt für den Auslandseinsatz weltweit 2 | 0 €",
-    "page": 1
+    "page": 1,
+    "used_as_example": true
    },
    {
     "id": "gc.gambling",
@@ -130,7 +159,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags, mind. 3,95 €",
-    "page": 1
+    "page": 1,
+    "used_as_example": true
    },
    {
     "id": "gc.financial",
@@ -203,7 +233,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Entgelt für den Auslandseinsatz weltweit 2 | 0 €",
-    "page": 1
+    "page": 1,
+    "used_as_example": true
    },
    {
     "id": "gold.gambling",
@@ -223,7 +254,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags, mind. 3,95 €",
-    "page": 1
+    "page": 1,
+    "used_as_example": true
    },
    {
     "id": "gold.financial",
@@ -350,7 +382,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €.",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "bbvad.atm.small",
@@ -372,7 +405,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Kostenlos, wenn die Abhebung mindestens 150 € oder mehr beträgt, ansonsten 2 €.",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "bbvad.atm.fx",
@@ -432,7 +466,8 @@
     "allowance": null,
     "stacks": false,
     "quote": "Bargeldauszahlung (In- und Ausland) | 4,00 % (mind. 3,00 €)",
-    "page": 2
+    "page": 2,
+    "used_as_example": true
    },
    {
     "id": "bbvac.fx",
@@ -482,7 +517,8 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "c24.atm.eur.plusmax",
@@ -510,7 +546,8 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "c24.atm.eur.basis",
@@ -562,7 +599,8 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "c24.atm.fx.plusmax",
@@ -591,7 +629,8 @@
     },
     "stacks": false,
     "quote": "Mit der C24 Mastercard (kostenlos) | 4 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | 20 x 0,00 EUR 7 | - | | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "c24.atm.fx.basis",
@@ -1787,7 +1826,8 @@
     },
     "stacks": false,
     "quote": "Bis zu 5 Abhebungen am Geldautomaten oder 200 € (je nachdem, was zuerst eintritt) pro rollierendem Monat sind gebührenfrei. Weitere Abhebungen werden mit 2 % des Abhebungsbetrags oder 1 € berechnet, je nachdem, welcher Betrag höher ist.",
-    "page": 3
+    "page": 3,
+    "used_as_example": true
    },
    {
     "id": "revs.fx",
@@ -1833,7 +1873,8 @@
     "allowance": null,
     "stacks": true,
     "quote": "Wenn du am Wochenende (zwischen 17 Uhr New Yorker Zeit am Freitag und 18 Uhr New Yorker Zeit am Sonntag) wechselst, fällt eine Gebühr von 1 % an.",
-    "page": 5
+    "page": 5,
+    "used_as_example": true
    }
   ],
   "revolut_plus": [
