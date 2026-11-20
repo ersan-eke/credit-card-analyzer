@@ -172,3 +172,14 @@ def test_inventory_is_ignored_by_the_parser():
         }
     )
     assert len(_extract(llm)) == 1
+
+
+def test_v10_conventions_are_stated_and_the_inventory_example_is_not_real_data():
+    assert "Visa Card Debit |" not in SYSTEM and "never empty" in SYSTEM
+    for phrase in (
+        "both EEA_non_EUR and other",
+        "only where the text names whose machine",
+        "Schalter",
+        "product is null",
+    ):
+        assert phrase in " ".join(SYSTEM.split()), phrase
