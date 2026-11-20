@@ -7,3 +7,4 @@ data/private/
 .ruff_cache/
 .DS_Store
 .superpowers/
+evals/runs/
