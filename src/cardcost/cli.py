@@ -18,7 +18,9 @@ from cardcost.numbers import parse_german_decimal
 
 def cmd_ingest(conn, args) -> None:
     paths = [Path(p) for p in args.paths] or sorted(CATALOG_DOCS.glob("*.pdf"))
-    done = update_fees(paths, Path(args.fees), LLM(conn=conn), conn)
+    done = update_fees(
+        paths, Path(args.fees), LLM(conn=conn, cache_path=Path(args.record) if args.record else None), conn
+    )
     for card, status in done.items():
         print(f"{card}: {status}")
     print(f"{args.fees}: {len(done)} processed, {len(paths) - len(done)} unchanged")
@@ -204,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("ingest", help="extract the fees of changed price lists into the fees file (default: catalog)")
     p.add_argument("paths", nargs="*", help=f"PDFs (default {CATALOG_DOCS}/*.pdf)")
     p.add_argument("--fees", default=str(CATALOG_FEES), help="fees file to update")
+    p.add_argument("--record", help="keep every model response in this file (replayed on a repeated request)")
     sub.add_parser("products", help="list card products found in the documents")
     p = sub.add_parser("wallet", help="choose which cards/products you own, e.g. beta_card:Gold")
     p.add_argument("entries", nargs="*")

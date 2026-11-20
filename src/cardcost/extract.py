@@ -16,6 +16,7 @@ REVIEW_BELOW = 0.7
 # text far over this fails loudly instead of being cut.
 MAX_INPUT_TOKENS = 60_000
 CHARS_PER_TOKEN = 3
+TEMPERATURE = 0  # extraction is read-off, not creative; the OpenAI-compatible providers ignore it
 
 
 class TooLong(ValueError):
@@ -197,7 +198,7 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
     prompt = build_prompt(file, pages)
     if (tokens := len(prompt) // CHARS_PER_TOKEN) > MAX_INPUT_TOKENS:
         raise TooLong(f"{file}: about {tokens} tokens, over the token budget of {MAX_INPUT_TOKENS}")
-    request = {"system": SYSTEM, "tools": [TOOL], "tool_choice": {"type": "auto"}}
+    request = {"system": SYSTEM, "tools": [TOOL], "tool_choice": {"type": "any"}, "temperature": TEMPERATURE}
     fees: list[FeeSchedule] = []
     error = None
     for attempt in range(2):
@@ -210,6 +211,9 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
         except ValueError as e:
             error = str(e)
             log.warning("extraction_invalid", extra={"card": card_id, "attempt": attempt + 1, "error": error})
+            if response.get("stop_reason") == "max_tokens":  # the same request would be cut at the same place
+                log.warning("extraction_truncated", extra={"card": card_id})
+                break
     run_id = run_id_var.get()
     if error:
         calls = [b for b in response.get("content") or [] if b.get("type") == "tool_use"]  # not the thinking blocks

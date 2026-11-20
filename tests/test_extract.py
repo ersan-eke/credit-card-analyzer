@@ -142,3 +142,17 @@ def test_tool_schema_is_strict_all_the_way_down():
                 check(v)
 
     check(TOOL["input_schema"])
+
+
+def test_request_is_deterministic_and_forces_the_tool():
+    llm = FakeLLM(_tool([GOOD]))
+    _extract(llm)
+    assert llm.requests[0]["temperature"] == 0 and llm.requests[0]["tool_choice"] == {"type": "any"}
+
+
+def test_max_tokens_is_not_retried():
+    cut = {"stop_reason": "max_tokens", "content": []}
+    llm, conn = FakeLLM(cut, _tool([GOOD])), db.connect(":memory:")
+    assert _extract(llm, conn) == []
+    assert len(llm.requests) == 1
+    assert "max_tokens" in db.pending_reviews(conn)[0]["error"]

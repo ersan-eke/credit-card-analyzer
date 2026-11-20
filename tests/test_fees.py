@@ -105,7 +105,7 @@ def test_catalog_docs_default_matches_the_catalog():
 def test_cli_ingest_writes_the_fees_file(tmp_path, monkeypatch):
     import cardcost.cli
 
-    monkeypatch.setattr(cardcost.cli, "LLM", lambda conn: FakeLLM())
+    monkeypatch.setattr(cardcost.cli, "LLM", lambda conn, cache_path=None: FakeLLM())
     out = tmp_path / "fees.json"
     argv = [
         "--db",

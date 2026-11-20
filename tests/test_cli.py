@@ -132,3 +132,15 @@ def test_choose_wallet_per_card(capsys):
     ]
     out = capsys.readouterr().out
     assert "hvb:\n  1) HVB Mastercard\n  2) HVB Mastercard / HVB AktivKonto" in out and "1) revolut" in out
+
+
+def test_ingest_record_passes_the_response_file_to_the_llm(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from cardcost import cli
+
+    seen = {}
+    monkeypatch.setattr(cli, "LLM", lambda **kw: seen.update(kw))
+    monkeypatch.setattr(cli, "update_fees", lambda *a: {})
+    cli.cmd_ingest(None, SimpleNamespace(paths=[], fees=str(tmp_path / "f.json"), record=str(tmp_path / "r.json")))
+    assert seen["cache_path"] == tmp_path / "r.json"
