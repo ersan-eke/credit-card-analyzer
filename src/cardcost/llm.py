@@ -140,6 +140,8 @@ class LLM:
     def create(self, purpose: str, prompt_version: str, **kwargs) -> dict:
         """Call messages.create and return the response as a plain dict (same shape live and replayed)."""
         kwargs = {"model": self.model, "max_tokens": 16000} | kwargs
+        if self.provider == "anthropic":  # the Messages API of the current SDK has no sampling parameters
+            kwargs.pop("temperature", None)
         cache_input = kwargs if self.provider == "anthropic" else {"provider": self.provider} | kwargs
         key = hashlib.sha256(json.dumps(cache_input, sort_keys=True, default=str).encode()).hexdigest()
         if key in self.cache:

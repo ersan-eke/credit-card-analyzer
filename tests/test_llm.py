@@ -184,3 +184,16 @@ def test_compat_providers_get_the_forced_tool_and_the_temperature():
         }
     )
     assert body["tool_choice"] == "required" and body["temperature"] == 0
+
+
+def test_anthropic_requests_carry_no_temperature():
+    seen = {}
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            return FakeResponse()
+
+    llm = LLM(client=type("C", (), {"messages": Messages()})(), model="test-model")
+    llm.create("extract", "v", messages=[], temperature=0)
+    assert "temperature" not in seen
