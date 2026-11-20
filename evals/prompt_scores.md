@@ -50,3 +50,12 @@ v10: all 0.16 / 0.59, dev 0.23 / 0.62, holdout 0.00 / 0.00 (v9: 0.06 / 0.27): ga
 ## extract-v11 change set and predictions
 
 Change set: each inventory line ends with `-> <event or skip>` and the prompt asks one rule per non-skip line, with a check before closing products (finding 1); no facts for the one plan a whole list is for (finding 3). Predicted: lists returning nothing 3 -> 2; all recall 0.30, precision 0.55; holdout recall 0.15, precision 0.40.
+| extract-v11 | 9be45ba4 | 50ea5329 | 0 | 359653/45523 | 0.17/0.50 | 0.24/0.50 | 0.00/1.00 | 0.12/0.37 | 0.07/0.80 | 2: c24 ing | 83 | 17 |  |
+
+## extract-v11 analysis
+
+v11: all 0.17 / 0.50, dev 0.24 / 0.50, holdout 0.00 / 1.00 (v10: 0.16 / 0.59): gain +0.01 recall, -0.09 precision, below 0.02 on both (first such run; the stop rule needs two in a row); predicted 0.30 / 0.55. Lists returning nothing 3 -> 2 (c24, ing). 83 missing, 17 extra. The inventory tags did not stop the collapse: 11 of 19 answers have 6-30 inventory lines to be written as rules and one to five rules in products (consorsbank 12 -> 1, revolut_standard 30 -> 1, hvb 18 -> 1). Precision fell because more rules arrive with a wrong when or event. Observation: collapsed answers all carry confidence 0.3-0.5 and `confidence` is written before `rules` in the schema, so the model may fix "incomplete" first and then write short. Class d. Holdout: precision 1.00 on a handful of rules, counts only.
+
+## extract-v12 change set and predictions
+
+Change set: schema order only, `rules` before `confidence` (one change, a test of the hypothesis). Predicted: collapsed answers 11 -> 5; all recall 0.28, precision 0.50; holdout recall 0.15; lists returning nothing 2.

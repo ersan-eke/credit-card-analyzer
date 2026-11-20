@@ -189,3 +189,8 @@ def test_v11_inventory_lines_name_their_event_and_one_plan_lists_carry_no_facts(
     text = " ".join(SYSTEM.split())
     assert "-> <event or skip>" in text and "one rule for each line that is not skip" in text
     assert "give no facts for the one plan" in text
+
+
+def test_v12_confidence_comes_after_the_rules():
+    props = TOOL["input_schema"]["properties"]["products"]["items"]["properties"]
+    assert list(props) == ["product", "rules", "confidence"]

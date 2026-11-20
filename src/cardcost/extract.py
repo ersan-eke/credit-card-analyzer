@@ -10,7 +10,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v11"
+PROMPT_VERSION = "extract-v12"
 REVIEW_BELOW = 0.7
 # The largest price list is ~27k tokens; Haiku reads 200k. Estimated at 3 characters per token (German, digits), so a
 # text far over this fails loudly instead of being cut.
@@ -161,8 +161,8 @@ TOOL = {
             "type": "array",
             "items": _object(
                 product={"type": ["string", "null"], "description": "product name; null if the document has one"},
-                confidence={"type": "number"},
                 rules={"type": "array", "items": _RULE},
+                confidence={"type": "number"},
             ),
         },
     ),
