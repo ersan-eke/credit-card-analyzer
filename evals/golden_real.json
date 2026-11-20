@@ -1,10 +1,10 @@
 {
  "_note": "Questions reviewed by the operator on 2026-11-13 (review notes in evals/golden_real_review.md). `rules` is the expected extraction in the rule format, drafted by Claude (#19) from the extracted text of catalog/docs/*.md and reviewed by the operator (#20): per product, each rule has the quote and page it comes from. Where the price list gives one price for several cases the draft is one rule. Events drafted: payment, atm, counter_cash, credit; holding fees (#25) are shown beside the cost, not scored. `when` keys beyond currency/region/country (network, amount {min inclusive, max exclusive}, weekend, merchant, facts) are not in the calculator yet; scenario keys facts, network, weekend, event, operator_fee_eur likewise, so questions marked `pending` are not scored until the ticket they name lands. expected_fact names the rule whose number answers the question; expected_question: the advisor should ask back (allowance usage, or a missing wallet fact) instead of answering.",
  "wallet": [
-  "c24:Smartkonto",
-  "dkb:Kreditkarte",
+  "c24",
+  "dkb:Visa Kreditkarte",
   "hvb:HVB Mastercard",
-  "ing:VISA",
+  "ing:VISA Card",
   "revolut_standard",
   "traderepublik"
  ],
@@ -1120,7 +1120,7 @@
     "page": 7
    }
   ],
-  "ing:VISA": [
+  "ing:VISA Card": [
    {
     "id": "ing.atm.home",
     "name": "Bargeldauszahlung Deutschland",
@@ -1972,7 +1972,7 @@
    "id": "r01",
    "question": "Was kostet eine Bargeldabhebung von 300 EUR mit der C24 Mastercard, wenn ich diesen Monat schon 2 Mal abgehoben habe?",
    "card": "c24",
-   "product": "Smartkonto",
+   "product": null,
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -1991,7 +1991,7 @@
    "id": "r02",
    "question": "Ich habe mit der C24 Mastercard diesen Monat schon 4 Mal Geld abgehoben. Was kostet die nächste Abhebung von 300 EUR?",
    "card": "c24",
-   "product": "Smartkonto",
+   "product": null,
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -2098,7 +2098,7 @@
    "id": "r08",
    "question": "Kostet Geld abheben am Automaten mit der DKB Visa Kreditkarte etwas?",
    "card": "dkb",
-   "product": "Kreditkarte",
+   "product": "Visa Kreditkarte",
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -2148,7 +2148,7 @@
    "id": "r11",
    "question": "Ich hebe 300 EUR in den USA ab. Was kostet das mit der ING VISA Card?",
    "card": "ing",
-   "product": "VISA",
+   "product": "VISA Card",
    "scenario": {
     "kind": "cash",
     "country": "US",
@@ -2162,7 +2162,7 @@
    "id": "r12",
    "question": "Kostet Geld abheben in Frankreich mit der ING VISA Card etwas?",
    "card": "ing",
-   "product": "VISA",
+   "product": "VISA Card",
    "scenario": {
     "kind": "cash",
     "country": "FR",
@@ -2193,7 +2193,7 @@
    "id": "r14",
    "question": "Wie hoch ist das Auslandseinsatzentgelt der ING VISA Card?",
    "card": "ing",
-   "product": "VISA",
+   "product": "VISA Card",
    "scenario": {
     "kind": "purchase",
     "country": "US",
@@ -2239,7 +2239,7 @@
    "id": "r17",
    "question": "Wie viele kostenlose Abhebungen pro Monat habe ich mit dem C24 Smartkonto?",
    "card": "c24",
-   "product": "Smartkonto",
+   "product": null,
    "scenario": {
     "kind": "cash",
     "country": "DE",
@@ -2261,7 +2261,7 @@
    "id": "r18",
    "question": "Ich will in Thailand 1.000 EUR abheben. Welche Karte ist am günstigsten?",
    "card": "dkb",
-   "product": "Kreditkarte",
+   "product": "Visa Kreditkarte",
    "scenario": {
     "kind": "cash",
     "country": "TH",
