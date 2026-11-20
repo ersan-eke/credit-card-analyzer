@@ -113,7 +113,7 @@ class When(BaseModel):
     @field_validator("weekend", mode="before")
     @classmethod
     def _weekend_flag(cls, v):
-        return Window() if v is True else v
+        return Window() if v is True else None if v is False else v  # the strict schema sends false for 'no window'
 
     @property
     def specificity(self) -> int:
