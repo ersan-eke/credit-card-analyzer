@@ -56,11 +56,15 @@ def _facts(w) -> dict:
     return w.get("facts") or {}
 
 
+def _bounds(w: dict) -> dict:
+    return {k: v for k, v in (w.get("amount") or {}).items() if v is not None}  # an open bound is no bound
+
+
 def _grid(whens: list[dict], countries) -> list[dict]:
     named = lambda key: {v for w in whens for v in (w.get(key) or [])}  # noqa: E731
     amounts = {Decimal(1), Decimal(100000)}
     for w in whens:
-        for b in (w.get("amount") or {}).values():
+        for b in _bounds(w).values():
             amounts |= {Decimal(b) + d for d in (Decimal("-0.01"), 0, Decimal("0.01"))}
     fact_names = sorted({n for w in whens for n in _facts(w)})
     fact_values = [[*sorted({v for w in whens for v in _facts(w).get(n, [])}), OTHER] for n in fact_names]
@@ -91,7 +95,7 @@ def _scenario(country: str) -> Scenario:
 
 def _selects(w: dict, case: dict) -> bool:
     s = _scenario(case["country"])
-    amount = w.get("amount") or {}
+    amount = _bounds(w)
     return (
         all(w.get(k) is None or v in w[k] for k, v in (("currency", s.currency), ("region", s.region)))
         and (w.get("country") is None or case["country"] in w["country"])

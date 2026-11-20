@@ -122,3 +122,9 @@ def test_tally_by_bank():
     s = rs.score(exp, got, ())
     assert rs.tally(s, lambda label, rid: label.partition(":")[0] == "dkb") == (1, 1)
     assert rs.tally(s, lambda label, rid: label.partition(":")[0] == "ing") == (0, 1)
+
+
+def test_open_amount_bound_is_no_bound():
+    open_max = {"amount": {"min": "150", "max": None}}
+    from_150 = {"amount": {"min": "150"}}
+    assert score([rule({"flat_eur": "0"}, when=from_150)], [rule({"flat_eur": "0"}, when=open_max)]).recall == 1
