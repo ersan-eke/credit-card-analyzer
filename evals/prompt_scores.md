@@ -77,3 +77,9 @@ Haiku misses Sonnet fixes (model limit): 14 dev and 6 holdout rules; Sonnet has 
 ## extract-v13 change set and predictions
 
 Run 6 of 6, operator's override of stop rule (d) (2026-11-21). One change: the product name carries no footnote marker and no bracketed suffix. The wording is generic: the holdout labels that showed the problem (read from the label diff only) are not in the prompt. Predicted: holdout recall 0.00 -> 0.15 (dkb and ing rules get a matching label), all recall 0.19 -> 0.26, precision 0.73 -> 0.75; dev unchanged within noise (Haiku at the default temperature). If holdout stays 0.00, naming was not the cause.
+| extract-v13 | 9be45ba4 | e227673b | 0 | 359537/36276 | 0.17/0.52 | 0.24/0.55 | 0.00/0.00 | 0.12/0.38 | 0.07/0.67 | 3: c24 consorsbank revolut_standard | 83 | 16 |  |
+
+## extract-v13 analysis
+
+v13 (run 6 of 6): all 0.17 / 0.52, dev 0.24 / 0.55, holdout 0.00 / 0.00 (v12: 0.19 / 0.73, 0.27 / 0.76, 0.00 / 0.00): no gain, predicted 0.26 / 0.75 and holdout 0.15. Lists returning nothing 3 (c24, consorsbank, revolut_standard). The naming rule worked for one label: `dkb:Visa Debitkarte 1A` is gone from the label diff and `dkb:Visa Debitkarte` is no longer missing, yet dkb recall stays 0.00, so the dkb rules mismatch on content (class d, counts only). `ing:VISA Card [Debitkarte]` still carries the bracket: Haiku did not follow the rule. So naming alone was not the holdout cause. The precision drop from 0.73 to 0.52 is the size of the run-to-run spread plus the changes of the day (v11 0.50, v12 0.73, v13 0.52 on prompts that differ by one sentence): Haiku at the default temperature is noisy at about +-0.1 on precision. The noise rerun was not done.
+Stop: 6 of 6 runs used. Best Haiku version by precision remains v12; best by recall v12 (0.19). No prompt reaches 0.9 / 0.9; the remaining failures are structural (collapse, one rule rejecting a list, ing and dkb content), see the report.
