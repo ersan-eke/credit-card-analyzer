@@ -10,7 +10,7 @@ from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v12"
+PROMPT_VERSION = "extract-v13"
 REVIEW_BELOW = 0.7
 # The largest price list is ~27k tokens; Haiku reads 200k. Estimated at 3 characters per token (German, digits), so a
 # text far over this fails loudly instead of being cut.
@@ -100,7 +100,8 @@ Worked examples, from real price lists:
    min_eur "3.95".
 
 product: the card's own name as the bank prints it ("Debitkarte", "Visa Card Gold", "HVB Mastercard"), without the
-issuing unit, the part of the document or the account model; null if the document prices exactly one card.
+issuing unit, the part of the document or the account model, with no footnote marker (a digit or letter glued to the
+name) and no bracketed suffix; null if the document prices exactly one card.
 
 Write numbers as plain decimals with a dot ("2.0", "5.00"), copying the digits from the text. Every number of a rule
 must appear in its quote. If a fee differs by account model, status or plan, write one rule per variant, with it in

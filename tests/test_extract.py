@@ -194,3 +194,9 @@ def test_v11_inventory_lines_name_their_event_and_one_plan_lists_carry_no_facts(
 def test_v12_confidence_comes_after_the_rules():
     props = TOOL["input_schema"]["properties"]["products"]["items"]["properties"]
     assert list(props) == ["product", "rules", "confidence"]
+
+
+def test_v13_product_names_carry_no_footnote_marker_or_bracket():
+    text = " ".join(SYSTEM.split())
+    assert "no footnote marker" in text and "bracketed" in text
+    assert "1A" not in text and "[Debitkarte]" not in text  # holdout labels are not examples
