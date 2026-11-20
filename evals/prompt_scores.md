@@ -20,3 +20,4 @@ Written 2026-11-20 before the run. 91 golden rules (61 dev, 30 holdout). Probe (
 |---|---|---|
 | all | 0.55 | 0.60 |
 | holdout | 0.45 | 0.50 |
+| extract-v8 | 9be45ba4 | b943e106 | 0 | 414520/20977 | 0.09/0.29 | 0.13/0.30 | 0.00/0.00 | 0.08/0.24 | 0.00/0.00 | 4: bbva c24 tfbank_mastercard_gold traderepublik | 91 | 22 |  |
