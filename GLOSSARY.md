@@ -44,7 +44,8 @@ One priced event of a product under conditions: what it is called, which events 
 
 **Section**:
 A stretch of a price list that holds prices and the headings needed to read them (a table's rows with its header, or
-the lines under a heading). Built by code from the layout, never by the model; the unit of one extraction call.
+the lines under a heading). Built by code from the layout, never by the model. One extraction call reads one section
+view: a table section gives one view per group of value columns with identical cells, any other section one view.
 
 **Fact**:
 Something about the user that a Rule is conditioned on (account model, status, plan, main or partner card, age, monthly

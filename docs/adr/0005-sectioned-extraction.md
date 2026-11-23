@@ -11,8 +11,9 @@ card fees; then one call per section under those headings, or under no heading a
 tagged, and the model answers with tags, never with numbers; code builds the rules from them, so the quote and page come
 from the section itself and a number cannot be misread or invented.
 
-No fee page can be missed silently: every price line lands in a section, a section the outline call rules out is
-logged as skipped, and a section answered with no fee is logged, so an offline check finds the sections the model passed
-over. A fee that fails to build is retried once and then dropped alone; the rest of the list is kept and the errors go
+No fee page can be missed silently: every price line lands in a section, and every section with a price gets a view,
+a label-only one when its only prices sit in a table's label column. A section the outline call rules out is logged as
+`section_skipped`, a view answered with no fee as `section_no_fee`, and a view repeating one already sent under the
+same headings as `section_repeat`, so an offline check finds the sections the model passed over. A fee that fails to build is retried once and then dropped alone; the rest of the list is kept and the errors go
 to the review queue as one item. The outline call carries the token budget check (`MAX_INPUT_TOKENS`): a list over it
 is flagged and not sent, never truncated.
