@@ -1,9 +1,11 @@
 """Cut a price list into small price sections by its layout (headings, tables), without a model."""
 
 import re
+from decimal import Decimal
 from typing import NamedTuple
 
 from cardcost.models import FREE_WORDS
+from cardcost.numbers import number_spans
 
 MAX_LINES = 40
 PRICE = re.compile(rf"\d(?:[\d.,]*\d)?\s*(?:€|EUR\b|%)|€\s*\d|\d,-|(?i:{FREE_WORDS.pattern})")
@@ -131,3 +133,48 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
                     sections.append(Section(f"p{page_no}.{a}", page_no, a, lines[a:b], ids, table))
 
     return Layout(headings, tables, sections)
+
+
+class View(NamedTuple):
+    section: Section
+    columns: list[str]  # header names of the value columns shown; [] unless the table has 2+ column groups
+    text: str  # one line per section line, numbers tagged "[n1]2,00 EUR"
+    numbers: dict[str, Decimal]  # tag -> value
+    tag_line: dict[str, int]  # tag -> index into section.lines
+
+
+def _view(section: Section, columns: list[str], shown: list[str]) -> View:
+    numbers: dict[str, Decimal] = {}
+    tag_line: dict[str, int] = {}
+    out = []
+    for i, line in enumerate(shown):
+        spans = [(a, b, v) for a, b, v in number_spans(line) if not (a and line[a - 1].isalpha())]
+        tags = {}
+        for a, _, v in spans:
+            tags[a] = f"n{len(numbers) + 1}"
+            numbers[tags[a]], tag_line[tags[a]] = v, i
+        for a in reversed(tags):
+            line = f"{line[:a]}[{tags[a]}]{line[a:]}"
+        out.append(line)
+    return View(section, columns, "\n".join(out), numbers, tag_line)
+
+
+def views(section: Section, lay: Layout) -> list[View]:
+    if section.table is None:
+        return [_view(section, [], section.lines)]
+    lines = section.lines
+    rows = [None if not x.lstrip().startswith("|") or TABLE_RULE.match(x.strip()) else _cells(x) for x in lines]
+    names = lay.tables[section.table][1:]
+    groups: dict[tuple, list[int]] = {}  # identical cells over all rows -> value columns
+    for j in range(len(names)):
+        groups.setdefault(tuple(r[j + 1] if r and j + 1 < len(r) else "" for r in rows), []).append(j)
+    # shortcut: a group whose first filled cell is "-" is a plan without this product, so no view
+    groups = {k: v for k, v in groups.items() if next((c for c in k if c), "-") != "-"}
+    result = []
+    for cells, cols in groups.items():
+        shown = [
+            x if r is None and not TABLE_RULE.search(x) else "" if r is None else f"{r[0]} | {c}"
+            for x, r, c in zip(lines, rows, cells, strict=True)
+        ]
+        result.append(_view(section, [names[j] for j in cols] if len(groups) > 1 else [], shown))
+    return result

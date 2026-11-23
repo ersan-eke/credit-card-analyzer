@@ -1,11 +1,12 @@
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
 from cardcost.extract import _squash
 from cardcost.ingest import read_text
-from cardcost.sections import MAX_LINES, PRICE, layout
+from cardcost.sections import MAX_LINES, PRICE, Layout, Section, layout, views
 
 ROOT = Path(__file__).parent.parent
 
@@ -23,6 +24,13 @@ C24_PAGE3 = """\
 | Jede weitere Bargeldauszahlung mit der C24 Mastercard | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |
 | Jede weitere Bargeldauszahlung im Partnergeschäft 6 | 2,00 EUR | 2,00 EUR | 2,00 EUR | 2,00 EUR |
 | Mit der C24 girocard | Der Automatenbetreiber erhebt ein direktes Entgelt für jede Bargeldauszahlung 5 | Der Automatenbetreiber erhebt ein direktes Entgelt für jede Bargeldauszahlung 5 | Der Automatenbetreiber erhebt ein direktes Entgelt für jede Bargeldauszahlung 5 | Der Automatenbetreiber erhebt ein direktes Entgelt für jede Bargeldauszahlung 5 |"""  # noqa: E501
+
+CONSORS_DEBIT_TABLE = """\
+| Visa Card Debit | Preis | Preis | Preis |
+|---|---|---|---|
+| Ausgabe einer Visa Card Debit für den oder die Kontoinhaber | kostenlos | kostenlos | - |
+| Bargeldauszahlung an allen Visa-zugänglichen Geldausgabe automaten im EWR auf den jeweiligen, nicht auf Euro lautenden Auszahlungsbetrag | 2,10 % 2 | 2,10 % 2 | - |
+| Bargeldauszahlung an allen Visa-zugänglichen Geldausgabeauto- maten außerhalb des EWR auf den jeweiligen Auszahlungsbetrag | 2,10 % 2 | 2,10 % 2 | - |"""  # noqa: E501
 
 HVB_ATM = """\
 3 Bargeldauszahlung mit der Kreditkarte am Geldautomaten
@@ -170,3 +178,24 @@ def test_every_dev_golden_quote_is_inside_one_section(label, rule):
     pages = read_text(ROOT / f"catalog/docs/{label.partition(':')[0]}.pdf")
     texts = [_squash("\n".join(s.lines)) for s in layout(pages).sections if s.page == rule["page"]]
     assert any(_squash(rule["quote"]) in t for t in texts), rule["id"]
+
+
+def test_c24_columns_group_by_identical_cells_and_basiskonto_dash_has_no_view():
+    lay = layout([C24_PAGE3])
+    s = next(s for s in lay.sections if any("4 x 0,00 EUR" in x for x in s.lines))
+    assert sorted(v.columns for v in views(s, lay)) == [["C24 Pluskonto", "C24 Maxkonto"], ["C24 Smartkonto"]]
+
+
+def test_tags_resolve_to_numbers_on_their_line_and_words_are_not_tagged():
+    s = Section("p1.0", 1, 0, ["Mit der C24 Mastercard | 4 x 0,00 EUR 7", "Jede weitere | 2,00 EUR"], [], None)
+    [v] = views(s, Layout([], [], [s]))
+    assert "C24" in v.text and "C[n" not in v.text
+    assert v.numbers == {"n1": Decimal(4), "n2": Decimal("0.00"), "n3": Decimal(7), "n4": Decimal("2.00")}
+    assert v.tag_line["n4"] == 1 and "[n4]2,00" in v.text
+
+
+def test_single_column_group_has_no_columns():
+    lay = layout([CONSORS_DEBIT_TABLE])
+    vs = [v for s in lay.sections for v in views(s, lay)]
+    assert vs and all(v.columns == [] for v in vs)
+    assert all("|---" not in v.text for v in vs)
