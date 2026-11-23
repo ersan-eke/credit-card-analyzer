@@ -10,6 +10,7 @@ FEE = {
     "name": "Fee", "event": [], "cards": [], "only_for": [], "percent": "", "flat_eur": "", "min_eur": "",
     "max_eur": "", "free": False, "allowance_count": "", "allowance_amount": "", "allowance_period": "none",
     "amount_min": "", "amount_max": "", "interest_free_days": "", "per": "none", "waiver": "",
+    "currency": [], "region": [], "country": [], "network": [], "merchant": [], "weekend": False, "stacks": False,
 }  # fmt: skip
 
 
@@ -98,3 +99,13 @@ def test_clean_product(raw, clean):
 def test_merge_drops_repeats_of_the_same_fee():
     [(_, r)] = build_rules(FEE | {"event": ["atm"], "flat_eur": "n1"}, PCT_VIEW, ONE_CARD)
     assert merge_rules([(None, r), (None, r.model_copy(update={"name": "x"}))]) == {None: [r]}
+
+
+def test_conditions_and_stacks_pass_through():
+    [(_, r)] = build_rules(FEE | {"event": ["payment"], "percent": "n1"}, PCT_VIEW, ONE_CARD)
+    assert r.when.currency is None and r.when.weekend is None and not r.stacks
+    fee = FEE | {"event": ["payment"], "percent": "n1", "currency": ["EEA_non_EUR", "other"],
+                 "network": ["other"], "weekend": True, "stacks": True}  # fmt: skip
+    [(_, r)] = build_rules(fee, PCT_VIEW, ONE_CARD)
+    assert r.when.currency == ["EEA_non_EUR", "other"] and r.when.network == ["other"]
+    assert r.when.weekend is not None and r.stacks
