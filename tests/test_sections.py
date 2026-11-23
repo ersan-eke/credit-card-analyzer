@@ -5,7 +5,7 @@ import pytest
 
 from cardcost.extract import _squash
 from cardcost.ingest import read_text
-from cardcost.sections import MAX_LINES, layout
+from cardcost.sections import MAX_LINES, PRICE, layout
 
 ROOT = Path(__file__).parent.parent
 
@@ -67,9 +67,13 @@ Der folgende Abschnitt gilt ab dem 15. Oktober 2026
 - Kartenlose Geldautomatenauszahlungen mit BLIK: Für jede Auszahlung berechnen wir eine Gebühr von 2 % des abgehobenen Betrags bzw. mindestens 5 PLN (je nachdem, welcher Betrag höher ist). Diese Gebühr buchen wir immer von deinem PLN-Unterkonto ab. Für alle anderen Geldautomatenauszahlungen gelten die oben aufgeführten Gebühren (falls zutreffend)."""  # noqa: E501
 
 
+def _dev_golden_holdout():
+    return set(json.loads((ROOT / "evals/golden_real.json").read_text())["holdout"])
+
+
 def _dev_golden_rules():
     golden = json.loads((ROOT / "evals/golden_real.json").read_text())
-    holdout = set(golden["holdout"])  # filtered out before any rule content is touched
+    holdout = _dev_golden_holdout()  # filtered out before any rule content is touched
     dev = {label: rules for label, rules in golden["rules"].items() if label.partition(":")[0] not in holdout}
     return [(label, r) for label, rules in dev.items() for r in rules]
 
@@ -113,6 +117,45 @@ def test_long_price_run_is_split_under_max_lines():
     sections = layout([page], max_lines=4).sections
     assert [len(s.lines) for s in sections] == [4, 4, 2]
     assert [s.start for s in sections] == [0, 4, 8]
+
+
+def test_split_keeps_lead_in_lines_and_skips_leading_blanks():
+    page = "Kopf | 1,00 EUR\nLeadin ohne Preis\n\nPosten 2,00 EUR\nPosten 3,00 EUR"
+    sections = layout([page], max_lines=3).sections
+    assert any("Leadin ohne Preis" in s.lines for s in sections)
+    assert all(s.lines[0].strip() for s in sections)
+
+
+def test_header_row_with_a_price_is_section_content():
+    lay = layout(["| Kartenentgelt | 4,90 € pro Monat |\n|---|---|\n| Sollzins | 22,60 % |"])
+    [s] = lay.sections
+    assert s.lines == ["| Kartenentgelt | 4,90 € pro Monat |", "|---|---|", "| Sollzins | 22,60 % |"]
+    assert lay.tables == [["Kartenentgelt", "4,90 € pro Monat"]] and s.table == 0
+
+
+def test_markdown_line_with_a_price_is_content_not_heading():
+    lay = layout(["## Entgelte\n## kostenfrei\nPosten 2,00 EUR"])
+    assert lay.headings == ["## Entgelte"]
+    [s] = lay.sections
+    assert s.lines == ["## kostenfrei", "Posten 2,00 EUR"]
+
+
+DEV_DOCS = sorted(
+    p.stem for p in (ROOT / "catalog/docs").glob("*.pdf") if p.stem.split("_")[0] not in _dev_golden_holdout()
+)
+
+
+@pytest.mark.parametrize("doc", DEV_DOCS)
+def test_every_price_line_of_a_dev_document_is_in_a_section(doc):
+    pages = read_text(ROOT / f"catalog/docs/{doc}.pdf")
+    covered = {(s.page, s.start + k) for s in layout(pages).sections for k in range(len(s.lines))}
+    lost = [
+        (n, i, line)
+        for n, page in enumerate(pages, 1)
+        for i, line in enumerate(page.splitlines())
+        if PRICE.search(line) and not line.strip().startswith("<!--") and (n, i) not in covered
+    ]
+    assert lost == []
 
 
 def test_lines_are_verbatim_and_sections_stay_on_their_page():

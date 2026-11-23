@@ -62,7 +62,10 @@ def _split(lines: list[str], start: int, end: int, max_lines: int) -> list[tuple
         prices = [i for i in range(start, stop) if PRICE.search(lines[i])]
         if prices:
             runs.append((start, prices[-1] + 1))
-        start = stop
+        # lines after the last price go on with the next run; a run never opens on a blank line
+        start = prices[-1] + 1 if prices else stop
+        while start < end and not lines[start].strip():
+            start += 1
     return runs
 
 
@@ -84,7 +87,9 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
             if in_table and i + 1 < len(lines) and TABLE_RULE.match(lines[i + 1].strip()):
                 runs.append((start, prices, _ids(path), table))
                 tables.append(_cells(text))
-                table, start, prices, joining = len(tables) - 1, i + 2, [], False
+                table, joining = len(tables) - 1, False
+                # Docling may take the first price row as the header: then the header is content too
+                start, prices = (i, [i]) if PRICE.search(text) else (i + 2, [])
                 continue
             if not in_table and table is not None:  # the table ended: its headings and rows end with it
                 runs.append((start, prices, _ids(path), table))
@@ -93,10 +98,12 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
             if in_table and i < start or text.startswith("<!--"):
                 continue
 
-            if in_table:
+            if PRICE.search(text):  # a price line is content, never a heading (Docling mislabels "## kostenfrei")
+                heading = None
+            elif in_table:
                 cells = _cells(text)
                 heading = cells[0] if cells[0] and not any(cells[1:]) else None
-            elif text.startswith("#") or (NUMBERING.match(text) and len(text) < 120 and not PRICE.search(text)):
+            elif text.startswith("#") or (NUMBERING.match(text) and len(text) < 120):
                 heading = text
             else:
                 heading = None
