@@ -16,6 +16,7 @@ REVIEW_BELOW = 0.7
 MAX_INPUT_TOKENS = 60_000
 CHARS_PER_TOKEN = 3
 TEMPERATURE = 0  # extraction is read-off, not creative
+MAX_NAME = 80  # a card or condition name is echoed into every section call
 
 
 class TooLong(ValueError):
@@ -67,7 +68,8 @@ credit (interest on borrowed money: percent is the rate per year), holding (a re
 per and waiver). Card issuance or replacement, PIN, statement, account and transfer fees are not fees here. An empty
 fees list is a valid answer when the section states none of them.
 
-Refer to a number only by its tag ("n3"), never write a number; "" where the section states none. A footnote digit
+Never write a price, amount or count: refer to it only by its tag ("n3"), "" where the section states none; card and
+condition numbers from the lists are fine. A footnote digit
 (a digit glued to a word or standing alone before a price) and codes such as MCC numbers are not prices: never use
 their tags. One fee lists every event with the same price and conditions; never repeat a fee per event.
 
@@ -97,21 +99,22 @@ A fee:
 Worked examples:
 1. "Bis zu [n1]5 Abhebungen am Geldautomaten oder [n2]200 € (je nachdem, was zuerst eintritt) pro rollierendem Monat
    sind gebührenfrei. Weitere Abhebungen werden mit [n3]2 % des Abhebungsbetrags (mind. [n4]1 €) belastet."
-   One fee: event ["atm"], percent "n3", min_eur "n4", allowance_count "n1", allowance_amount "n2", allowance_period
-   rolling_month.
-2. "Kostenlos, wenn die Abhebung mindestens [n1]150 € oder mehr beträgt, ansonsten [n2]2 €." Two fees: amount_min "n1"
-   with free true, and amount_max "n1" with flat_eur "n2".
+   One fee: name "Abhebungen", event ["atm"], percent "n3", min_eur "n4", allowance_count "n1", allowance_amount "n2",
+   allowance_period rolling_month.
+2. "Kostenlos, wenn die Abhebung mindestens [n1]150 € oder mehr beträgt, ansonsten [n2]2 €." Two fees, both name
+   "Abhebung" and event ["atm"]: amount_min "n1" with free true, and amount_max "n1" with flat_eur "n2".
 3. "Wenn du am Wochenende (zwischen [n1]17 Uhr New Yorker Zeit am Freitag und [n2]18 Uhr New Yorker Zeit am Sonntag)
-   wechselst, fällt eine Gebühr von [n3]1 % an." A fee with weekend true, currency ["EEA_non_EUR", "other"], percent
-   "n3", stacks true. By contrast "[n1]4,00 % (mind. [n2]3,00 €) zzgl. etwaiger Gebühren oder Kosten anderer
-   Dienstleister" is one fee: percent "n1", min_eur "n2", stacks false.
+   wechselst, fällt eine Gebühr von [n3]1 % an." One fee: name "Wochenende", event ["payment", "atm"], weekend true,
+   currency ["EEA_non_EUR", "other"], percent "n3", stacks true. By contrast "Fremdwährung | [n1]4,00 % (mind.
+   [n2]3,00 €) zzgl. etwaiger Gebühren oder Kosten anderer Dienstleister" is one fee: name "Fremdwährung", event
+   ["payment", "atm"], currency ["EEA_non_EUR", "other"], percent "n1", min_eur "n2", stacks false.
 4. "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC [n1]7995 /
-   [n2]9406) [n3]3 | [n4]3 % des Betrags, mind. [n5]3,95 €": event ["payment"], merchant ["gambling"], percent "n4",
-   min_eur "n5"; n1 and n2 are codes and n3 a footnote digit."""
+   [n2]9406) [n3]3 | [n4]3 % des Betrags, mind. [n5]3,95 €": one fee: name "Transaktionsentgelt", event ["payment"],
+   merchant ["gambling"], percent "n4", min_eur "n5"; n1 and n2 are codes and n3 a footnote digit."""
 
 _LIST = {"type": "array", "items": {"type": "string"}}
 _IDS = {"type": "array", "items": {"type": "integer"}}
-_TAG = {"type": "string", "description": 'a number tag such as "n3", or "" if not stated'}
+_TAG = {"type": "string"}
 DOC_TOOL = {
     "name": "record_document",
     "description": "Record the cards, conditions, card-fee headings and table columns of the price list.",
@@ -166,7 +169,8 @@ SECTION_TOOL = {
 
 
 def _untrusted(file: str, page, text: str) -> str:
-    return f'<untrusted file="{file}" page="{page}">\n{unicodedata.normalize("NFC", text)}\n</untrusted>'
+    text = re.sub(r"<(/?untrusted)", r"‹\1", unicodedata.normalize("NFC", text), flags=re.IGNORECASE)
+    return f'<untrusted file="{file}" page="{page}">\n{text}\n</untrusted>'
 
 
 def _ask(purpose: str, system: str, tool: dict, max_tokens: int, prompt: str, error: str | None, llm) -> dict:
@@ -193,7 +197,7 @@ def _tool_input(response: dict, name: str) -> dict:
 
 
 def _document(answer: dict, lay: Layout) -> Document:
-    conditions = [Condition(c["name"], c["kind"]) for c in answer["conditions"]]
+    conditions = [Condition(c["name"][:MAX_NAME], c["kind"]) for c in answer["conditions"]]
     errors = [f"h{h}" for h in answer["card_fee_headings"] if not 0 <= h < len(lay.headings)]
     errors += [f"t{t['table']}" for t in answer["tables"] if not 0 <= t["table"] < len(lay.tables)]
     if errors:
@@ -204,7 +208,7 @@ def _document(answer: dict, lay: Layout) -> Document:
     if target is not None and conditions[target].kind == "account_model":  # spec: plan or status only
         target = None
     return Document(
-        cards=[clean_product(c) for c in answer["cards"]],
+        cards=[clean_product(c)[:MAX_NAME] for c in answer["cards"]],
         conditions=conditions,
         document_for=target,
         fee_headings=set(answer["card_fee_headings"]),
@@ -238,8 +242,8 @@ def _section_prompt(file: str, view: View, doc: Document, lay: Layout) -> str:
     cards = "\n".join(f"{i}. {c}" for i, c in enumerate(doc.cards, start=1)) or "(none)"
     conditions = "\n".join(f"{i}. {c.name} ({c.kind})" for i, c in enumerate(doc.conditions, start=1)) or "(none)"
     path = " > ".join(lay.headings[h] for h in view.section.headings) or "(none)"
-    section = _untrusted(file, view.section.page, f"Headings: {path}\n\n{view.text}")
-    return f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\n{section}\n\nCall record_section for this section."
+    text = f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\nHeadings: {path}\n\n{view.text}"
+    return f"{_untrusted(file, view.section.page, text)}\n\nCall record_section for this section."
 
 
 def read_section(
@@ -266,8 +270,17 @@ def read_section(
         if not errors or response.get("stop_reason") == "max_tokens":
             break
         log.warning("section_invalid", extra={"file": file, "section": view.section.id, "errors": errors})
-    # a retry never leaves the section worse: fewest errors, then most rules; a tie keeps the first answer
-    return min(attempts, key=lambda a: (len(a[1]), -len(a[0])))
+    # a retry never loses built rules: most rules, then fewest errors; a tie keeps the first answer
+    return min(attempts, key=lambda a: (-len(a[0]), len(a[1])))
+
+
+def _repeated(view: View, sent: set) -> bool:
+    """True when a view with the same heading path, columns and text was already sent; else remembers it."""
+    key = (tuple(view.section.headings), tuple(view.group), view.text)
+    if key in sent:
+        return True
+    sent.add(key)
+    return False
 
 
 def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[FeeSchedule]:
@@ -291,11 +304,15 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
     else:
         rules: list[tuple[str | None, Rule]] = []
         errors: list[str] = []
+        sent: set = set()
         for section in lay.sections:
             if section.headings and not doc.fee_headings.intersection(section.headings):
                 log.info("section_skipped", extra={"card": card_id, "section": section.id})
                 continue
             for view in views(section, lay):
+                if _repeated(view, sent):
+                    log.info("section_repeat", extra={"card": card_id, "section": section.id})
+                    continue
                 got, errs = read_section(file, view, doc, lay, llm)
                 if not got and not errs:  # for the offline coverage check: a section the model passed over
                     log.info("section_no_fee", extra={"card": card_id, "section": section.id, "columns": view.columns})

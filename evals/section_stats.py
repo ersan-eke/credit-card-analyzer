@@ -1,5 +1,5 @@
 """Offline estimate per catalog price list: sections, section views and input tokens for the document call and, as
-an upper bound (every view sent), the section calls. Never calls a model; counts only, no rule text.
+an upper bound (every view sent but a repeat), the section calls. Never calls a model; counts only, no rule text.
 
     uv run python evals/section_stats.py
 """
@@ -14,6 +14,7 @@ from cardcost.extract import (
     SECTION_SYSTEM,
     SECTION_TOOL,
     _document_prompt,
+    _repeated,
     _section_prompt,
 )
 from cardcost.fees import CATALOG_DOCS
@@ -30,7 +31,8 @@ def stats(card: str, pages: list[str]) -> dict:
     fixed = _tokens(SECTION_SYSTEM, json.dumps(SECTION_TOOL))
     # the empty Document is an upper bound's stand-in: the real message adds the card and condition lists
     empty = Document([], [], None, set(), {})
-    all_views = [v for s in lay.sections for v in views(s, lay)]
+    sent: set = set()
+    all_views = [v for s in lay.sections for v in views(s, lay) if not _repeated(v, sent)]
     return {
         "sections": len(lay.sections),
         "views": len(all_views),
