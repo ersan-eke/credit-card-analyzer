@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from cardcost.numbers import find_numbers, parse_german_decimal, to_cents
+from cardcost.numbers import find_numbers, number_spans, parse_german_decimal, to_cents
 
 
 @pytest.mark.parametrize(
@@ -39,3 +39,10 @@ def test_to_cents_half_up(value, expected):
 def test_find_numbers_german_and_english():
     found = find_numbers("Kosten 6,00 EUR bzw. 1.234,56 EUR, also 2.5 % und 300 EUR")
     assert found == [Decimal("6.00"), Decimal("1234.56"), Decimal("2.5"), Decimal("300")]
+
+
+def test_number_spans_match_find_numbers_and_give_positions():
+    text = "4 x 0,00 EUR 7 | 1.234,56 EUR | 2%"
+    spans = number_spans(text)
+    assert [v for _, _, v in spans] == find_numbers(text)
+    assert [text[s:e] for s, e, _ in spans] == ["4", "0,00", "7", "1.234,56", "2"]
