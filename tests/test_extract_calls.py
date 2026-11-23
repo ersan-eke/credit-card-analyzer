@@ -53,6 +53,13 @@ def test_document_names_one_based_plan_and_table_columns():
     assert (doc.document_for, doc.table_columns) == (0, {0: "account_model"})
 
 
+def test_document_for_an_account_model_is_ignored():
+    llm = FakeLLM(_doc(cards=["Visa"], conditions=[{"name": "HVB ExklusivKonto", "kind": "account_model"}],
+                       document_for=1, card_fee_headings=[], tables=[]))  # fmt: skip
+    assert read_document("hvb.pdf", LAYOUT, llm).document_for is None
+    assert "one plan or status" in DOC_SYSTEM and "plan, status or account model, its number" not in DOC_SYSTEM
+
+
 def test_document_with_unknown_ids_is_retried_once_then_raises():
     bad = _doc(cards=[], conditions=[], document_for=3, card_fee_headings=[7], tables=[{"table": 5, "columns": "none"}])
     llm = FakeLLM(bad, bad)
@@ -84,6 +91,14 @@ def test_a_bad_fee_is_retried_once_then_dropped_alone():
     llm = FakeLLM(_sec([good, bad]), _sec([good, bad]))
     rules, errors = read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm)
     assert len(rules) == 1 and "n99" in errors[0] and "n99" in llm.requests[1]["messages"][0]["content"]
+
+
+def test_a_retry_without_a_tool_call_keeps_the_rules_of_the_first_answer():
+    bad, good = FEE | {"event": ["atm"], "flat_eur": "n99"}, FEE | {"event": ["atm"], "flat_eur": "n1"}
+    none = {"stop_reason": "end_turn", "content": [{"type": "text", "text": "hi"}]}
+    llm = FakeLLM(_sec([good, bad]), none)
+    rules, errors = read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm)
+    assert len(rules) == 1 and len(errors) == 1 and "n99" in errors[0] and len(llm.requests) == 2
 
 
 def test_empty_answer_is_valid_and_costs_one_call():

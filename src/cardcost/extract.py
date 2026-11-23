@@ -271,8 +271,8 @@ Always answer by calling the record_document tool once.
   ExklusivKonto", "C24 Pluskonto"), a plan (a subscription tier, "Standard", "Plus", "Premium") or a status (a condition
   the customer meets at the bank, such as a monthly income paid in) is not a card but a condition.
 - conditions: every account model, plan or status the list names, as printed, each with its kind.
-- document_for: when the whole document is the price list of one plan, status or account model, its number in your
-  conditions list (1 = the first); 0 when the list prices several side by side or none.
+- document_for: when the whole document is the price list of one plan or status, its number in your conditions list
+  (1 = the first); 0 when the list prices several side by side, none, or is an account model's list.
 - card_fee_headings: the ids (the number after "h") of the headings whose sections price using a card: paying with
   it, cash at a machine or a counter, interest on credit, or a recurring fee for holding it. Leave out headings about
   anything else (securities, transfers, account services, card issuance or replacement).
@@ -424,10 +424,13 @@ def _document(answer: dict, lay: Layout) -> Document:
         raise ValueError(f"unknown heading or table ids: {', '.join(errors)}")
     if not 0 <= answer["document_for"] <= len(conditions):
         raise ValueError(f"document_for {answer['document_for']} is not 0 or a number in conditions")
+    target = answer["document_for"] - 1 if answer["document_for"] else None
+    if target is not None and conditions[target].kind == "account_model":  # spec: plan or status only
+        target = None
     return Document(
         cards=[clean_product(c) for c in answer["cards"]],
         conditions=conditions,
-        document_for=answer["document_for"] - 1 if answer["document_for"] else None,
+        document_for=target,
         fee_headings=set(answer["card_fee_headings"]),
         table_columns={t["table"]: t["columns"] for t in answer["tables"]},
     )
@@ -460,10 +463,9 @@ def read_section(
     path = " > ".join(lay.headings[h] for h in view.section.headings) or "(none)"
     section = _untrusted(file, view.section.page, f"Headings: {path}\n\n{view.text}")
     prompt = f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\n{section}\n\nCall record_section for this section."
-    rules: list[tuple[str | None, Rule]] = []
-    errors: list[str] = []
+    attempts: list[tuple[list[tuple[str | None, Rule]], list[str]]] = []
     for attempt in range(2):
-        error = " | ".join(errors) if attempt else None
+        error = " | ".join(attempts[0][1]) if attempt else None
         response = _ask("extract-section", SECTION_SYSTEM, SECTION_TOOL, 2048, prompt, error, llm)
         rules, errors = [], []
         try:
@@ -476,7 +478,9 @@ def read_section(
                 rules += build_rules(fee, view, doc)
             except ValueError as e:
                 errors.append(str(e))
+        attempts.append((rules, errors))
         if not errors or response.get("stop_reason") == "max_tokens":
             break
         log.warning("section_invalid", extra={"file": file, "section": view.section.id, "errors": errors})
-    return rules, errors
+    # a retry never leaves the section worse: fewest errors, then most rules; a tie keeps the first answer
+    return min(attempts, key=lambda a: (len(a[1]), -len(a[0])))
