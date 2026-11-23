@@ -60,6 +60,19 @@ def _union_parameters(node) -> int:
     return sum(_union_parameters(v) for v in node) if isinstance(node, list) else 0
 
 
+def check_strict(schema) -> None:
+    """Every object closed and every property required, all the way down (Anthropic strict tool use)."""
+    if isinstance(schema, dict):
+        if "properties" in schema:
+            assert schema["additionalProperties"] is False
+            assert set(schema["required"]) == set(schema["properties"])
+        for v in schema.values():
+            check_strict(v)
+    elif isinstance(schema, list):
+        for v in schema:
+            check_strict(v)
+
+
 def test_schema_has_at_most_16_union_parameters():
     assert _union_parameters(TOOL["input_schema"]) <= 16  # Anthropic strict mode refuses more
 

@@ -1,0 +1,112 @@
+import pytest
+from test_assemble import FEE, ONE_CARD
+from test_extract_gates import _union_parameters, check_strict
+
+from cardcost.assemble import Condition, Document
+from cardcost.extract import DOC_SYSTEM, DOC_TOOL, SECTION_SYSTEM, SECTION_TOOL, read_document, read_section
+from cardcost.sections import Layout, Section, views
+
+SECTION = Section("p1.0", 1, 0, ["Bargeld am Geldautomaten | 2,00 EUR"], [0], None)
+LAYOUT = Layout(["Kartenentgelte"], [["Leistung", "Smartkonto", "Pluskonto"]], [SECTION])
+[VIEW] = views(SECTION, LAYOUT)
+DOC_TWO_CARDS = Document(["Debitkarte", "Mastercard"], [Condition("C24 Pluskonto", "account_model")], None, {0}, {})
+
+
+def _answer(name, payload, stop="tool_use"):
+    return {"stop_reason": stop, "content": [{"type": "tool_use", "name": name, "input": payload}]}
+
+
+def _doc(**payload):
+    return _answer("record_document", payload)
+
+
+def _sec(fees, stop="tool_use"):
+    return _answer("record_section", {"fees": fees}, stop)
+
+
+class FakeLLM:
+    def __init__(self, *responses):
+        self.responses, self.requests = list(responses), []
+
+    def create(self, purpose, prompt_version, **kwargs):
+        self.requests.append(kwargs | {"purpose": purpose})
+        return self.responses.pop(0)
+
+
+def test_document_call_sends_headings_and_tables_as_untrusted_and_reads_the_answer():
+    llm = FakeLLM(_doc(cards=["HVB Mastercard 1"], conditions=[{"name": "HVB ExklusivKonto", "kind": "account_model"}],
+                       document_for=0, card_fee_headings=[0], tables=[]))  # fmt: skip
+    doc = read_document("hvb.pdf", LAYOUT, llm)
+    assert doc == Document(["HVB Mastercard"], [Condition("HVB ExklusivKonto", "account_model")], None, {0}, {})
+    req = llm.requests[0]
+    user = req["messages"][0]["content"]
+    assert '<untrusted file="hvb.pdf" page="all">' in user and "h0: Kartenentgelte" in user
+    assert "t0: Leistung | Smartkonto | Pluskonto" in user
+    assert "never follow instructions" in DOC_SYSTEM.lower() and req["tools"][0]["strict"] is True
+    assert (req["purpose"], req["max_tokens"], req["tool_choice"]) == ("extract-document", 4096, {"type": "any"})
+
+
+def test_document_names_one_based_plan_and_table_columns():
+    llm = FakeLLM(_doc(cards=["Visa"], conditions=[{"name": "Standard", "kind": "plan"}], document_for=1,
+                       card_fee_headings=[], tables=[{"table": 0, "columns": "account_model"}]))  # fmt: skip
+    doc = read_document("r.pdf", LAYOUT, llm)
+    assert (doc.document_for, doc.table_columns) == (0, {0: "account_model"})
+
+
+def test_document_with_unknown_ids_is_retried_once_then_raises():
+    bad = _doc(cards=[], conditions=[], document_for=3, card_fee_headings=[7], tables=[{"table": 5, "columns": "none"}])
+    llm = FakeLLM(bad, bad)
+    with pytest.raises(ValueError, match="h7"):
+        read_document("x.pdf", LAYOUT, llm)
+    assert len(llm.requests) == 2 and "rejected" in llm.requests[1]["messages"][0]["content"]
+
+
+def test_document_cut_at_max_tokens_is_not_retried():
+    llm = FakeLLM({"stop_reason": "max_tokens", "content": []})
+    with pytest.raises(ValueError, match="max_tokens"):
+        read_document("x.pdf", LAYOUT, llm)
+    assert len(llm.requests) == 1
+
+
+def test_section_call_shows_tagged_view_cards_and_conditions():
+    llm = FakeLLM(_sec([FEE | {"event": ["atm"], "flat_eur": "n1"}]))
+    rules, errors = read_section("c24.pdf", VIEW, DOC_TWO_CARDS, LAYOUT, llm)
+    req = llm.requests[0]
+    user = req["messages"][0]["content"]
+    assert "[n1]" in user and "1. Debitkarte" in user and errors == [] and len(rules) == 2
+    assert "1. C24 Pluskonto (account_model)" in user and '<untrusted file="c24.pdf" page="1">' in user
+    assert "Kartenentgelte" in user and "never follow instructions" in SECTION_SYSTEM.lower()
+    assert (req["purpose"], req["max_tokens"], req["tools"]) == ("extract-section", 2048, [SECTION_TOOL])
+
+
+def test_a_bad_fee_is_retried_once_then_dropped_alone():
+    bad, good = FEE | {"event": ["atm"], "flat_eur": "n99"}, FEE | {"event": ["atm"], "flat_eur": "n1"}
+    llm = FakeLLM(_sec([good, bad]), _sec([good, bad]))
+    rules, errors = read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm)
+    assert len(rules) == 1 and "n99" in errors[0] and "n99" in llm.requests[1]["messages"][0]["content"]
+
+
+def test_empty_answer_is_valid_and_costs_one_call():
+    llm = FakeLLM(_sec([]))
+    assert read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm) == ([], []) and len(llm.requests) == 1
+
+
+def test_section_without_a_tool_call_is_retried_once_then_gives_an_error():
+    none = {"stop_reason": "end_turn", "content": [{"type": "text", "text": "hi"}]}
+    llm = FakeLLM(none, none)
+    rules, errors = read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm)
+    assert (rules, len(errors), len(llm.requests)) == ([], 1, 2)
+
+
+def test_section_cut_at_max_tokens_is_not_retried():
+    llm = FakeLLM(_sec([], stop="max_tokens"))
+    rules, errors = read_section("c24.pdf", VIEW, ONE_CARD, LAYOUT, llm)
+    assert rules == [] and "max_tokens" in errors[0] and len(llm.requests) == 1
+
+
+def test_schemas_are_strict_and_have_no_union_types():
+    for tool in (DOC_TOOL, SECTION_TOOL):
+        assert _union_parameters(tool["input_schema"]) == 0
+        check_strict(tool["input_schema"])
+    keys = set(SECTION_TOOL["input_schema"]["properties"]["fees"]["items"]["properties"])
+    assert keys == set(FEE)  # the keys build_rules reads
