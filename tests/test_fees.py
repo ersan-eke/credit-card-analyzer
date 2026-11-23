@@ -1,9 +1,11 @@
 import json
+import re
 import shutil
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from test_assemble import FEE
 
 from cardcost import fees
 from cardcost.fees import read_fees, update_fees
@@ -29,13 +31,27 @@ def _item(product, pct, mn):
 
 
 class FakeLLM:
-    calls = 0
+    """Answers the document call with the two cards and the section holding ROW with one cash fee per card."""
+
+    calls = 0  # extractions: one document call each
+
+    def fees(self, row: str) -> list[dict]:
+        a, b, c, d = re.findall(r"\[(n\d+)\]", row)  # 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR
+        fee = FEE | {"name": "cash_fee", "event": ["atm"]}
+        return [fee | {"cards": [1], "percent": a, "min_eur": b}, fee | {"cards": [2], "percent": c, "min_eur": d}]
 
     def create(self, purpose, prompt_version, **kw):
-        self.calls += 1
-        assert ROW in kw["messages"][0]["content"]  # the fee table reaches the extractor
-        products = [_item("Beta Classic", "3.0", "6.00"), _item("Beta Gold", "1.0", "7.50")]
-        return {"content": [{"type": "tool_use", "name": "record_fees", "input": {"products": products}}]}
+        content = kw["messages"][0]["content"]
+        if kw["tools"][0]["name"] == "record_document":
+            self.calls += 1
+            answer = {"cards": ["Beta Classic", "Beta Gold"], "conditions": [], "document_for": 0}
+            return _tool("record_document", answer | {"card_fee_headings": [], "tables": []})
+        row = next((x for x in content.splitlines() if x.startswith("Bargeldauszahlung am Geldautomaten |")), None)
+        return _tool("record_section", {"fees": self.fees(row) if row else []})
+
+
+def _tool(name, payload):
+    return {"content": [{"type": "tool_use", "name": name, "input": payload}]}
 
 
 @pytest.fixture(autouse=True)
@@ -144,7 +160,7 @@ def test_a_crash_keeps_the_cards_already_extracted(tmp_path, conn):
 
     class DiesOnSecond:
         def create(self, *a, **kw):
-            if ok.calls:
+            if ok.calls and kw["tools"][0]["name"] == "record_document":  # the second card's first call
                 raise RuntimeError("429")
             return ok.create(*a, **kw)
 
@@ -199,17 +215,14 @@ def test_a_price_list_over_the_token_budget_is_flagged_and_not_sent(tmp_path, co
     assert llm.calls == 0 and not out.exists()
 
 
-def test_rules_with_a_bad_quote_are_rejected_not_stored(tmp_path, conn):
+def test_rules_with_an_unknown_number_are_rejected_not_stored(tmp_path, conn):
     pdf = tmp_path / "beta_card.pdf"
     shutil.copy(ROOT / "samples/beta_card.pdf", pdf)
 
-    class BadQuote(FakeLLM):
-        def create(self, *a, **kw):
-            response = super().create(*a, **kw)
-            for product in response["content"][0]["input"]["products"]:
-                product["rules"][0]["quote"] = ROW.replace("3,0", "3,5")  # not in the text
-            return response
+    class BadTag(FakeLLM):
+        def fees(self, row):
+            return [f | {"percent": "n99"} for f in super().fees(row)]  # no such number in the section
 
     out = tmp_path / "fees.json"
-    assert update_fees([pdf], out, BadQuote(), conn) == {"beta_card": "no fees found"}
+    assert update_fees([pdf], out, BadTag(), conn) == {"beta_card": "no fees found"}
     assert json.loads(out.read_text())["beta_card"]["fees"] == []

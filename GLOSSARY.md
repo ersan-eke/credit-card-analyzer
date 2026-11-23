@@ -42,6 +42,10 @@ usage this period, asked per question and never assumed: unknown counts as used 
 **Rule**:
 One priced event of a product under conditions: what it is called, which events (payment, atm, credit), when it applies (currency, region, country), its price, an optional allowance, and the quote it comes from. The most specific matching rule wins; a rule that stacks adds to it. No price means the document does not state it: the cost is unknown.
 
+**Section**:
+A stretch of a price list that holds prices and the headings needed to read them (a table's rows with its header, or
+the lines under a heading). Built by code from the layout, never by the model; the unit of one extraction call.
+
 **Fact**:
 Something about the user that a Rule is conditioned on (account model, status, plan, main or partner card, age, monthly
 incoming money, sign-up date, repayment mode) or a price the user gives where the document states none. Set once per

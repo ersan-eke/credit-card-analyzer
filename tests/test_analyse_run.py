@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from test_assemble import FEE
 
 from cardcost import db
 from cardcost.ingest import READER_VERSION
@@ -18,27 +19,22 @@ ar = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ar)
 
 QUOTE = "Bargeldauszahlungsentgelt von 2,0 % des Auszahlungsbetrags, mindestens 5,00 EUR."
-RULE = {
-    "name": "cash_fee",
-    "event": ["atm"],
-    "when": {"currency": None, "region": None, "country": None},
-    "price": {"percent": "2.0", "flat_eur": None, "min_eur": "5.00", "max_eur": None},
-    "allowance": None,
-    "stacks": False,
-    "quote": QUOTE,
-    "page": 1,
-}
-GOOD = {
-    "stop_reason": "tool_use",
-    "content": [
-        {
-            "type": "tool_use",
-            "name": "record_fees",
-            "input": {"products": [{"product": None, "confidence": 0.95, "rules": [RULE]}]},
-        }
-    ],
-    "usage": {"output_tokens": 321},
-}
+
+
+def _answer(name, payload, tokens):
+    return {
+        "stop_reason": "tool_use",
+        "content": [{"type": "tool_use", "name": name, "input": payload}],
+        "usage": {"output_tokens": tokens},
+    }
+
+
+DOC = _answer(
+    "record_document", {"cards": [], "conditions": [], "document_for": 0, "card_fee_headings": [], "tables": []}, 21
+)
+SECTION = _answer(
+    "record_section", {"fees": [FEE | {"name": "cash_fee", "event": ["atm"], "percent": "n1", "min_eur": "n2"}]}, 300
+)
 
 
 class FakeLLM:
@@ -66,8 +62,8 @@ def _no_lost(monkeypatch):
 
 
 def test_analyse_reports_calls_stop_reason_and_blocks(tmp_path):
-    [row] = ar.analyse([_pdf(tmp_path, "a")], FakeLLM(GOOD), db.connect(":memory:"), tmp_path / "out.json")
-    assert row == ar.Row("a", 1, ["tool_use"], ["tool_use"], 321, "extracted")
+    [row] = ar.analyse([_pdf(tmp_path, "a")], FakeLLM(DOC, SECTION), db.connect(":memory:"), tmp_path / "out.json")
+    assert row == ar.Row("a", 2, ["tool_use", "tool_use"], ["tool_use"], 321, "extracted")
 
 
 def test_truncated_list_is_one_call(tmp_path):
@@ -79,7 +75,7 @@ def test_truncated_list_is_one_call(tmp_path):
 
 def test_unrecorded_list_is_not_called(tmp_path):
     paths = [_pdf(tmp_path, "a"), _pdf(tmp_path, "b")]
-    rows = ar.analyse(paths, FakeLLM(CacheMiss("x"), GOOD), db.connect(":memory:"), tmp_path / "out.json")
+    rows = ar.analyse(paths, FakeLLM(CacheMiss("x"), DOC, SECTION), db.connect(":memory:"), tmp_path / "out.json")
     assert [(r.card, r.outcome) for r in rows] == [("a", "not recorded"), ("b", "extracted")]
 
 
