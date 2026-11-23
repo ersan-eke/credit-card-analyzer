@@ -168,8 +168,8 @@ def views(section: Section, lay: Layout) -> list[View]:
     groups: dict[tuple, list[int]] = {}  # identical cells over all rows -> value columns
     for j in range(len(names)):
         groups.setdefault(tuple(r[j + 1] if r and j + 1 < len(r) else "" for r in rows), []).append(j)
-    # shortcut: a group whose first filled cell is "-" is a plan without this product, so no view
-    groups = {k: v for k, v in groups.items() if next((c for c in k if c), "-") != "-"}
+    # a column that is "-" or empty in every row is a plan without this product
+    groups = {k: v for k, v in groups.items() if any(c not in ("", "-") for c in k)}
     result = []
     for cells, cols in groups.items():
         shown = [

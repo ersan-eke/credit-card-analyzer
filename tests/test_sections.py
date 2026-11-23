@@ -180,10 +180,14 @@ def test_every_dev_golden_quote_is_inside_one_section(label, rule):
     assert any(_squash(rule["quote"]) in t for t in texts), rule["id"]
 
 
-def test_c24_columns_group_by_identical_cells_and_basiskonto_dash_has_no_view():
+def test_c24_columns_group_by_identical_cells():
     lay = layout([C24_PAGE3])
     s = next(s for s in lay.sections if any("4 x 0,00 EUR" in x for x in s.lines))
-    assert sorted(v.columns for v in views(s, lay)) == [["C24 Pluskonto", "C24 Maxkonto"], ["C24 Smartkonto"]]
+    assert sorted(v.columns for v in views(s, lay)) == [
+        ["C24 Basiskonto"],
+        ["C24 Pluskonto", "C24 Maxkonto"],
+        ["C24 Smartkonto"],
+    ]
 
 
 def test_tags_resolve_to_numbers_on_their_line_and_words_are_not_tagged():
@@ -199,3 +203,11 @@ def test_single_column_group_has_no_columns():
     vs = [v for s in lay.sections for v in views(s, lay)]
     assert vs and all(v.columns == [] for v in vs)
     assert all("|---" not in v.text for v in vs)
+
+
+def test_column_of_only_dashes_gives_no_view():
+    lines = ["| Cash | 2,00 EUR | - |", "| Card | 3,00 EUR | - |"]
+    s = Section("p1.0", 1, 0, lines, [], 0)
+    lay = Layout([], [["t", "A", "B"]], [s])
+    [v] = views(s, lay)
+    assert v.columns == [] and "2,00" in v.text
