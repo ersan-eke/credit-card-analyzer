@@ -211,3 +211,26 @@ def test_column_of_only_dashes_gives_no_view():
     lay = Layout([], [["t", "A", "B"]], [s])
     [v] = views(s, lay)
     assert v.columns == [] and "2,00" in v.text
+
+
+@pytest.mark.parametrize(
+    "lines,names,shown",
+    [(["| Bargeld 2,00 EUR |"], ["t"], "Bargeld [n1]2,00 EUR"),
+     (["| Gebuehr 1,50 EUR | - | - |", "Fußnote"], ["t", "A", "B"], "Gebuehr [n1]1,50 EUR\nFußnote")],
+)  # fmt: skip
+def test_price_only_in_the_label_column_gives_one_label_only_view(lines, names, shown):
+    s = Section("p1.0", 1, 0, lines, [], 0)
+    [v] = views(s, Layout([], [names], [s]))
+    assert (v.columns, v.group, v.text) == ([], [], shown)
+
+
+def test_single_group_keeps_its_column_names_for_products():
+    lines = ["| Cash | 2,00 EUR | - |", "| Card | 3,00 EUR | - |"]
+    s = Section("p1.0", 1, 0, lines, [], 0)
+    [v] = views(s, Layout([], [["t", "A", "B"]], [s]))
+    assert (v.columns, v.group) == ([], ["A"])
+
+
+def test_a_table_heading_row_does_not_join_the_next_heading():
+    lay = layout(["| | A |\n|---|---|\n| Gruppe | |\n## Neu\nPosten 2,00 EUR"])
+    assert lay.headings == ["Gruppe", "## Neu"]

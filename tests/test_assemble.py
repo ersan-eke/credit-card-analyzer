@@ -109,3 +109,14 @@ def test_conditions_and_stacks_pass_through():
     [(_, r)] = build_rules(fee, PCT_VIEW, ONE_CARD)
     assert r.when.currency == ["EEA_non_EUR", "other"] and r.when.network == ["other"]
     assert r.when.weekend is not None and r.stacks
+
+
+def test_card_columns_become_products_for_one_group_and_for_several():
+    doc = ONE_CARD._replace(cards=["Visa", "Gold", "Girocard"], table_columns={0: "cards"})
+    fee = FEE | {"event": ["atm"], "flat_eur": "n1"}
+    s = Section("p1.0", 1, 0, ["| Cash | 2,00 EUR | 2,00 EUR | - |"], [], 0)
+    [one] = views(s, Layout([], [["t", "Visa 1", "Gold", "Girocard"]], [s]))
+    assert [p for p, _ in build_rules(fee, one, doc)] == ["Visa", "Gold"]
+    s = s._replace(lines=["| Cash | 2,00 EUR | 3,00 EUR | - |"])
+    several = views(s, Layout([], [["t", "Visa 1", "Gold", "Girocard"]], [s]))
+    assert [[p for p, _ in build_rules(fee, v, doc)] for v in several] == [["Visa"], ["Gold"]]

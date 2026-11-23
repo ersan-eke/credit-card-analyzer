@@ -88,8 +88,8 @@ def build_rules(fee: dict, view: View, doc: Document) -> list[tuple[str | None, 
             facts[kind] = view.columns
         if len(doc.cards) <= 1:
             products: list[str | None] = [None]
-        elif view.columns and kind == "cards":
-            products = [clean_product(c) for c in view.columns]
+        elif view.group and kind == "cards":
+            products = [clean_product(c) for c in view.group]
         else:
             products = pick("cards", doc.cards) or list(doc.cards)
         lines = view.section.lines

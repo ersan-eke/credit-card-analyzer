@@ -80,7 +80,7 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
     for page_no, page in enumerate(pages, 1):
         lines = page.splitlines()
         runs = []  # (start, price line indexes, heading ids, table) between two boundaries
-        table = None
+        table = None  # a table's headings stay on the path across a page break: the table may continue
         start, prices = 0, []
         joining = False  # the previous line was a table heading row, so a wrapped one continues it
         for i, line in enumerate(lines):
@@ -95,7 +95,7 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
                 continue
             if not in_table and table is not None:  # the table ended: its headings and rows end with it
                 runs.append((start, prices, _ids(path), table))
-                table, start, prices = None, i, []
+                table, start, prices, joining = None, i, [], False
                 path = {r: h for r, h in path.items() if r != (2,)}
             if in_table and i < start or text.startswith("<!--"):
                 continue
@@ -138,12 +138,13 @@ def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
 class View(NamedTuple):
     section: Section
     columns: list[str]  # header names of the value columns shown; [] unless the table has 2+ column groups
+    group: list[str]  # header names of the value columns shown, also for a single group; [] outside a table
     text: str  # one line per section line, numbers tagged "[n1]2,00 EUR"
     numbers: dict[str, Decimal]  # tag -> value
     tag_line: dict[str, int]  # tag -> index into section.lines
 
 
-def _view(section: Section, columns: list[str], shown: list[str]) -> View:
+def _view(section: Section, columns: list[str], group: list[str], shown: list[str]) -> View:
     numbers: dict[str, Decimal] = {}
     tag_line: dict[str, int] = {}
     out = []
@@ -156,12 +157,12 @@ def _view(section: Section, columns: list[str], shown: list[str]) -> View:
         for a in reversed(tags):
             line = f"{line[:a]}[{tags[a]}]{line[a:]}"
         out.append(line)
-    return View(section, columns, "\n".join(out), numbers, tag_line)
+    return View(section, columns, group, "\n".join(out), numbers, tag_line)
 
 
 def views(section: Section, lay: Layout) -> list[View]:
     if section.table is None:
-        return [_view(section, [], section.lines)]
+        return [_view(section, [], [], section.lines)]
     lines = section.lines
     rows = [None if not x.lstrip().startswith("|") or TABLE_RULE.match(x.strip()) else _cells(x) for x in lines]
     names = lay.tables[section.table][1:]
@@ -170,11 +171,14 @@ def views(section: Section, lay: Layout) -> list[View]:
         groups.setdefault(tuple(r[j + 1] if r and j + 1 < len(r) else "" for r in rows), []).append(j)
     # a column that is "-" or empty in every row is a plan without this product
     groups = {k: v for k, v in groups.items() if any(c not in ("", "-") for c in k)}
+    if not groups and any(PRICE.search(x) for x in lines):  # the price sits in the label column: show labels only
+        groups = {(None,) * len(rows): []}
     result = []
     for cells, cols in groups.items():
         shown = [
-            x if r is None and not TABLE_RULE.search(x) else "" if r is None else f"{r[0]} | {c}"
+            x if r is None and not TABLE_RULE.search(x) else "" if r is None else r[0] if c is None else f"{r[0]} | {c}"
             for x, r, c in zip(lines, rows, cells, strict=True)
         ]
-        result.append(_view(section, [names[j] for j in cols] if len(groups) > 1 else [], shown))
+        group = [names[j] for j in cols]
+        result.append(_view(section, group if len(groups) > 1 else [], group, shown))
     return result
