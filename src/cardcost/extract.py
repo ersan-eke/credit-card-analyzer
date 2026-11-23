@@ -234,15 +234,19 @@ def read_document(file: str, lay: Layout, llm) -> Document:
     raise ValueError(f"{file}: {error}")
 
 
-def read_section(
-    file: str, view: View, doc: Document, lay: Layout, llm
-) -> tuple[list[tuple[str | None, Rule]], list[str]]:
-    """One small call on a tagged section view; fees that fail to build are retried once, then dropped alone."""
+def _section_prompt(file: str, view: View, doc: Document, lay: Layout) -> str:
     cards = "\n".join(f"{i}. {c}" for i, c in enumerate(doc.cards, start=1)) or "(none)"
     conditions = "\n".join(f"{i}. {c.name} ({c.kind})" for i, c in enumerate(doc.conditions, start=1)) or "(none)"
     path = " > ".join(lay.headings[h] for h in view.section.headings) or "(none)"
     section = _untrusted(file, view.section.page, f"Headings: {path}\n\n{view.text}")
-    prompt = f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\n{section}\n\nCall record_section for this section."
+    return f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\n{section}\n\nCall record_section for this section."
+
+
+def read_section(
+    file: str, view: View, doc: Document, lay: Layout, llm
+) -> tuple[list[tuple[str | None, Rule]], list[str]]:
+    """One small call on a tagged section view; fees that fail to build are retried once, then dropped alone."""
+    prompt = _section_prompt(file, view, doc, lay)
     attempts: list[tuple[list[tuple[str | None, Rule]], list[str]]] = []
     for attempt in range(2):
         error = " | ".join(attempts[0][1]) if attempt else None
