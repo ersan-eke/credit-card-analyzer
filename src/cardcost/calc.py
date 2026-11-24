@@ -136,6 +136,10 @@ def holding_text(rule: Rule, own: bool) -> str:
     )
 
 
+def unbounded(rule: Rule) -> Rule:
+    return rule.model_copy(update={"when": rule.when.model_copy(update={"amount": None})})
+
+
 def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
     comps: dict[str, Decimal] = {}
     missing: list[str] = []
@@ -157,7 +161,17 @@ def rules_cost_line(label: str, fee: FeeSchedule, s: Scenario) -> CostLine:
             continue
         base, stacked = applicable(fee, event, s, facts)
         if base is None and event != "payment":  # a payment is free of base fees unless the list says otherwise
-            missing.append("cash_interest" if event == "credit" else "cash_fee")
+            bounded = next(  # a fee the list states only below/above an amount: outside that bound the cash is free
+                (r for r in fee.rules if not r.stacks and rule_matches(unbounded(r), event, s, facts)), None
+            )
+            if event == "atm" and bounded:
+                b = bounded.when.amount
+                notes.append(
+                    f"kostenlos: {bounded.name} gilt nur "
+                    + (f"unter {b.max} EUR" if b.max is not None else f"ab {b.min} EUR")
+                )
+            else:
+                missing.append("cash_interest" if event == "credit" else "cash_fee")
         for rule in [*([base] if base else []), *stacked]:
             rule, own = with_user_value(rule, label, s)
             used.append(rule)

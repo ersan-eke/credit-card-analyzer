@@ -251,3 +251,19 @@ def test_gambling_merchant_surcharge():
     )
     assert cost(fees, kind="purchase").total == D("0.00")
     assert cost(fees, kind="purchase", merchant="gambling").components == {"gambling": D("3.00")}
+
+
+def test_amount_bounded_atm_fee_is_free_outside_its_bound():
+    fees = product(rule({"flat_eur": "1"}, quote="1 100", name="Abhebung", when={"amount": {"max": "100"}}))
+    assert cost(fees, "50").total == D("1.00")
+    free = cost(fees, "100")
+    assert (free.total, free.missing) == (D("0"), [])
+    assert "kostenlos: Abhebung gilt nur unter 100 EUR" in free.notes
+    only_big = product(rule({"flat_eur": "0"}, quote="0 150", name="Gratis", when={"amount": {"min": "150"}}))
+    line = cost(only_big, "100")
+    assert (line.total, "kostenlos: Gratis gilt nur ab 150 EUR" in line.notes) == (D("0"), True)
+
+
+def test_amount_bound_does_not_make_other_mismatches_free():
+    fees = product(rule({"flat_eur": "1"}, quote="1 100", when={"amount": {"max": "100"}, "region": ["EEA"]}))
+    assert cost(fees, "100", country="US").missing[0] == "cash_fee"
