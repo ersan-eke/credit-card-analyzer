@@ -50,9 +50,6 @@ Always answer by calling the record_document tool once.
 - conditions: every account model, plan or status the list names, as printed, each with its kind.
 - document_for: when the whole document is the price list of one plan or status, its number in your conditions list
   (1 = the first); 0 when the list prices several side by side, none, or is an account model's list.
-- card_fee_headings: the ids (the number after "h") of the headings whose sections price using a card: paying with
-  it, cash at a machine or a counter, interest on credit, or a recurring fee for holding it. Leave out headings about
-  anything else (securities, transfers, account services, card issuance or replacement).
 - tables: for each table (its number after "t"), what its value columns (after the first, label column) name: cards,
   account_model, plan or status (conditions from your list), or none (generic headers such as "Preis | Preis")."""
 
@@ -117,13 +114,12 @@ _IDS = {"type": "array", "items": {"type": "integer"}}
 _TAG = {"type": "string"}
 DOC_TOOL = {
     "name": "record_document",
-    "description": "Record the cards, conditions, card-fee headings and table columns of the price list.",
+    "description": "Record the cards, conditions and table columns of the price list.",
     "strict": True,
     "input_schema": _object(
         cards=_LIST,
         conditions={"type": "array", "items": _object(name={"type": "string"}, kind=_choice(*CONDITION_KINDS))},
         document_for={"type": "integer", "description": "1-based number in conditions; 0 if none"},
-        card_fee_headings=_IDS,
         tables={
             "type": "array",
             "items": _object(table={"type": "integer"}, columns=_choice("cards", *CONDITION_KINDS, "none")),
@@ -198,10 +194,9 @@ def _tool_input(response: dict, name: str) -> dict:
 
 def _document(answer: dict, lay: Layout) -> Document:
     conditions = [Condition(c["name"][:MAX_NAME], c["kind"]) for c in answer["conditions"]]
-    errors = [f"h{h}" for h in answer["card_fee_headings"] if not 0 <= h < len(lay.headings)]
-    errors += [f"t{t['table']}" for t in answer["tables"] if not 0 <= t["table"] < len(lay.tables)]
+    errors = [f"t{t['table']}" for t in answer["tables"] if not 0 <= t["table"] < len(lay.tables)]
     if errors:
-        raise ValueError(f"unknown heading or table ids: {', '.join(errors)}")
+        raise ValueError(f"unknown table ids: {', '.join(errors)}")
     if not 0 <= answer["document_for"] <= len(conditions):
         raise ValueError(f"document_for {answer['document_for']} is not 0 or a number in conditions")
     target = answer["document_for"] - 1 if answer["document_for"] else None
@@ -211,7 +206,6 @@ def _document(answer: dict, lay: Layout) -> Document:
         cards=[clean_product(c)[:MAX_NAME] for c in answer["cards"]],
         conditions=conditions,
         document_for=target,
-        fee_headings=set(answer["card_fee_headings"]),
         table_columns={t["table"]: t["columns"] for t in answer["tables"]},
     )
 
@@ -306,9 +300,6 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
         errors: list[str] = []
         sent: set = set()
         for section in lay.sections:
-            if section.headings and not doc.fee_headings.intersection(section.headings):
-                log.info("section_skipped", extra={"card": card_id, "section": section.id})
-                continue
             for view in views(section, lay):
                 if _repeated(view, sent):
                     log.info("section_repeat", extra={"card": card_id, "section": section.id})

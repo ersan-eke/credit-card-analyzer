@@ -36,7 +36,9 @@ class FakeLLM:
     calls = 0  # extractions: one document call each
 
     def fees(self, row: str) -> list[dict]:
-        a, b, c, d = re.findall(r"\[(n\d+)\]", row)  # 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR
+        if len(tags := re.findall(r"\[(n\d+)\]", row)) != 4:  # another view of the page
+            return []
+        a, b, c, d = tags  # 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR
         fee = FEE | {"name": "cash_fee", "event": ["atm"]}
         return [fee | {"cards": [1], "percent": a, "min_eur": b}, fee | {"cards": [2], "percent": c, "min_eur": d}]
 
@@ -45,7 +47,7 @@ class FakeLLM:
         if kw["tools"][0]["name"] == "record_document":
             self.calls += 1
             answer = {"cards": ["Beta Classic", "Beta Gold"], "conditions": [], "document_for": 0}
-            return _tool("record_document", answer | {"card_fee_headings": [], "tables": []})
+            return _tool("record_document", answer | {"tables": []})
         row = next((x for x in content.splitlines() if x.startswith("Bargeldauszahlung am Geldautomaten |")), None)
         return _tool("record_section", {"fees": self.fees(row) if row else []})
 

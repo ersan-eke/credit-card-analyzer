@@ -9,7 +9,7 @@ from cardcost.sections import Layout, Section, views
 SECTION = Section("p1.0", 1, 0, ["Bargeld am Geldautomaten | 2,00 EUR"], [0], None)
 LAYOUT = Layout(["Kartenentgelte"], [["Leistung", "Smartkonto", "Pluskonto"]], [SECTION])
 [VIEW] = views(SECTION, LAYOUT)
-DOC_TWO_CARDS = Document(["Debitkarte", "Mastercard"], [Condition("C24 Pluskonto", "account_model")], None, {0}, {})
+DOC_TWO_CARDS = Document(["Debitkarte", "Mastercard"], [Condition("C24 Pluskonto", "account_model")], None, {})
 
 
 def _answer(name, payload, stop="tool_use"):
@@ -33,11 +33,15 @@ class FakeLLM:
         return self.responses.pop(0)
 
 
+def test_document_call_has_no_card_fee_headings():
+    assert "card_fee_headings" not in DOC_TOOL["input_schema"]["properties"]
+
+
 def test_document_call_sends_headings_and_tables_as_untrusted_and_reads_the_answer():
     llm = FakeLLM(_doc(cards=["HVB Mastercard 1"], conditions=[{"name": "HVB ExklusivKonto", "kind": "account_model"}],
-                       document_for=0, card_fee_headings=[0], tables=[]))  # fmt: skip
+                       document_for=0, tables=[]))  # fmt: skip
     doc = read_document("hvb.pdf", LAYOUT, llm)
-    assert doc == Document(["HVB Mastercard"], [Condition("HVB ExklusivKonto", "account_model")], None, {0}, {})
+    assert doc == Document(["HVB Mastercard"], [Condition("HVB ExklusivKonto", "account_model")], None, {})
     req = llm.requests[0]
     user = req["messages"][0]["content"]
     assert '<untrusted file="hvb.pdf" page="all">' in user and "h0: Kartenentgelte" in user
@@ -48,22 +52,22 @@ def test_document_call_sends_headings_and_tables_as_untrusted_and_reads_the_answ
 
 def test_document_names_one_based_plan_and_table_columns():
     llm = FakeLLM(_doc(cards=["Visa"], conditions=[{"name": "Standard", "kind": "plan"}], document_for=1,
-                       card_fee_headings=[], tables=[{"table": 0, "columns": "account_model"}]))  # fmt: skip
+                       tables=[{"table": 0, "columns": "account_model"}]))  # fmt: skip
     doc = read_document("r.pdf", LAYOUT, llm)
     assert (doc.document_for, doc.table_columns) == (0, {0: "account_model"})
 
 
 def test_document_for_an_account_model_is_ignored():
     llm = FakeLLM(_doc(cards=["Visa"], conditions=[{"name": "HVB ExklusivKonto", "kind": "account_model"}],
-                       document_for=1, card_fee_headings=[], tables=[]))  # fmt: skip
+                       document_for=1, tables=[]))  # fmt: skip
     assert read_document("hvb.pdf", LAYOUT, llm).document_for is None
     assert "one plan or status" in DOC_SYSTEM and "plan, status or account model, its number" not in DOC_SYSTEM
 
 
 def test_document_with_unknown_ids_is_retried_once_then_raises():
-    bad = _doc(cards=[], conditions=[], document_for=3, card_fee_headings=[7], tables=[{"table": 5, "columns": "none"}])
+    bad = _doc(cards=[], conditions=[], document_for=3, tables=[{"table": 5, "columns": "none"}])
     llm = FakeLLM(bad, bad)
-    with pytest.raises(ValueError, match="h7"):
+    with pytest.raises(ValueError, match="t5"):
         read_document("x.pdf", LAYOUT, llm)
     assert len(llm.requests) == 2 and "rejected" in llm.requests[1]["messages"][0]["content"]
 
@@ -150,7 +154,7 @@ def test_document_text_cannot_close_the_untrusted_tag():
 def test_card_and_condition_lists_are_untrusted_and_names_capped():
     long = "Visa " + "x" * 200
     llm = FakeLLM(_doc(cards=[long], conditions=[{"name": "P" * 200, "kind": "plan"}], document_for=0,
-                       card_fee_headings=[], tables=[]))  # fmt: skip
+                       tables=[]))  # fmt: skip
     doc = read_document("x.pdf", LAYOUT, llm)
     assert len(doc.cards[0]) == 80 and len(doc.conditions[0].name) == 80
     llm = FakeLLM(_sec([]))

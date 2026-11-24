@@ -29,9 +29,7 @@ def _answer(name, payload, tokens):
     }
 
 
-DOC = _answer(
-    "record_document", {"cards": [], "conditions": [], "document_for": 0, "card_fee_headings": [], "tables": []}, 21
-)
+DOC = _answer("record_document", {"cards": [], "conditions": [], "document_for": 0, "tables": []}, 21)
 SECTION = _answer(
     "record_section", {"fees": [FEE | {"name": "cash_fee", "event": ["atm"], "percent": "n1", "min_eur": "n2"}]}, 300
 )

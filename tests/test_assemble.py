@@ -22,7 +22,7 @@ def _view(lines):
 C24_VIEW = _view(["Mit der C24 Mastercard | 4 x 0,00 EUR 7", "Jede weitere | 2,00 EUR"])
 FREE_VIEW = _view(["Bezahlen in EUR kostenfrei"])
 PCT_VIEW = _view(["Fremdwährung | 1,75 %"])
-ONE_CARD = Document(cards=["Card"], conditions=[], document_for=None, fee_headings=set(), table_columns={})
+ONE_CARD = Document(cards=["Card"], conditions=[], document_for=None, table_columns={})
 _lay = layout([C24_PAGE3])
 _sec = next(s for s in _lay.sections if any("4 x 0,00 EUR" in x for x in s.lines))
 C24_VIEWS = views(_sec, _lay)

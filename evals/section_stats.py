@@ -30,7 +30,7 @@ def stats(card: str, pages: list[str]) -> dict:
     lay = layout(pages)
     fixed = _tokens(SECTION_SYSTEM, json.dumps(SECTION_TOOL))
     # the empty Document is an upper bound's stand-in: the real message adds the card and condition lists
-    empty = Document([], [], None, set(), {})
+    empty = Document([], [], None, {})
     sent: set = set()
     all_views = [v for s in lay.sections for v in views(s, lay) if not _repeated(v, sent)]
     return {

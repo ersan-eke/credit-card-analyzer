@@ -25,7 +25,6 @@ class Document(NamedTuple):
     cards: list[str]  # cleaned product names
     conditions: list[Condition]
     document_for: int | None  # 0-based index into conditions
-    fee_headings: set[int]  # Layout.headings ids about card fees
     table_columns: dict[int, str]  # Layout.tables id -> "cards" | "account_model" | "plan" | "status" | "none"
 
 
