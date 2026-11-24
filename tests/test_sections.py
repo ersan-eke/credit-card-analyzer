@@ -243,7 +243,10 @@ def test_a_table_heading_row_does_not_join_the_next_heading():
             "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | 3,95 € pro Auftrag",
             "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | [n1]3,95 € pro Auftrag",
         ),
-        ("Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags", "Wettbüros (MCC [n1]7995 / [n2]9406) 3 | [n3]3 % des Betrags"),
+        (
+            "Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags",
+            "Wettbüros (MCC [n1]7995 / [n2]9406) 3 | [n3]3 % des Betrags",
+        ),
         ("kontaktlos ohne PIN bis 50 € 5 | 0,00 €", "kontaktlos ohne PIN bis [n1]50 € 5 | [n2]0,00 €"),
         ("Anzahl | 1", "Anzahl | [n1]1"),
         ("Karte | 0 € 2 | 5 €", "Karte | [n1]0 € [n2]2 | [n3]5 €"),
