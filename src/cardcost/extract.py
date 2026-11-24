@@ -356,6 +356,13 @@ def read_section(
             errors = [str(e)]
             fees = []
         for fee in fees:
+            if route == "payment" and "payment" not in fee.get("event", []):
+                # why: an atm-only fee belongs to cash; kept here it ties with cash's copy at scoring
+                log.info(
+                    "section_foreign_event",
+                    extra={"file": file, "section": view.section.id, "route": route, "fee": fee.get("name")},
+                )
+                continue
             try:
                 rules += build_rules(DEFAULT_FEE | fee | fixed, view, doc)
             except ValueError as e:
