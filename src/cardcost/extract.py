@@ -10,7 +10,7 @@ from cardcost.routes import ROUTE_EVENTS, ROUTES, route
 from cardcost.sections import Layout, View, layout, views
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v16"
+PROMPT_VERSION = "extract-v17"
 REVIEW_BELOW = 0.7
 # The document call is the largest request (every heading and table header); Haiku reads 200k. Estimated at 3
 # characters per token (German, digits), so a text far over this fails loudly instead of being cut.
@@ -62,6 +62,8 @@ _AMOUNT = """- amount_min (inclusive, "ab 150 €", "mindestens") and amount_max
 _PLACE = """region: home (Germany), EEA (the rest of the EEA), outside_EEA. country: ISO codes, only where the text
   words it by country."""
 _FOREIGN = {"EEA_non_EUR", "other"}
+_CURRENCY = """currency is set only where the text names the transaction's currency; a price written in € or EUR is not
+  such a mention. Leave it empty otherwise."""
 
 
 def _route_system(route: str, fees: str, fields: str) -> str:
@@ -97,7 +99,7 @@ ROUTE_SYSTEMS = {
   counter). One fee lists every event with the same price and conditions; never repeat a fee per event. Leave out
   foreign-currency fees (the fee for converting a non-EUR transaction, at machines and in shops alike) and fees for
   paying with the card; another question covers them. A cash fee priced by region or country stays here.
-- currency: EUR, EEA_non_EUR (another EEA currency), other. {_PLACE}
+- currency: EUR, EEA_non_EUR (another EEA currency), other; {_CURRENCY} {_PLACE}
 - network: own (the bank's own or partner machines, named as such) or other ("Fremdautomat"); only where the text
   names whose machine, never guessed.
 {_AMOUNT}
@@ -121,7 +123,7 @@ Worked examples:
   One fee lists every event with the same price and conditions; never repeat a fee per event.
 - currency: EUR, EEA_non_EUR (another EEA currency), other. A foreign-currency fee ("Fremdwährung", "außerhalb des
   Euroraums", "Auslandseinsatz") has currency EEA_non_EUR and other and event payment and atm, unless the section
-  prices them apart. {_PLACE}
+  prices them apart. {_CURRENCY} {_PLACE}
 - merchant: gambling (casinos, lotteries, betting) or financial (financial institutions, money transfers, crypto).
   weekend: true where the fee applies at the weekend only.
 {_AMOUNT}
@@ -134,8 +136,8 @@ Worked examples:
    [n2]3,00 €) zzgl. etwaiger Gebühren oder Kosten anderer Dienstleister" is one fee: name "Fremdwährung", event
    ["payment", "atm"], currency ["EEA_non_EUR", "other"], percent "n1", min_eur "n2", stacks false.
 4. "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC [n1]7995 /
-   [n2]9406) [n3]3 | [n4]3 % des Betrags, mind. [n5]3,95 €": one fee: name "Transaktionsentgelt", event ["payment"],
-   merchant ["gambling"], percent "n4", min_eur "n5"; n1 and n2 are codes and n3 a footnote digit.""",
+   [n2]9406) 3 | [n3]3 % des Betrags, mind. [n4]3,95 €": one fee: name "Transaktionsentgelt", event ["payment"],
+   merchant ["gambling"], percent "n3", min_eur "n4"; n1 and n2 are codes, the untagged 3 a footnote digit.""",
     ),
     "credit": _route_system(
         "credit",
