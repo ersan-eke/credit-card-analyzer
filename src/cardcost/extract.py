@@ -10,7 +10,7 @@ from cardcost.routes import ROUTE_EVENTS, ROUTES, route
 from cardcost.sections import Layout, View, layout, views
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v15"
+PROMPT_VERSION = "extract-v16"
 REVIEW_BELOW = 0.7
 # The document call is the largest request (every heading and table header); Haiku reads 200k. Estimated at 3
 # characters per token (German, digits), so a text far over this fails loudly instead of being cut.
@@ -140,7 +140,12 @@ Worked examples:
         "credit",
         "the interest on money borrowed with the card",
         """- percent: the tag of the interest rate per year ("Sollzins p.a.").
-- interest_free_days: the tag of the days a purchase repaid in full stays free of interest; "" when none.""",
+- interest_free_days: the tag of the days a purchase repaid in full stays free of interest; "" when none.
+Here each fee is an interest rate: the rule above about card fees does not exclude it.
+
+Worked example:
+5. "Sollzins p.a. | [n1]14,90 % | Effektiver Jahreszins | [n2]15,95 %": one fee: name "Sollzins", percent "n1";
+   the Effektiver Jahreszins restates the cost of the same credit, never record it.""",
     ),
     "holding": _route_system(
         "holding",
@@ -222,12 +227,19 @@ DEFAULT_FEE = {k: [] if v["type"] == "array" else False if v["type"] == "boolean
 DEFAULT_FEE |= {"event": [], "allowance_period": "none", "per": "none"}
 
 
+_ROUTE_DESCRIPTIONS = {
+    "credit": "Record the interest rates this section states for money borrowed with the card; an empty list if none."
+}
+
+
 def _route_tool(route: str) -> dict:
     fields = _FIELDS | {"event": {"type": "array", "items": _choice(*sorted(ROUTE_EVENTS[route]))}}
     keys = ("name", "cards", "only_for", "stacks", *_ROUTE_FIELDS[route])
     return {
         "name": f"record_{route}",
-        "description": f"Record the {route} card fees this section states; an empty list if none.",
+        "description": _ROUTE_DESCRIPTIONS.get(
+            route, f"Record the {route} card fees this section states; an empty list if none."
+        ),
         "strict": True,
         "input_schema": _object(fees={"type": "array", "items": _object(**{k: fields[k] for k in keys})}),
     }

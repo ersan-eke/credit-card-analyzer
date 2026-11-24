@@ -160,3 +160,16 @@ def test_payment_route_drops_an_atm_only_fee_and_keeps_one_naming_payment():
     llm = FakeLLM(_answer("record_payment", {"fees": [atm_only, both]}))
     rules, errors = read_section("a.pdf", VIEW, ONE_CARD, LAYOUT, "payment", llm)
     assert errors == [] and [r.event for _, r in rules] == [["payment", "atm"]]
+
+
+def test_credit_route_asks_for_interest_rates():
+    desc = extract.ROUTE_TOOLS["credit"]["description"]
+    assert (
+        desc == "Record the interest rates this section states for money borrowed with the card; an empty list if none."
+    )
+    assert "fees" not in desc
+    assert (
+        extract.ROUTE_TOOLS["cash"]["description"]
+        == "Record the cash card fees this section states; an empty list if none."
+    )
+    assert "Sollzins" in extract.ROUTE_SYSTEMS["credit"]
