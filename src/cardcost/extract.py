@@ -6,11 +6,11 @@ from cardcost import db
 from cardcost.assemble import CONDITION_KINDS, Condition, Document, build_rules, clean_product, merge_rules
 from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule, Rule
-from cardcost.routes import ROUTE_EVENTS, ROUTES
+from cardcost.routes import ROUTE_EVENTS, ROUTES, route
 from cardcost.sections import Layout, View, layout, views
 
 log = logging.getLogger("cardcost.extract")
-PROMPT_VERSION = "extract-v14"
+PROMPT_VERSION = "extract-v15"
 REVIEW_BELOW = 0.7
 # The document call is the largest request (every heading and table header); Haiku reads 200k. Estimated at 3
 # characters per token (German, digits), so a text far over this fails loudly instead of being cut.
@@ -376,7 +376,8 @@ def _repeated(view: View, sent: set) -> bool:
 
 
 def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[FeeSchedule]:
-    """One call on the document's outline, then one per card-fee section view; every error of the list goes to the
+    """One call on the document's outline, then per section view one call per route (keywords, plus triage when a
+    price line is unexplained); example views get none. Every error of the list goes to the
     review queue as one item. Human corrections win. An outline over the token budget raises TooLong."""
     lay = layout(pages)
     if (tokens := len(_document_prompt(file, lay)) // CHARS_PER_TOKEN) > MAX_INPUT_TOKENS:
@@ -402,11 +403,28 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
                 if _repeated(view, sent):
                     log.info("section_repeat", extra={"card": card_id, "section": section.id})
                     continue
-                got, errs = read_section(file, view, doc, lay, "cash", llm)  # Task 4 routes this
-                if not got and not errs:  # for the offline coverage check: a section the model passed over
-                    log.info("section_no_fee", extra={"card": card_id, "section": section.id, "columns": view.columns})
-                rules += got
-                errors += errs
+                where = {"card": card_id, "section": section.id}
+                r = route(view, lay)
+                if r.example:
+                    log.info("section_example", extra=where)
+                    continue
+                routes = set(r.routes)
+                if r.triage:
+                    added, errs = read_triage(file, view, lay, llm)
+                    errors += errs
+                    routes |= set(added)
+                    log.info("section_triaged", extra=where | {"routes": sorted(set(added) - set(r.routes))})
+                if r.routes:
+                    log.info("section_routed", extra=where | {"routes": r.routes})
+                if not routes:
+                    log.info("section_no_route", extra=where)
+                    continue
+                for name in (x for x in ROUTES if x in routes):
+                    got, errs = read_section(file, view, doc, lay, name, llm)
+                    if not got and not errs:  # for the offline coverage check: a section the model passed over
+                        log.info("section_no_fee", extra=where | {"columns": view.columns, "route": name})
+                    rules += got
+                    errors += errs
         if errors:
             log.warning("extraction_invalid", extra={"card": card_id, "errors": errors})
             queue("; ".join(errors))
