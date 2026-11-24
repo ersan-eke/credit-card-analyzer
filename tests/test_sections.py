@@ -257,3 +257,27 @@ def test_footnote_digit_ending_the_label_cell_is_not_tagged(line, text):
     v = _view(Section("p1.0", 1, 0, [line], [], None), [], [], [line])
     assert v.text == text
     assert list(v.numbers) == [f"n{i}" for i in range(1, len(v.numbers) + 1)]
+
+
+SIDE_BY_SIDE = """\
+| HANDEL UND ABWICKLUNG | | DEPOT- UND KONTO | |
+|---|---|---|---|
+| Orderprovision | kostenfrei | Depot | |
+| je spezifische Kundenweisung per E-Mail | 5,00 € | Kosten bei Einsatz der Debitkarte | 1 € für Abhebungen unter 100 € |"""  # noqa: E501
+
+
+def test_side_by_side_table_gives_one_view_per_label_value_pair():
+    lay = layout([SIDE_BY_SIDE])
+    vs = [v for s in lay.sections for v in views(s, lay)]
+    assert len(vs) == 2
+    assert "je spezifische Kundenweisung per E-Mail | [n1]5,00 €" in vs[0].text
+    assert "Kosten bei Einsatz der Debitkarte | [n1]1 € für Abhebungen unter [n2]100 €" in vs[1].text
+    assert [v.group for v in vs] == [["HANDEL UND ABWICKLUNG"], ["DEPOT- UND KONTO"]]
+
+
+def test_header_with_empty_label_column_is_not_side_by_side():
+    lines = ["| Gebühr | 2,00 EUR | 3,00 EUR | 4,00 EUR |"]
+    s = Section("p1.0", 1, 0, lines, [], 0)
+    vs = views(s, Layout([], [["", "Basis", "", "Plus"]], [s]))
+    assert [v.group for v in vs] == [["Basis"], [""], ["Plus"]]
+    assert vs[0].text == "Gebühr | [n1]2,00 EUR"

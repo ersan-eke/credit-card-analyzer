@@ -171,12 +171,38 @@ def _view(section: Section, columns: list[str], group: list[str], shown: list[st
     return View(section, columns, group, "\n".join(out), numbers, tag_line)
 
 
+def _pairs(section: Section, head: list[str], lines: list[str], rows: list) -> list[View]:
+    # two tables printed side by side: column 2k labels column 2k+1, not column 0
+    def cell(r, j):
+        return r[j] if r and j < len(r) else ""
+
+    result = []
+    for k in range(0, len(head), 2):
+        vals = [cell(r, k + 1) for r in rows]
+        bare = all(v in ("", "-") for v in vals)  # no values: show labels only, if they hold a price
+        if bare and not any(PRICE.search(cell(r, k)) for r in rows):
+            continue
+        shown = []
+        for x, r in zip(lines, rows, strict=True):
+            if r is None:
+                shown.append("" if TABLE_RULE.search(x) else x)
+            elif bare:
+                shown.append(cell(r, k))
+            else:
+                shown.append(f"{cell(r, k)} | {cell(r, k + 1)}" if cell(r, k) or cell(r, k + 1) else "")
+        result.append(_view(section, [], [head[k]], shown))
+    return result
+
+
 def views(section: Section, lay: Layout) -> list[View]:
     if section.table is None:
         return [_view(section, [], [], section.lines)]
     lines = section.lines
     rows = [None if not x.lstrip().startswith("|") or TABLE_RULE.match(x.strip()) else _cells(x) for x in lines]
-    names = lay.tables[section.table][1:]
+    head = lay.tables[section.table]
+    if len(head) >= 4 and len(head) % 2 == 0 and all(bool(h) == (i % 2 == 0) for i, h in enumerate(head)):
+        return _pairs(section, head, lines, rows)
+    names = head[1:]
     groups: dict[tuple, list[int]] = {}  # identical cells over all rows -> value columns
     for j in range(len(names)):
         groups.setdefault(tuple(r[j + 1] if r and j + 1 < len(r) else "" for r in rows), []).append(j)
