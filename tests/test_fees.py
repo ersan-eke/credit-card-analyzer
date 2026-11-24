@@ -49,7 +49,7 @@ class FakeLLM:
             answer = {"cards": ["Beta Classic", "Beta Gold"], "conditions": [], "document_for": 0}
             return _tool("record_document", answer | {"tables": []})
         row = next((x for x in content.splitlines() if x.startswith("Bargeldauszahlung am Geldautomaten |")), None)
-        return _tool("record_section", {"fees": self.fees(row) if row else []})
+        return _tool(kw["tools"][0]["name"], {"fees": self.fees(row) if row else []})
 
 
 def _tool(name, payload):

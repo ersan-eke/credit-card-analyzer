@@ -102,7 +102,9 @@ def history_row(version, golden_path, vs, empty, tokens, extra, missing) -> str:
     cells = [
         version,
         sha8(Path(golden_path).read_bytes()),
-        sha8(json.dumps([extract.DOC_TOOL, extract.SECTION_TOOL], sort_keys=True).encode()),
+        sha8(
+            json.dumps([extract.DOC_TOOL, extract.TRIAGE_TOOL, *extract.ROUTE_TOOLS.values()], sort_keys=True).encode()
+        ),
         str(getattr(extract, "TEMPERATURE", None)),
         f"{tokens[0]}/{tokens[1]}",
         *(f"{r:.2f}/{p:.2f}" for r, p in vs.values()),

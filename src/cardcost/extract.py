@@ -6,6 +6,7 @@ from cardcost import db
 from cardcost.assemble import CONDITION_KINDS, Condition, Document, build_rules, clean_product, merge_rules
 from cardcost.logs import run_id_var
 from cardcost.models import FeeSchedule, Rule
+from cardcost.routes import ROUTE_EVENTS, ROUTES
 from cardcost.sections import Layout, View, layout, views
 
 log = logging.getLogger("cardcost.extract")
@@ -53,45 +54,53 @@ Always answer by calling the record_document tool once.
 - tables: for each table (its number after "t"), what its value columns (after the first, label column) name: cards,
   account_model, plan or status (conditions from your list), or none (generic headers such as "Preis | Preis")."""
 
-SECTION_SYSTEM = f"""You read one section of a German bank price list ("Preis- und Leistungsverzeichnis") and record the
-card fees it states. The user message lists the cards and conditions (account models, plans, statuses) of the whole
-list, numbered from 1, then the section: the headings above it and its lines. Every number in the section carries a tag,
-e.g. "Jede weitere Bargeldauszahlung | [n3]2,00 EUR".
+_PRICE = """- percent, flat_eur, min_eur, max_eur: tags of the price parts the text states. free: true where the text
+  says the fee is free ("kostenlos", "gebührenfrei") without a number for it. No price tag and free false means the
+  section does not state the price ("siehe Preisverzeichnis"); never guess one."""
+_AMOUNT = """- amount_min (inclusive, "ab 150 €", "mindestens") and amount_max (exclusive, "unter 100 €"): tags of the
+  transaction amount the fee depends on."""
+_PLACE = """region: home (Germany), EEA (the rest of the EEA), outside_EEA. country: ISO codes, only where the text
+  words it by country."""
+
+
+def _route_system(route: str, fees: str, fields: str) -> str:
+    """The head every route shares, then the route's own fields and examples."""
+    return f"""You read one section of a German bank price list ("Preis- und Leistungsverzeichnis") and record {fees}.
+The user message lists the cards and conditions (account models, plans, statuses) of the whole list, numbered from 1,
+then the section: the headings above it and its lines. Every number in the section carries a tag, e.g. "Jede weitere
+Bargeldauszahlung | [n3]2,00 EUR".
 {_UNTRUSTED}
 
-Always answer by calling the record_section tool once. Record only fees for these events: payment (paying with the
-card), atm (cash at a cash machine), counter_cash (cash at a counter: only where the text says Schalter or counter),
-credit (interest on borrowed money: percent is the rate per year), holding (a recurring fee for having the card, with
-per and waiver). Card issuance or replacement, PIN, statement, account and transfer fees are not fees here. An empty
-fees list is a valid answer when the section states none of them.
+Always answer by calling the record_{route} tool once. Record card fees only, not account, transfer or securities fees.
+An empty fees list is a valid answer when the section states none.
 
-Never write a price, amount or count: refer to it only by its tag ("n3"), "" where the section states none; card and
-condition numbers from the lists are fine. A footnote digit
-(a digit glued to a word or standing alone before a price) and codes such as MCC numbers are not prices: never use
-their tags. One fee lists every event with the same price and conditions; never repeat a fee per event.
+Never write a price, amount or count: tags only ("n3"), "" where the section states none; card and condition numbers
+from the lists are fine. A footnote digit (a digit glued to a word or standing alone before a price) and codes such as
+MCC numbers are not prices: never use their tags.
 
 A fee:
 - name: what the section calls the fee, short.
 - cards: numbers from the card list when the section prices only some cards; [] when it applies to all.
 - only_for: numbers from the condition list when the section's text limits the fee to them; [] when it applies to all.
-- currency: EUR, EEA_non_EUR (another EEA currency), other. A foreign-currency fee ("Fremdwährung", "außerhalb des
-  Euroraums", "Auslandseinsatz") has currency EEA_non_EUR and other and event payment and atm, unless the section
-  prices them apart. region: home (Germany), EEA (the rest of the EEA), outside_EEA. country: ISO codes, only where
-  the text words it by country.
+- stacks: true if the fee is added on top of the matching base fee ("zusätzlich"). Third-party costs ("zzgl. etwaiger
+  Gebühren anderer Dienstleister") are not a fee and not a stack.
+{fields}"""
+
+
+ROUTE_SYSTEMS = {
+    "cash": _route_system(
+        "cash",
+        "the fees for taking out cash with the card",
+        f"""- event: atm (cash at a cash machine), counter_cash (cash at a counter: only where the text says Schalter or
+  counter). One fee lists every event with the same price and conditions; never repeat a fee per event. Leave out
+  foreign-currency fees and fees for paying with the card; another question covers them.
+- currency: EUR, EEA_non_EUR (another EEA currency), other. {_PLACE}
 - network: own (the bank's own or partner machines, named as such) or other ("Fremdautomat"); only where the text
-  names whose machine, never guessed. merchant: gambling (casinos, lotteries, betting) or financial (financial
-  institutions, money transfers, crypto). weekend: true where the fee applies at the weekend only.
-- amount_min (inclusive, "ab 150 €", "mindestens") and amount_max (exclusive, "unter 100 €"): tags of the transaction
-  amount the fee depends on.
-- percent, flat_eur, min_eur, max_eur: tags of the price parts the text states. free: true where the text says the fee
-  is free ("kostenlos", "gebührenfrei") without a number for it. No price tag and free false means the section does not
-  state the price ("siehe Preisverzeichnis"); never guess one.
+  names whose machine, never guessed.
+{_AMOUNT}
+{_PRICE}
 - allowance_count, allowance_amount: tags of free uses before the price applies, with allowance_period
   (calendar_month, rolling_month, year; none without an allowance). The price is what applies beyond it.
-- per (month or year) and waiver (the condition that waives it, in the text's words) for a holding fee; none and "".
-- interest_free_days: for credit, the tag of the days a purchase repaid in full stays free of interest.
-- stacks: true if the fee is added on top of the matching base fee ("zusätzlich", a weekend surcharge on top of the
-  exchange fee). Third-party costs ("zzgl. etwaiger Gebühren anderer Dienstleister") are not a fee and not a stack.
 
 Worked examples:
 1. "Bis zu [n1]5 Abhebungen am Geldautomaten oder [n2]200 € (je nachdem, was zuerst eintritt) pro rollierendem Monat
@@ -99,7 +108,22 @@ Worked examples:
    One fee: name "Abhebungen", event ["atm"], percent "n3", min_eur "n4", allowance_count "n1", allowance_amount "n2",
    allowance_period rolling_month.
 2. "Kostenlos, wenn die Abhebung mindestens [n1]150 € oder mehr beträgt, ansonsten [n2]2 €." Two fees, both name
-   "Abhebung" and event ["atm"]: amount_min "n1" with free true, and amount_max "n1" with flat_eur "n2".
+   "Abhebung" and event ["atm"]: amount_min "n1" with free true, and amount_max "n1" with flat_eur "n2".""",
+    ),
+    "payment": _route_system(
+        "payment",
+        "the fees for paying with the card, including foreign-currency fees",
+        f"""- event: payment (paying with the card); atm as well only for a foreign-currency fee that covers cash too.
+  One fee lists every event with the same price and conditions; never repeat a fee per event.
+- currency: EUR, EEA_non_EUR (another EEA currency), other. A foreign-currency fee ("Fremdwährung", "außerhalb des
+  Euroraums", "Auslandseinsatz") has currency EEA_non_EUR and other and event payment and atm, unless the section
+  prices them apart. {_PLACE}
+- merchant: gambling (casinos, lotteries, betting) or financial (financial institutions, money transfers, crypto).
+  weekend: true where the fee applies at the weekend only.
+{_AMOUNT}
+{_PRICE}
+
+Worked examples:
 3. "Wenn du am Wochenende (zwischen [n1]17 Uhr New Yorker Zeit am Freitag und [n2]18 Uhr New Yorker Zeit am Sonntag)
    wechselst, fällt eine Gebühr von [n3]1 % an." One fee: name "Wochenende", event ["payment", "atm"], weekend true,
    currency ["EEA_non_EUR", "other"], percent "n3", stacks true. By contrast "Fremdwährung | [n1]4,00 % (mind.
@@ -107,7 +131,34 @@ Worked examples:
    ["payment", "atm"], currency ["EEA_non_EUR", "other"], percent "n1", min_eur "n2", stacks false.
 4. "Transaktionsentgelt für Zahlungen an Casinobetriebe, Lotteriegesellschaften und Wettbüros (MCC [n1]7995 /
    [n2]9406) [n3]3 | [n4]3 % des Betrags, mind. [n5]3,95 €": one fee: name "Transaktionsentgelt", event ["payment"],
-   merchant ["gambling"], percent "n4", min_eur "n5"; n1 and n2 are codes and n3 a footnote digit."""
+   merchant ["gambling"], percent "n4", min_eur "n5"; n1 and n2 are codes and n3 a footnote digit.""",
+    ),
+    "credit": _route_system(
+        "credit",
+        "the interest on money borrowed with the card",
+        """- percent: the tag of the interest rate per year ("Sollzins p.a.").
+- interest_free_days: the tag of the days a purchase repaid in full stays free of interest; "" when none.""",
+    ),
+    "holding": _route_system(
+        "holding",
+        "the recurring fees for holding the card",
+        """- flat_eur: the tag of the fee. free: true where the text says it is free ("kostenlos", "entfällt") without a
+  number for it. No price tag and free false means the section does not state the price; never guess one.
+- per: month or year, how often the fee is charged.
+- waiver: the condition that waives the fee, in the text's words; "" when none.""",
+    ),
+}
+
+TRIAGE_SYSTEM = f"""You read one section of a German bank price list ("Preis- und Leistungsverzeichnis"): the headings
+above it and its lines.
+{_UNTRUSTED}
+
+Always answer by calling the record_routes tool once. List each of these the section states a card fee for:
+- cash: taking out cash at a cash machine or a counter.
+- payment: paying with the card, including fees for foreign currency.
+- credit: interest on money borrowed with the card.
+- holding: a recurring fee for holding the card.
+An empty list when the section states none of them (for example only account, transfer or securities fees)."""
 
 _LIST = {"type": "array", "items": {"type": "string"}}
 _IDS = {"type": "array", "items": {"type": "integer"}}
@@ -126,41 +177,63 @@ DOC_TOOL = {
         },
     ),
 }
-SECTION_TOOL = {
-    "name": "record_section",
-    "description": "Record the card fees this section states; an empty list if none.",
+_FIELDS = {
+    "name": {"type": "string"},
+    "cards": _IDS,
+    "only_for": _IDS,
+    "stacks": {"type": "boolean"},
+    "currency": {"type": "array", "items": _choice("EUR", "EEA_non_EUR", "other")},
+    "region": {"type": "array", "items": _choice("home", "EEA", "outside_EEA")},
+    "country": _LIST,
+    "merchant": {"type": "array", "items": _choice("gambling", "financial")},
+    "network": {"type": "array", "items": _choice("own", "other")},
+    "weekend": {"type": "boolean"},
+    "amount_min": _TAG,
+    "amount_max": _TAG,
+    "percent": _TAG,
+    "flat_eur": _TAG,
+    "min_eur": _TAG,
+    "max_eur": _TAG,
+    "free": {"type": "boolean"},
+    "allowance_count": _TAG,
+    "allowance_amount": _TAG,
+    "allowance_period": _choice("calendar_month", "rolling_month", "year", "none"),
+    "interest_free_days": _TAG,
+    "per": _choice("month", "year", "none"),
+    "waiver": {"type": "string"},
+}
+_PRICE_FIELDS = ("amount_min", "amount_max", "percent", "flat_eur", "min_eur", "max_eur", "free")
+_ROUTE_FIELDS = {
+    "cash": ("event", "currency", "region", "country", "network", *_PRICE_FIELDS)
+    + ("allowance_count", "allowance_amount", "allowance_period"),
+    "payment": ("event", "currency", "region", "country", "merchant", "weekend", *_PRICE_FIELDS),
+    "credit": ("percent", "interest_free_days"),
+    "holding": ("flat_eur", "free", "per", "waiver"),
+}
+# fields a route fixes in code instead of asking for them
+_ROUTE_FIXED = {"credit": {"event": ["credit"], "per": "none"}, "holding": {"event": ["holding"]}}
+# every key build_rules reads, at its empty value: a route's answer fills only its own
+DEFAULT_FEE = {k: [] if v["type"] == "array" else False if v["type"] == "boolean" else "" for k, v in _FIELDS.items()}
+DEFAULT_FEE |= {"event": [], "allowance_period": "none", "per": "none"}
+
+
+def _route_tool(route: str) -> dict:
+    fields = _FIELDS | {"event": {"type": "array", "items": _choice(*sorted(ROUTE_EVENTS[route]))}}
+    keys = ("name", "cards", "only_for", "stacks", *_ROUTE_FIELDS[route])
+    return {
+        "name": f"record_{route}",
+        "description": f"Record the {route} card fees this section states; an empty list if none.",
+        "strict": True,
+        "input_schema": _object(fees={"type": "array", "items": _object(**{k: fields[k] for k in keys})}),
+    }
+
+
+ROUTE_TOOLS = {route: _route_tool(route) for route in ROUTES}
+TRIAGE_TOOL = {
+    "name": "record_routes",
+    "description": "Record which kinds of card fee this section states; an empty list if none.",
     "strict": True,
-    "input_schema": _object(
-        fees={
-            "type": "array",
-            "items": _object(
-                name={"type": "string"},
-                event={"type": "array", "items": _choice("payment", "atm", "counter_cash", "credit", "holding")},
-                cards=_IDS,
-                currency={"type": "array", "items": _choice("EUR", "EEA_non_EUR", "other")},
-                region={"type": "array", "items": _choice("home", "EEA", "outside_EEA")},
-                country=_LIST,
-                merchant={"type": "array", "items": _choice("gambling", "financial")},
-                network={"type": "array", "items": _choice("own", "other")},
-                weekend={"type": "boolean"},
-                amount_min=_TAG,
-                amount_max=_TAG,
-                percent=_TAG,
-                flat_eur=_TAG,
-                min_eur=_TAG,
-                max_eur=_TAG,
-                free={"type": "boolean"},
-                allowance_count=_TAG,
-                allowance_amount=_TAG,
-                allowance_period=_choice("calendar_month", "rolling_month", "year", "none"),
-                interest_free_days=_TAG,
-                per=_choice("month", "year", "none"),
-                waiver={"type": "string"},
-                stacks={"type": "boolean"},
-                only_for=_IDS,
-            ),
-        }
-    ),
+    "input_schema": _object(routes={"type": "array", "items": _choice(*ROUTES)}),
 }
 
 
@@ -216,48 +289,70 @@ def _document_prompt(file: str, lay: Layout) -> str:
     return f"{_untrusted(file, 'all', chr(10).join(outline))}\n\nCall record_document for this price list."
 
 
-def read_document(file: str, lay: Layout, llm) -> Document:
-    """One small call on the headings and table headers; one retry with the error, then ValueError."""
-    prompt = _document_prompt(file, lay)
+def _checked(purpose: str, system: str, tool: dict, max_tokens: int, prompt: str, parse, file: str, llm):
+    """One call, one retry with the error; (answer, None), or (None, the last error)."""
     error = None
     for _ in range(2):
-        response = _ask("extract-document", DOC_SYSTEM, DOC_TOOL, 4096, prompt, error, llm)
+        response = _ask(purpose, system, tool, max_tokens, prompt, error, llm)
         try:
-            return _document(_tool_input(response, "record_document"), lay)
+            return parse(_tool_input(response, tool["name"])), None
         except ValueError as e:
             error = str(e)
-            log.warning("document_invalid", extra={"file": file, "error": error})
+            log.warning(f"{purpose.removeprefix('extract-')}_invalid", extra={"file": file, "error": error})
             if response.get("stop_reason") == "max_tokens":  # the same request would be cut at the same place
                 break
-    raise ValueError(f"{file}: {error}")
+    return None, error
 
 
-def _section_prompt(file: str, view: View, doc: Document, lay: Layout) -> str:
+def read_document(file: str, lay: Layout, llm) -> Document:
+    """One small call on the headings and table headers; one retry with the error, then ValueError."""
+    parse = lambda answer: _document(answer, lay)  # noqa: E731
+    doc, error = _checked("extract-document", DOC_SYSTEM, DOC_TOOL, 4096, _document_prompt(file, lay), parse, file, llm)
+    if error:
+        raise ValueError(f"{file}: {error}")
+    return doc
+
+
+def _path(view: View, lay: Layout) -> str:
+    return " > ".join(lay.headings[h] for h in view.section.headings) or "(none)"
+
+
+def _section_prompt(file: str, view: View, doc: Document, lay: Layout, route: str) -> str:
     cards = "\n".join(f"{i}. {c}" for i, c in enumerate(doc.cards, start=1)) or "(none)"
     conditions = "\n".join(f"{i}. {c.name} ({c.kind})" for i, c in enumerate(doc.conditions, start=1)) or "(none)"
-    path = " > ".join(lay.headings[h] for h in view.section.headings) or "(none)"
-    text = f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\nHeadings: {path}\n\n{view.text}"
-    return f"{_untrusted(file, view.section.page, text)}\n\nCall record_section for this section."
+    text = f"Cards:\n{cards}\n\nConditions:\n{conditions}\n\nHeadings: {_path(view, lay)}\n\n{view.text}"
+    return f"{_untrusted(file, view.section.page, text)}\n\nCall record_{route} for this section."
+
+
+def read_triage(file: str, view: View, lay: Layout, llm) -> tuple[list[str], list[str]]:
+    """One small call on a section view no keyword explains: the routes it states a card fee for, and its errors."""
+    text = f"Headings: {_path(view, lay)}\n\n{view.text}"
+    prompt = f"{_untrusted(file, view.section.page, text)}\n\nCall record_routes for this section."
+    parse = lambda answer: [r for r in ROUTES if r in answer["routes"]]  # noqa: E731
+    routes, error = _checked("extract-triage", TRIAGE_SYSTEM, TRIAGE_TOOL, 256, prompt, parse, file, llm)
+    return (routes, []) if error is None else ([], [error])
 
 
 def read_section(
-    file: str, view: View, doc: Document, lay: Layout, llm
+    file: str, view: View, doc: Document, lay: Layout, route: str, llm
 ) -> tuple[list[tuple[str | None, Rule]], list[str]]:
-    """One small call on a tagged section view; fees that fail to build are retried once, then dropped alone."""
-    prompt = _section_prompt(file, view, doc, lay)
+    """One small call on a tagged section view with one route's question; fees that fail to build are retried once,
+    then dropped alone. Fields the route does not ask for take their empty value."""
+    prompt = _section_prompt(file, view, doc, lay, route)
+    fixed = _ROUTE_FIXED.get(route, {})
     attempts: list[tuple[list[tuple[str | None, Rule]], list[str]]] = []
     for attempt in range(2):
         error = " | ".join(attempts[0][1]) if attempt else None
-        response = _ask("extract-section", SECTION_SYSTEM, SECTION_TOOL, 2048, prompt, error, llm)
+        response = _ask(f"extract-{route}", ROUTE_SYSTEMS[route], ROUTE_TOOLS[route], 2048, prompt, error, llm)
         rules, errors = [], []
         try:
-            fees = _tool_input(response, "record_section")["fees"]
+            fees = _tool_input(response, f"record_{route}")["fees"]
         except ValueError as e:
             errors = [str(e)]
             fees = []
         for fee in fees:
             try:
-                rules += build_rules(fee, view, doc)
+                rules += build_rules(DEFAULT_FEE | fee | fixed, view, doc)
             except ValueError as e:
                 errors.append(str(e))
         attempts.append((rules, errors))
@@ -304,7 +399,7 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
                 if _repeated(view, sent):
                     log.info("section_repeat", extra={"card": card_id, "section": section.id})
                     continue
-                got, errs = read_section(file, view, doc, lay, llm)
+                got, errs = read_section(file, view, doc, lay, "cash", llm)  # Task 4 routes this
                 if not got and not errs:  # for the offline coverage check: a section the model passed over
                     log.info("section_no_fee", extra={"card": card_id, "section": section.id, "columns": view.columns})
                 rules += got

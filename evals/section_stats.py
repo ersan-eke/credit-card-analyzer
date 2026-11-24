@@ -11,8 +11,8 @@ from cardcost.extract import (
     CHARS_PER_TOKEN,
     DOC_SYSTEM,
     DOC_TOOL,
-    SECTION_SYSTEM,
-    SECTION_TOOL,
+    ROUTE_SYSTEMS,
+    ROUTE_TOOLS,
     _document_prompt,
     _repeated,
     _section_prompt,
@@ -28,7 +28,7 @@ def _tokens(*parts: str) -> int:
 
 def stats(card: str, pages: list[str]) -> dict:
     lay = layout(pages)
-    fixed = _tokens(SECTION_SYSTEM, json.dumps(SECTION_TOOL))
+    fixed = _tokens(ROUTE_SYSTEMS["cash"], json.dumps(ROUTE_TOOLS["cash"]))  # Task 4 counts per route
     # the empty Document is an upper bound's stand-in: the real message adds the card and condition lists
     empty = Document([], [], None, {})
     sent: set = set()
@@ -37,7 +37,7 @@ def stats(card: str, pages: list[str]) -> dict:
         "sections": len(lay.sections),
         "views": len(all_views),
         "doc_tokens": _tokens(DOC_SYSTEM, json.dumps(DOC_TOOL), _document_prompt(card, lay)),
-        "section_tokens": sum(fixed + _tokens(_section_prompt(card, v, empty, lay)) for v in all_views),
+        "section_tokens": sum(fixed + _tokens(_section_prompt(card, v, empty, lay, "cash")) for v in all_views),
     }
 
 

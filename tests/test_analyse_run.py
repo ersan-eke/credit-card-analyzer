@@ -31,7 +31,7 @@ def _answer(name, payload, tokens):
 
 DOC = _answer("record_document", {"cards": [], "conditions": [], "document_for": 0, "tables": []}, 21)
 SECTION = _answer(
-    "record_section", {"fees": [FEE | {"name": "cash_fee", "event": ["atm"], "percent": "n1", "min_eur": "n2"}]}, 300
+    "record_cash", {"fees": [FEE | {"name": "cash_fee", "event": ["atm"], "percent": "n1", "min_eur": "n2"}]}, 300
 )
 
 
