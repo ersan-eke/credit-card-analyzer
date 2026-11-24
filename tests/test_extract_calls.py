@@ -165,6 +165,7 @@ def test_credit_answer_gets_its_event_and_defaults():
 
 def test_cash_prompt_leaves_foreign_currency_to_payment():
     assert "foreign-currency" in ROUTE_SYSTEMS["cash"].lower()
+    assert "merchant" in TRIAGE_SYSTEM and "merchant" in ROUTE_SYSTEMS["payment"]
     assert all("not account" in s for s in ROUTE_SYSTEMS.values())
     assert "region" in ROUTE_SYSTEMS["cash"]
 

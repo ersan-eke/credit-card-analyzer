@@ -114,7 +114,8 @@ Worked examples:
     ),
     "payment": _route_system(
         "payment",
-        "the fees for paying with the card, including foreign-currency fees",
+        "the fees the cardholder pays for paying with the card, including foreign-currency fees,"
+        " not fees a merchant pays to accept cards",
         f"""- event: payment (paying with the card); atm as well only for a foreign-currency fee that covers cash too.
   One fee lists every event with the same price and conditions; never repeat a fee per event.
 - currency: EUR, EEA_non_EUR (another EEA currency), other. A foreign-currency fee ("Fremdwährung", "außerhalb des
@@ -157,7 +158,8 @@ above it and its lines.
 
 Always answer by calling the record_routes tool once. List each of these the section states a card fee for:
 - cash: taking out cash at a cash machine or a counter.
-- payment: paying with the card, including fees for foreign currency.
+- payment: paying with the card, including fees for foreign currency (fees the cardholder pays, not fees a merchant
+  pays to accept card payments).
 - credit: interest on money borrowed with the card.
 - holding: a recurring fee for holding the card.
 An empty list when the section states none of them (for example only account, transfer, securities, card
@@ -311,7 +313,7 @@ def read_document(file: str, lay: Layout, llm) -> Document:
     """One small call on the headings and table headers; one retry with the error, then ValueError."""
     parse = lambda answer: _document(answer, lay)  # noqa: E731
     doc, error = _checked("extract-document", DOC_SYSTEM, DOC_TOOL, 4096, _document_prompt(file, lay), parse, file, llm)
-    if error:
+    if error is not None:
         raise ValueError(f"{file}: {error}")
     return doc
 
@@ -413,11 +415,15 @@ def extract_fees(card_id: str, file: str, pages: list[str], llm, conn) -> list[F
                     added, errs = read_triage(file, view, lay, llm)
                     errors += errs
                     routes |= set(added)
-                    log.info("section_triaged", extra=where | {"routes": sorted(set(added) - set(r.routes))})
+                    if errs:
+                        log.info("section_triage_failed", extra=where)
+                    else:
+                        log.info("section_triaged", extra=where | {"routes": sorted(set(added) - set(r.routes))})
                 if r.routes:
                     log.info("section_routed", extra=where | {"routes": r.routes})
                 if not routes:
-                    log.info("section_no_route", extra=where)
+                    if not (r.triage and errs):
+                        log.info("section_no_route", extra=where)
                     continue
                 for name in (x for x in ROUTES if x in routes):
                     got, errs = read_section(file, view, doc, lay, name, llm)

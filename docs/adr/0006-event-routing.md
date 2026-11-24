@@ -19,6 +19,6 @@ Known limit: a keyword for the wrong event. A view that names an ATM in a paymen
 route prompt then finds no cash fee and logs `section_no_fee`, or reads a fee under the wrong event. Triage does not
 catch this, since the view is already routed.
 
-Logs per view: `section_example`, `section_routed`, `section_triaged`, `section_no_route` (triage named none);
+Logs per view: `section_example`, `section_routed`, `section_triaged`, `section_triage_failed` (the call failed; the error is queued), `section_no_route` (triage named none);
 `section_repeat`, `section_no_fee` and `section_invalid` stay. `evals/section_stats.py` estimates the calls and input
 tokens offline, counting triage as a cash-sized call per flagged view.

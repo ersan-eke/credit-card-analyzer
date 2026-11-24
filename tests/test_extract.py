@@ -64,7 +64,8 @@ def test_triage_adds_a_route_and_a_matched_route_is_called_once():
     ]
 
 
-def test_failed_triage_goes_to_the_queue_and_keeps_the_other_rules():
+def test_failed_triage_goes_to_the_queue_and_keeps_the_other_rules(caplog):
+    caplog.set_level("INFO", "cardcost.extract")
     none = {"stop_reason": "end_turn", "content": []}
     conn = db.connect(":memory:")
     cash = FEE | {"name": "atm", "event": ["atm"], "flat_eur": "n1"}
@@ -73,6 +74,8 @@ def test_failed_triage_goes_to_the_queue_and_keeps_the_other_rules():
     assert fees and fees[0].rules  # cash rule kept
     [row] = [r for r in db.pending_reviews(conn) if r["error"]]
     assert "record_routes" in row["error"]
+    names = [r.msg for r in caplog.records]
+    assert "section_triage_failed" in names and "section_triaged" not in names
 
 
 def test_example_section_gets_no_call(caplog):
