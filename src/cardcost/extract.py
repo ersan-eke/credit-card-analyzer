@@ -72,6 +72,7 @@ Bargeldauszahlung | [n3]2,00 EUR".
 {_UNTRUSTED}
 
 Always answer by calling the record_{route} tool once. Record card fees only, not account, transfer or securities fees.
+Card issuance, replacement, PIN and statement fees are not fees here.
 An empty fees list is a valid answer when the section states none.
 
 Never write a price, amount or count: tags only ("n3"), "" where the section states none; card and condition numbers
@@ -93,7 +94,8 @@ ROUTE_SYSTEMS = {
         "the fees for taking out cash with the card",
         f"""- event: atm (cash at a cash machine), counter_cash (cash at a counter: only where the text says Schalter or
   counter). One fee lists every event with the same price and conditions; never repeat a fee per event. Leave out
-  foreign-currency fees and fees for paying with the card; another question covers them.
+  foreign-currency fees (the fee for converting a non-EUR transaction, at machines and in shops alike) and fees for
+  paying with the card; another question covers them. A cash fee priced by region or country stays here.
 - currency: EUR, EEA_non_EUR (another EEA currency), other. {_PLACE}
 - network: own (the bank's own or partner machines, named as such) or other ("Fremdautomat"); only where the text
   names whose machine, never guessed.
@@ -158,7 +160,8 @@ Always answer by calling the record_routes tool once. List each of these the sec
 - payment: paying with the card, including fees for foreign currency.
 - credit: interest on money borrowed with the card.
 - holding: a recurring fee for holding the card.
-An empty list when the section states none of them (for example only account, transfer or securities fees)."""
+An empty list when the section states none of them (for example only account, transfer, securities, card
+replacement, PIN or statement fees)."""
 
 _LIST = {"type": "array", "items": {"type": "string"}}
 _IDS = {"type": "array", "items": {"type": "integer"}}

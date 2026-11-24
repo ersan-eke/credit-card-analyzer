@@ -11,6 +11,7 @@ from cardcost.extract import (
     DOC_TOOL,
     ROUTE_SYSTEMS,
     ROUTE_TOOLS,
+    TRIAGE_SYSTEM,
     TRIAGE_TOOL,
     read_document,
     read_section,
@@ -165,6 +166,11 @@ def test_credit_answer_gets_its_event_and_defaults():
 def test_cash_prompt_leaves_foreign_currency_to_payment():
     assert "foreign-currency" in ROUTE_SYSTEMS["cash"].lower()
     assert all("not account" in s for s in ROUTE_SYSTEMS.values())
+    assert "region" in ROUTE_SYSTEMS["cash"]
+
+
+def test_prompts_exclude_replacement_pin_and_statement_fees():
+    assert all("replacement" in s for s in [*ROUTE_SYSTEMS.values(), TRIAGE_SYSTEM])
 
 
 def test_triage_returns_routes_and_sends_no_lists():
