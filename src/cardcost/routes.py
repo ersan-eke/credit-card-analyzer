@@ -40,13 +40,14 @@ def _matches(text: str) -> set[str]:
 
 def route(view: View, lay: Layout) -> Routing:
     headings = [_norm(lay.headings[i]) for i in view.section.headings]
-    lines = [_norm(x) for x in view.text.split("\n")]
+    raw = view.text.split("\n")  # PRICE matches EUR case-sensitively, so it sees the un-casefolded line
+    lines = [_norm(x) for x in raw]
     found = _matches("\n".join([*lines, *headings]))
     last = _matches(headings[-1]) if headings else set()
     triage, segment = False, []
-    for line in lines:
+    for line, orig in zip(lines, raw, strict=True):
         segment.append(line)
-        if PRICE.search(line):  # lines after the previous price line, up to this one
+        if PRICE.search(orig):  # lines after the previous price line, up to this one
             triage |= not (_matches("\n".join(segment)) | last)
             segment = []
     return Routing([r for r in ROUTES if r in found], triage, any("beispiel" in h for h in headings))

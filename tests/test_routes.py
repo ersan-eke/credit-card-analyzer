@@ -30,6 +30,13 @@ def test_last_heading_explains_bare_rows():
     assert r.routes == ["cash"] and not r.triage
 
 
+def test_a_eur_priced_line_no_keyword_explains_goes_to_triage():
+    r = route(*_view(["Depotentgelt | 5,00 EUR"]))
+    assert r.routes == [] and r.triage
+    r = route(*_view(["Bargeld am Geldautomaten | 2,00 EUR", "Depotentgelt | 5,00 EUR"]))
+    assert r.routes == ["cash"] and r.triage
+
+
 def test_bargeldlos_is_not_cash():
     r = route(*_view(["Bargeldloser Einsatz im Ausland | 1,50 %"]))
     assert "cash" not in r.routes
