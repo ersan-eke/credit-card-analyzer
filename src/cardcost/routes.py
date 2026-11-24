@@ -15,8 +15,8 @@ ROUTE_EVENTS: dict[str, set[str]] = {
 }
 _KEYWORDS = {
     "cash": r"bargeld(?!los)|geldautomat|abhebung|auszahlung|schalter|atm|cash|withdraw",
-    "payment": r"fremdwähr|währung|auslandseinsatz|euroraum|außerhalb der eu|currency|exchange|wochenende|weekend"
-    r"|casino|lotterie|wett|gambling",
+    "payment": r"fremdwähr|währung|auslandseinsatz|euroraum|au(?:ß|ss)erhalb der eu"
+    r"|currency|exchange|wochenende|weekend|casino|lotterie|wett|gambling",
     "credit": r"sollzins|zinss|teilzahl|interest",
     "holding": r"jahresgebühr|jahrespreis|kartenpreis|kartengebühr|grundpreis|monatlich|pro monat"
     r"|plan fee|subscription",

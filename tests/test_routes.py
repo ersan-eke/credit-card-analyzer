@@ -43,6 +43,12 @@ def test_nfd_and_upper_case_match():
     assert r.routes == ["cash", "payment"] and not r.triage
 
 
+def test_ausserhalb_der_eu_routes_to_payment_in_both_spellings():
+    for line in ["Außerhalb der EU | 1,75 %", "Ausserhalb der EU | 1,75 %"]:
+        r = route(*_view([line]))
+        assert r.routes == ["payment"] and not r.triage
+
+
 def test_example_heading_flags_the_view():
     r = route(*_view(["Sollzins 22,60 %"], ["## Repräsentatives Beispiel nach § 5 VKrG"]))
     assert r.example
