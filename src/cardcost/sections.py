@@ -149,7 +149,18 @@ def _view(section: Section, columns: list[str], group: list[str], shown: list[st
     tag_line: dict[str, int] = {}
     out = []
     for i, line in enumerate(shown):
-        spans = [(a, b, v) for a, b, v in number_spans(line) if not (a and line[a - 1].isalpha())]
+        # footnote markers end a label cell in price tables ("... Deutschlands 1 | 3,95 €"), not prices
+        spans = [
+            (a, b, v)
+            for a, b, v in number_spans(line)
+            if not (a and line[a - 1].isalpha())
+            and not (
+                re.fullmatch(r"\d{1,2}", line[a:b])
+                and re.match(r"\s*\|", line[b:])
+                and re.search(r"\S\s$", line[:a])
+                and "|" not in line[:a]
+            )
+        ]
         tags = {}
         for a, _, v in spans:
             tags[a] = f"n{len(numbers) + 1}"

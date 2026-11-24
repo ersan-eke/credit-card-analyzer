@@ -6,7 +6,7 @@ import pytest
 
 from cardcost.extract import _squash
 from cardcost.ingest import read_text
-from cardcost.sections import MAX_LINES, PRICE, Layout, Section, layout, views
+from cardcost.sections import MAX_LINES, PRICE, Layout, Section, _view, layout, views
 
 ROOT = Path(__file__).parent.parent
 
@@ -234,3 +234,23 @@ def test_single_group_keeps_its_column_names_for_products():
 def test_a_table_heading_row_does_not_join_the_next_heading():
     lay = layout(["| | A |\n|---|---|\n| Gruppe | |\n## Neu\nPosten 2,00 EUR"])
     assert lay.headings == ["Gruppe", "## Neu"]
+
+
+@pytest.mark.parametrize(
+    "line,text",
+    [
+        (
+            "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | 3,95 € pro Auftrag",
+            "Bargeldabhebungen am Geldautomaten innerhalb Deutschlands 1 | [n1]3,95 € pro Auftrag",
+        ),
+        ("Wettbüros (MCC 7995 / 9406) 3 | 3 % des Betrags", "Wettbüros (MCC [n1]7995 / [n2]9406) 3 | [n3]3 % des Betrags"),
+        ("kontaktlos ohne PIN bis 50 € 5 | 0,00 €", "kontaktlos ohne PIN bis [n1]50 € 5 | [n2]0,00 €"),
+        ("Anzahl | 1", "Anzahl | [n1]1"),
+        ("Karte | 0 € 2 | 5 €", "Karte | [n1]0 € [n2]2 | [n3]5 €"),
+        ("Abhebung 2 Euro", "Abhebung [n1]2 Euro"),
+    ],
+)
+def test_footnote_digit_ending_the_label_cell_is_not_tagged(line, text):
+    v = _view(Section("p1.0", 1, 0, [line], [], None), [], [], [line])
+    assert v.text == text
+    assert list(v.numbers) == [f"n{i}" for i in range(1, len(v.numbers) + 1)]
