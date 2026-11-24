@@ -156,10 +156,26 @@ def test_a_repeated_view_under_the_same_headings_is_sent_once(caplog):
 
 def test_payment_route_drops_an_atm_only_fee_and_keeps_one_naming_payment():
     atm_only = ATM_FEE | {"name": "atm_only", "percent": "", "min_eur": "", "flat_eur": "n1"}
-    both = atm_only | {"name": "both", "event": ["payment", "atm"]}
+    both = atm_only | {"name": "both", "event": ["payment", "atm"], "currency": ["EEA_non_EUR"]}
     llm = FakeLLM(_answer("record_payment", {"fees": [atm_only, both]}))
     rules, errors = read_section("a.pdf", VIEW, ONE_CARD, LAYOUT, "payment", llm)
     assert errors == [] and [r.event for _, r in rules] == [["payment", "atm"]]
+
+
+@pytest.mark.parametrize(
+    "event, currency, kept",
+    [
+        (["payment", "atm"], ["EUR"], False),
+        (["payment", "atm"], [], False),
+        (["payment", "atm"], ["EEA_non_EUR", "other"], True),
+        (["payment"], ["EUR"], True),
+    ],
+)
+def test_payment_route_keeps_atm_only_for_a_foreign_currency_fee(event, currency, kept):
+    fee = ATM_FEE | {"event": event, "currency": currency, "percent": "", "min_eur": "", "flat_eur": "n1"}
+    llm = FakeLLM(_answer("record_payment", {"fees": [fee]}))
+    rules, errors = read_section("a.pdf", VIEW, ONE_CARD, LAYOUT, "payment", llm)
+    assert errors == [] and bool(rules) is kept
 
 
 def test_credit_route_asks_for_interest_rates():

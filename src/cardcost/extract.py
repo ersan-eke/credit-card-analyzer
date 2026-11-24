@@ -61,6 +61,7 @@ _AMOUNT = """- amount_min (inclusive, "ab 150 €", "mindestens") and amount_max
   transaction amount the fee depends on."""
 _PLACE = """region: home (Germany), EEA (the rest of the EEA), outside_EEA. country: ISO codes, only where the text
   words it by country."""
+_FOREIGN = {"EEA_non_EUR", "other"}
 
 
 def _route_system(route: str, fees: str, fields: str) -> str:
@@ -368,8 +369,9 @@ def read_section(
             errors = [str(e)]
             fees = []
         for fee in fees:
-            if route == "payment" and "payment" not in fee.get("event", []):
-                # why: an atm-only fee belongs to cash; kept here it ties with cash's copy at scoring
+            event, cur = fee.get("event", []), set(fee.get("currency", []))
+            if route == "payment" and ("payment" not in event or ("atm" in event and not (cur and cur <= _FOREIGN))):
+                # why: cash owns every atm fee but the foreign-currency one; kept here it ties with cash's copy
                 log.info(
                     "section_foreign_event",
                     extra={"file": file, "section": view.section.id, "route": route, "fee": fee.get("name")},
