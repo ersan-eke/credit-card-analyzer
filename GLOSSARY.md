@@ -47,6 +47,12 @@ A stretch of a price list that holds prices and the headings needed to read them
 the lines under a heading). Built by code from the layout, never by the model. One extraction call reads one section
 view: a table section gives one view per group of value columns with identical cells, any other section one view.
 
+**Route**:
+The event question a section view gets (cash, payment, credit or holding); chosen by keyword.
+
+**Triage**:
+The model call for a view with a price line no keyword explains; it names the routes to read.
+
 **Fact**:
 Something about the user that a Rule is conditioned on (account model, status, plan, main or partner card, age, monthly
 incoming money, sign-up date, repayment mode) or a price the user gives where the document states none. Set once per

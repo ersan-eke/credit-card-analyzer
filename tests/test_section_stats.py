@@ -1,4 +1,4 @@
-"""Offline section and token estimate for a catalog price list."""
+"""Offline routed estimate for a catalog price list."""
 
 import importlib.util
 from pathlib import Path
@@ -11,6 +11,13 @@ ss = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ss)
 
 
-def test_stats_count_views_and_tokens():
+def test_stats_count_routes_and_tokens():
     s = ss.stats("tfbank_mastercard_gold", read_text(ROOT / "catalog/docs/tfbank_mastercard_gold.pdf"))
-    assert s["views"] >= 3 and s["section_tokens"] > s["views"] * 300
+    assert s["views"] >= 3 and s["route_calls"] >= s["routed"] and s["triage"] <= s["views"]
+    for count, tokens in (
+        ("route_calls", "route_tokens"),
+        ("triage", "triage_tokens"),
+        ("triage", "triage_route_tokens"),
+    ):
+        assert (s[tokens] > 0) == (s[count] > 0)
+    assert s["doc_tokens"] > 0
