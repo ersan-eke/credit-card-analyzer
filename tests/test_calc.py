@@ -96,8 +96,14 @@ def test_unknown_usage_assumes_allowance_used_up():
 
 def test_free_amount_cap_whichever_first():
     assert cost_line("rev", REVOLUT, _cash("50", rev={"count": 1, "eur": "150"})).total == D("0.00")
-    assert cost_line("rev", REVOLUT, _cash("100", rev={"count": 1, "eur": "150"})).total == D("2.00")
     assert cost_line("rev", REVOLUT, _cash("10", rev={"count": 5, "eur": "0"})).total == D("1.00")
+
+
+def test_partly_free_withdrawal_charges_only_the_part_above_the_allowance():
+    # "Bis zu ... 200 € ... gebührenfrei. Weitere Abhebungen werden mit 2 % ... oder 1 € berechnet"
+    assert cost_line("rev", REVOLUT, _cash("100", rev={"count": 2, "eur": "150"})).total == D("1.00")  # 2 % of 50
+    assert cost_line("rev", REVOLUT, _cash("150", rev={"count": 2, "eur": "150"})).total == D("2.00")  # 2 % of 100
+    assert cost_line("rev", REVOLUT, _cash("150", rev={"count": 2, "eur": "250"})).total == D("3.00")  # none left
 
 
 def test_free_from_amount():

@@ -1,8 +1,10 @@
 import re
+from datetime import datetime, time
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, NamedTuple
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from cardcost.numbers import find_numbers
 
@@ -29,6 +31,7 @@ EUROZONE = {
     "SI",
     "SK",
 }
+EEA = EUROZONE | {"CZ", "DK", "HU", "IS", "LI", "NO", "PL", "RO", "SE"}
 HOME = "DE"
 NUMERIC_FIELDS = (
     "percent",
@@ -45,12 +48,156 @@ NUMERIC_FIELDS = (
 FREE_WORDS = re.compile(r"kostenlos|kostenfrei|gebührenfrei|entgeltfrei|\bfree\b", re.IGNORECASE)
 
 
-class Passage(BaseModel):
-    id: str
-    card_id: str
-    file: str
+Currency = Literal["EUR", "EEA_non_EUR", "other"]
+Region = Literal["home", "EEA", "outside_EEA"]  # EEA = the EEA outside the home country
+Event = Literal["payment", "atm", "counter_cash", "credit", "holding"]
+Period = Literal["calendar_month", "rolling_month", "year"]
+REPAYMENT = ("pays_in_full", "instalments")
+VALUE_PREFIX = "value:"  # a wallet fact named value:<rule> is the user's own price for that rule
+
+
+class Window(BaseModel):
+    """A weekly window as the bank states it. Days: Monday = 0. The default is Revolut's (Fri 17:00 - Sun 18:00 New
+    York), the only one in the catalog: `weekend: true` in a rule means it."""
+
+    # shortcut: one default window; upgrade to a window the extractor reads from the quote when a second bank has one
+    start_day: int = Field(4, ge=0, le=6)
+    start_time: time = time(17)
+    end_day: int = Field(6, ge=0, le=6)
+    end_time: time = time(18)
+    tz: str = "America/New_York"
+
+    def contains(self, at: datetime) -> bool:
+        local = at.astimezone(ZoneInfo(self.tz))
+        week = lambda d, t: (d * 24 + t.hour) * 60 + t.minute  # noqa: E731
+        now, start, end = (
+            week(local.weekday(), local.time()),
+            week(self.start_day, self.start_time),
+            week(self.end_day, self.end_time),
+        )
+        return start <= now < end if start < end else now >= start or now < end
+
+
+class Amount(BaseModel):
+    """The transaction amount in EUR: at least min ("ab 50 EUR"), below max ("unter 50 EUR")."""
+
+    min: Decimal | None = Field(None, ge=0)
+    max: Decimal | None = Field(None, ge=0)
+
+
+class When(BaseModel):
+    """Conditions a rule needs; each is a list of accepted values, and a rule with more conditions is more specific.
+    Unset = any."""
+
+    currency: list[Currency] | None = Field(None, min_length=1)
+    region: list[Region] | None = Field(None, min_length=1)
+    country: list[str] | None = Field(None, min_length=1)  # ISO codes, where the bank words it by country
+    amount: Amount | None = None
+    network: list[str] | None = Field(None, min_length=1)  # who owns the ATM: "own", a named group, or "other"
+    merchant: list[str] | None = Field(None, min_length=1)
+    weekend: Window | None = None
+    facts: dict[str, list[str]] | None = None  # wallet facts the rule needs: name -> accepted values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _empty_is_unset(cls, data):
+        # the extraction schema is strict and cannot say null for a list: an empty one means no condition
+        return {k: v for k, v in data.items() if v != []} if isinstance(data, dict) else data
+
+    @field_validator("facts", mode="before")
+    @classmethod
+    def _facts_pairs(cls, v):
+        # the extraction schema is strict, so it sends [{name, values}]; an empty list means no condition
+        return {i["name"]: i["values"] for i in v} or None if isinstance(v, list) else v
+
+    @field_validator("weekend", mode="before")
+    @classmethod
+    def _weekend_flag(cls, v):
+        return Window() if v is True else None if v is False else v  # the strict schema sends false for 'no window'
+
+    @property
+    def specificity(self) -> int:
+        conditions = (self.currency, self.region, self.country, self.amount, self.network, self.merchant, self.weekend)
+        return sum(v is not None for v in conditions) + len(self.facts or {})
+
+
+class Price(BaseModel):
+    """fee = amount x percent / 100 + flat_eur, then raised to min_eur and capped at max_eur."""
+
+    percent: Decimal | None = Field(None, ge=0, le=100)  # event credit: the rate per year
+    flat_eur: Decimal | None = Field(None, ge=0)
+    min_eur: Decimal | None = Field(None, ge=0)
+    max_eur: Decimal | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def stated(self) -> "Price":
+        if all(v is None for v in self.model_dump().values()):
+            raise ValueError("a price states at least one number; an unstated price is price=null")
+        return self
+
+
+class Allowance(BaseModel):
+    """Free uses per period; both limits given = whichever is reached first. The price applies beyond it."""
+
+    count: int | None = Field(None, ge=0)
+    amount_eur: Decimal | None = Field(None, ge=0)
+    period: Period
+
+    @model_validator(mode="after")
+    def limited(self) -> "Allowance":
+        if self.count is None and self.amount_eur is None:
+            raise ValueError("an allowance has a count or an amount")
+        return self
+
+
+class Rule(BaseModel):
+    """One priced event under conditions. price=None: the document does not state it, so the cost is unknown."""
+
+    name: str = Field(min_length=1)  # what the fee is called; names its part of the cost
+    event: list[Event] = Field(min_length=1)
+    when: When = When()
+    price: Price | None
+    allowance: Allowance | None = None
+    per: Literal["month", "year"] | None = None  # event holding: how often the fee is charged
+    waiver: str | None = None  # event holding: when it is waived, as worded; shown, never credited
+    interest_free_days: int | None = Field(None, ge=0)  # event credit: purchases repaid in full inside it cost 0
+    stacks: bool = False  # adds to the matching base rule ("zzgl."); otherwise the most specific rule replaces
+    quote: str = Field(min_length=1)
     page: int
-    text: str
+
+    @property
+    def is_fx(self) -> bool:
+        return bool(self.when.currency) and "EUR" not in self.when.currency
+
+    @property
+    def numbers(self) -> list[Decimal]:
+        stated = [
+            *(self.price.model_dump().values() if self.price else []),
+            *([self.allowance.count, self.allowance.amount_eur] if self.allowance else []),
+            self.interest_free_days,
+        ]
+        return [Decimal(v) for v in stated if v is not None]
+
+    @model_validator(mode="after")
+    def numbers_come_from_quote(self) -> "Rule":
+        in_quote = set(find_numbers(self.quote))
+        for value in self.numbers:
+            if value not in in_quote and not (value == 0 and FREE_WORDS.search(self.quote)):
+                raise ValueError(f"{self.name}: {value} does not appear in quote")
+        return self
+
+
+def _first(allowances: list["Allowance"], field: str):
+    return next((v for a in allowances if (v := getattr(a, field)) is not None), None)
+
+
+class Limits(NamedTuple):
+    """The allowances a product has, to ask the user about: free withdrawals, free EUR, free EUR exchanged."""
+
+    count: Decimal | int | None
+    amount_eur: Decimal | None
+    fx_eur: Decimal | None
+    period: str | None
 
 
 class FeeSchedule(BaseModel):
@@ -69,11 +216,34 @@ class FeeSchedule(BaseModel):
     free_amount_eur: Decimal | None = Field(None, ge=0)  # free amount per period; whichever limit ends first
     free_from_eur: Decimal | None = Field(None, ge=0)  # withdrawals of at least this amount are free
     fx_free_eur: Decimal | None = Field(None, ge=0)  # exchange amount per period without FX fee; fx_percent beyond
+    network: str | None = None  # card network (Mastercard, Visa): picks the ATM operator fee the user gave for it
     source_file: str
     source_page: int
     confidence: float = Field(ge=0, le=1)
     quote: str | None = None
     not_stated: list[str] = []
+    rules: list[Rule] = []  # the rule format; when present the calculator prices from it, not from the fields above
+
+    @property
+    def fact_options(self) -> dict[str, list[str]]:
+        """The wallet facts this product's rules need, with the values they distinguish: the only facts asked for."""
+        options: dict[str, list[str]] = {}
+        for rule in self.rules:
+            for name, values in (rule.when.facts or {}).items():
+                options[name] = list(dict.fromkeys([*options.get(name, []), *values]))
+            if "credit" in rule.event:
+                options["repayment_mode"] = list(REPAYMENT)
+        return options
+
+    @property
+    def limits(self) -> Limits:
+        if not self.rules:
+            return Limits(self.free_count, self.free_amount_eur, self.fx_free_eur, self.conditions)
+        cash = [r.allowance for r in self.rules if r.allowance and not r.is_fx and "atm" in r.event]
+        fx = [r.allowance for r in self.rules if r.allowance and r.is_fx]
+        return Limits(
+            _first(cash, "count"), _first(cash, "amount_eur"), _first(fx, "amount_eur"), _first(cash or fx, "period")
+        )
 
     @model_validator(mode="after")
     def numbers_come_from_quote(self) -> "FeeSchedule":
@@ -101,14 +271,40 @@ class Scenario(BaseModel):
     country: str = Field(HOME, min_length=2, max_length=2)
     days: int = Field(0, ge=0)
     used: dict[str, Usage] = {}  # by wallet label or card id
+    atm_network: str = "other"  # owner of the ATM; unstated = the dearest case
+    operator_fee: dict[str, Decimal] = {}  # the ATM operator's fee by card network; empty = not asked
+    merchant: str | None = None
+    at: AwareDatetime | None = None  # when the transaction happens; default now
+    held_eur: Decimal = Field(Decimal(0), ge=0)  # already held in the transaction currency: not exchanged
+
+    facts: dict[str, str] = {}  # this question's facts for every card, e.g. repayment_mode: pays_in_full | instalments
+    wallet_facts: dict[str, dict[str, str]] = {}  # the facts set once per card (by card id), see facts_for
+    provided: dict[str, dict[str, Price]] = {}  # the user's own price for a rule the document leaves unstated, by label
 
     @property
     def foreign_currency(self) -> bool:
         return self.country.upper() not in EUROZONE
 
     @property
+    def currency(self) -> str:
+        c = self.country.upper()
+        return "EUR" if c in EUROZONE else "EEA_non_EUR" if c in EEA else "other"
+
+    @property
+    def region(self) -> str:
+        c = self.country.upper()
+        return "home" if c == HOME else "EEA" if c in EEA else "outside_EEA"
+
+    @property
     def abroad(self) -> bool:
         return self.country.upper() != HOME
+
+    def provided_for(self, label: str, name: str) -> Price | None:
+        card = label.partition(":")[0]
+        return ((self.provided.get(card) or {}) | (self.provided.get(label) or {})).get(name)
+
+    def facts_for(self, label: str) -> dict[str, str]:
+        return self.wallet_facts.get(label.partition(":")[0], {}) | self.facts
 
     def usage_for(self, label: str) -> Usage | None:
         return self.used.get(label) or self.used.get(label.partition(":")[0])
@@ -122,3 +318,5 @@ class CostLine(BaseModel):
     source: str = ""
     quote: str | None = None
     notes: list[str] = []
+    holding: list[str] = []  # recurring card fees, shown beside the cost, not part of it
+    provided: list[str] = []  # rules priced with the user's own value

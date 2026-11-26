@@ -5,7 +5,7 @@ import httpx2
 import pytest
 
 from cardcost import db
-from cardcost.llm import LLM, CacheMiss
+from cardcost.llm import LLM, CacheMiss, to_openai
 
 
 def _err(cls, status: int, headers: dict | None = None):
@@ -170,3 +170,67 @@ def test_openai_compatible_400_not_retried():
 def test_unknown_provider_rejected():
     with pytest.raises(RuntimeError, match="CARDCOST_PROVIDER"):
         LLM(model="m", provider="nope")
+
+
+def test_compat_providers_get_the_forced_tool_and_the_temperature():
+    body = to_openai(
+        {
+            "model": "m",
+            "max_tokens": 1,
+            "messages": [],
+            "tools": [{"name": "t", "description": "d", "input_schema": {"type": "object"}}],
+            "tool_choice": {"type": "any"},
+            "temperature": 0,
+        }
+    )
+    assert body["tool_choice"] == "required" and body["temperature"] == 0
+
+
+def test_anthropic_requests_carry_no_temperature():
+    seen = {}
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            return FakeResponse()
+
+    llm = LLM(client=type("C", (), {"messages": Messages()})(), model="test-model")
+    llm.create("extract", "v", messages=[], temperature=0)
+    assert "temperature" not in seen
+
+
+def test_a_model_that_rejects_the_forced_tool_is_asked_again_without_it():
+    seen = []
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.append(kwargs)
+            if "tool_choice" in kwargs:
+                req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+                message = 'tool_choice: type "tool" and "any" are not supported for this model.'
+                raise anthropic.BadRequestError(
+                    "bad", response=httpx2.Response(400, request=req), body={"error": {"message": message}}
+                )
+            return FakeResponse()
+
+    llm = LLM(client=type("C", (), {"messages": Messages()})(), model="m")
+    llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert ["tool_choice" in k for k in seen] == [True, False]
+
+
+def _bad_request(message):
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    return anthropic.BadRequestError(
+        "bad", response=httpx2.Response(400, request=req), body={"error": {"message": message}}
+    )
+
+
+def test_other_400s_about_the_forced_tool_are_raised_and_the_drop_is_logged(caplog):
+    llm, msgs, _ = _llm([_bad_request("tool_choice: unknown tool name record_fee")])
+    with pytest.raises(anthropic.BadRequestError):
+        llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert msgs.calls == 1
+    llm, msgs, _ = _llm([_bad_request('tool_choice: type "any" is not supported for this model'), FakeResponse()])
+    with caplog.at_level("WARNING", logger="cardcost.llm"):
+        llm.create("extract", "v", messages=[], tool_choice={"type": "any"})
+    assert "tool_choice_dropped" in caplog.text

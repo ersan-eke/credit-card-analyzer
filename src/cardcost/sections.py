@@ -1,0 +1,221 @@
+"""Cut a price list into small price sections by its layout (headings, tables), without a model."""
+
+import re
+from decimal import Decimal
+from typing import NamedTuple
+
+from cardcost.models import FREE_WORDS
+from cardcost.numbers import number_spans
+
+MAX_LINES = 40
+PRICE = re.compile(rf"\d(?:[\d.,]*\d)?\s*(?:€|EUR\b|%)|€\s*\d|\d,-|(?i:{FREE_WORDS.pattern})")
+# "3 ", "1.2 ", "a) ", "II. ", "B. " followed by a word
+NUMBERING = re.compile(
+    r"(?:(?P<roman>[IVX]+\.)|(?P<upper>[A-Z]\.)|(?P<digits>\d+(?:\.\d+)*\.?)|(?P<lower>[a-z]\)))\s+[^\W\d_]"
+)
+TABLE_RULE = re.compile(r"\|\s*:?-{3,}")
+
+
+class Section(NamedTuple):
+    id: str  # f"p{page}.{start}"
+    page: int  # 1-based
+    start: int  # index of lines[0] in pages[page - 1].splitlines()
+    lines: list[str]  # verbatim page lines, consecutive
+    headings: list[int]  # ids into Layout.headings, outermost first; [] if none above
+    table: int | None  # id into Layout.tables when the section's rows belong to a markdown table
+
+
+class Layout(NamedTuple):
+    headings: list[str]  # heading text, document order
+    tables: list[list[str]]  # header cells per table (label column first)
+    sections: list[Section]
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _rank(text: str) -> tuple:
+    """Nesting rank of a heading: markdown levels outermost, then numbering styles, then table headings."""
+    if text.startswith("#"):
+        return (0, len(text) - len(text.lstrip("#")))
+    if m := NUMBERING.match(text):
+        if m["digits"]:
+            return (1, 2 + m["digits"].rstrip(".").count("."))
+        return (1, {"upper": 0, "roman": 1, "lower": 9}[m.lastgroup])
+    return (2,)
+
+
+def _ids(path: dict[tuple, int]) -> list[int]:
+    return [path[r] for r in sorted(path)]
+
+
+def _split(lines: list[str], start: int, end: int, max_lines: int) -> list[tuple[int, int]]:
+    """[start, end) cut into runs of at most max_lines, each ending on its last price line."""
+    runs = []
+    while start < end:
+        stop = end
+        if end - start > max_lines:
+            # cut after a price line or at a blank line, so lead-in prose stays with its price
+            cuts = [
+                c for c in range(start + 1, start + max_lines + 1) if PRICE.search(lines[c - 1]) or not lines[c].strip()
+            ]
+            stop = cuts[-1] if cuts else start + max_lines
+        prices = [i for i in range(start, stop) if PRICE.search(lines[i])]
+        if prices:
+            runs.append((start, prices[-1] + 1))
+        # lines after the last price go on with the next run; a run never opens on a blank line
+        start = prices[-1] + 1 if prices else stop
+        while start < end and not lines[start].strip():
+            start += 1
+    return runs
+
+
+def layout(pages: list[str], max_lines: int = MAX_LINES) -> Layout:
+    headings: list[str] = []
+    tables: list[list[str]] = []
+    sections: list[Section] = []
+    path: dict[tuple, int] = {}  # rank -> heading id, the headings above the current line
+
+    for page_no, page in enumerate(pages, 1):
+        lines = page.splitlines()
+        runs = []  # (start, price line indexes, heading ids, table) between two boundaries
+        table = None  # a table's headings stay on the path across a page break: the table may continue
+        start, prices = 0, []
+        joining = False  # the previous line was a table heading row, so a wrapped one continues it
+        for i, line in enumerate(lines):
+            text = line.strip()
+            in_table = text.startswith("|")
+            if in_table and i + 1 < len(lines) and TABLE_RULE.match(lines[i + 1].strip()):
+                runs.append((start, prices, _ids(path), table))
+                tables.append(_cells(text))
+                table, joining = len(tables) - 1, False
+                # Docling may take the first price row as the header: then the header is content too
+                start, prices = (i, [i]) if PRICE.search(text) else (i + 2, [])
+                continue
+            if not in_table and table is not None:  # the table ended: its headings and rows end with it
+                runs.append((start, prices, _ids(path), table))
+                table, start, prices, joining = None, i, [], False
+                path = {r: h for r, h in path.items() if r != (2,)}
+            if in_table and i < start or text.startswith("<!--"):
+                continue
+
+            if PRICE.search(text):  # a price line is content, never a heading (Docling mislabels "## kostenfrei")
+                heading = None
+            elif in_table:
+                cells = _cells(text)
+                heading = cells[0] if cells[0] and not any(cells[1:]) else None
+            elif text.startswith("#") or (NUMBERING.match(text) and len(text) < 120):
+                heading = text
+            else:
+                heading = None
+
+            if heading is None:
+                joining = False
+                if PRICE.search(line):
+                    prices.append(i)
+                continue
+            if joining and not NUMBERING.match(heading):
+                headings[-1] += " " + heading
+            else:
+                runs.append((start, prices, _ids(path), table))
+                rank = _rank(heading)
+                path = {r: h for r, h in path.items() if r < rank}
+                path[rank] = len(headings)
+                headings.append(heading)
+            start, prices, joining = i + 1, [], in_table
+        runs.append((start, prices, _ids(path), table))
+
+        for start, prices, ids, table in runs:
+            if prices:
+                first = next(i for i in range(start, prices[0] + 1) if lines[i].strip())
+                for a, b in _split(lines, first, prices[-1] + 1, max_lines):
+                    sections.append(Section(f"p{page_no}.{a}", page_no, a, lines[a:b], ids, table))
+
+    return Layout(headings, tables, sections)
+
+
+class View(NamedTuple):
+    section: Section
+    columns: list[str]  # header names of the value columns shown; [] unless the table has 2+ column groups
+    group: list[str]  # header names of the value columns shown, also for a single group; [] outside a table
+    text: str  # one line per section line, numbers tagged "[n1]2,00 EUR"
+    numbers: dict[str, Decimal]  # tag -> value
+    tag_line: dict[str, int]  # tag -> index into section.lines
+
+
+def _view(section: Section, columns: list[str], group: list[str], shown: list[str]) -> View:
+    numbers: dict[str, Decimal] = {}
+    tag_line: dict[str, int] = {}
+    out = []
+    for i, line in enumerate(shown):
+        # footnote markers end a label cell in price tables ("... Deutschlands 1 | 3,95 €"), not prices
+        spans = [
+            (a, b, v)
+            for a, b, v in number_spans(line)
+            if not (a and line[a - 1].isalpha())
+            and not (
+                re.fullmatch(r"\d{1,2}", line[a:b])
+                and re.match(r"\s*\|", line[b:])
+                and re.search(r"\S\s$", line[:a])
+                and "|" not in line[:a]
+            )
+        ]
+        tags = {}
+        for a, _, v in spans:
+            tags[a] = f"n{len(numbers) + 1}"
+            numbers[tags[a]], tag_line[tags[a]] = v, i
+        for a in reversed(tags):
+            line = f"{line[:a]}[{tags[a]}]{line[a:]}"
+        out.append(line)
+    return View(section, columns, group, "\n".join(out), numbers, tag_line)
+
+
+def _pairs(section: Section, head: list[str], lines: list[str], rows: list) -> list[View]:
+    # two tables printed side by side: column 2k labels column 2k+1, not column 0
+    def cell(r, j):
+        return r[j] if r and j < len(r) else ""
+
+    result = []
+    for k in range(0, len(head), 2):
+        vals = [cell(r, k + 1) for r in rows]
+        bare = all(v in ("", "-") for v in vals)  # no values: show labels only, if they hold a price
+        if bare and not any(PRICE.search(cell(r, k)) for r in rows):
+            continue
+        shown = []
+        for x, r in zip(lines, rows, strict=True):
+            if r is None:
+                shown.append("" if TABLE_RULE.search(x) else x)
+            elif bare:
+                shown.append(cell(r, k))
+            else:
+                shown.append(f"{cell(r, k)} | {cell(r, k + 1)}" if cell(r, k) or cell(r, k + 1) else "")
+        result.append(_view(section, [], [head[k]], shown))
+    return result
+
+
+def views(section: Section, lay: Layout) -> list[View]:
+    if section.table is None:
+        return [_view(section, [], [], section.lines)]
+    lines = section.lines
+    rows = [None if not x.lstrip().startswith("|") or TABLE_RULE.match(x.strip()) else _cells(x) for x in lines]
+    head = lay.tables[section.table]
+    if len(head) >= 4 and len(head) % 2 == 0 and all(bool(h) == (i % 2 == 0) for i, h in enumerate(head)):
+        return _pairs(section, head, lines, rows)
+    names = head[1:]
+    groups: dict[tuple, list[int]] = {}  # identical cells over all rows -> value columns
+    for j in range(len(names)):
+        groups.setdefault(tuple(r[j + 1] if r and j + 1 < len(r) else "" for r in rows), []).append(j)
+    # a column that is "-" or empty in every row is a plan without this product
+    groups = {k: v for k, v in groups.items() if any(c not in ("", "-") for c in k)}
+    if not groups and any(PRICE.search(x) for x in lines):  # the price sits in the label column: show labels only
+        groups = {(None,) * len(rows): []}
+    result = []
+    for cells, cols in groups.items():
+        shown = [
+            x if r is None and not TABLE_RULE.search(x) else "" if r is None else r[0] if c is None else f"{r[0]} | {c}"
+            for x, r, c in zip(lines, rows, cells, strict=True)
+        ]
+        group = [names[j] for j in cols]
+        result.append(_view(section, group if len(groups) > 1 else [], group, shown))
+    return result

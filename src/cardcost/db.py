@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS webhook_event (event_id TEXT PRIMARY KEY, received_at
 CREATE TABLE IF NOT EXISTS ingest_job (
     id INTEGER PRIMARY KEY, path TEXT, status TEXT DEFAULT 'queued', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS wallet (entry TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS wallet_fact (
+    card TEXT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (card, name));
 """
 
 
@@ -157,3 +159,16 @@ def wallet_set(conn, entries: list[str]) -> None:
     with conn:
         conn.execute("DELETE FROM wallet")
         conn.executemany("INSERT OR IGNORE INTO wallet (entry) VALUES (?)", [(e,) for e in entries])
+
+
+def wallet_facts(conn) -> dict[str, dict[str, str]]:
+    """The facts the user set, per card id."""
+    facts: dict[str, dict[str, str]] = {}
+    for r in conn.execute("SELECT card, name, value FROM wallet_fact"):
+        facts.setdefault(r["card"], {})[r["name"]] = r["value"]
+    return facts
+
+
+def wallet_set_fact(conn, card: str, name: str, value: str) -> None:
+    with conn:
+        conn.execute("INSERT OR REPLACE INTO wallet_fact (card, name, value) VALUES (?, ?, ?)", (card, name, value))

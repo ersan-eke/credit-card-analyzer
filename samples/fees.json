@@ -1,0 +1,264 @@
+{
+ "alpha_card": {
+  "fees": [
+   {
+    "card": "alpha_card",
+    "confidence": 0.9,
+    "product": null,
+    "rules": [
+     {
+      "allowance": null,
+      "event": [
+       "atm"
+      ],
+      "name": "cash_fee",
+      "page": 2,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": "5.00",
+       "percent": "2.0"
+      },
+      "quote": "Für Bargeldverfügungen an Geldautomaten im In- und Ausland berechnen wir ein Bargeldauszahlungsentgelt von 2,0 % des Auszahlungsbetrags, mindestens 5,00 EUR.",
+      "stacks": false,
+      "when": {
+       "country": null,
+       "currency": null,
+       "region": null
+      }
+     },
+     {
+      "allowance": null,
+      "event": [
+       "atm",
+       "payment"
+      ],
+      "name": "fx_fee",
+      "page": 2,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": null,
+       "percent": "1.75"
+      },
+      "quote": "Für Kartenumsätze und Bargeldverfügungen in einer anderen Währung als Euro fällt zusätzlich ein Fremdwährungsentgelt von 1,75 % des umgerechneten Betrags an.",
+      "stacks": true,
+      "when": {
+       "country": null,
+       "currency": [
+        "EEA_non_EUR",
+        "other"
+       ],
+       "region": null
+      }
+     }
+    ],
+    "source_file": "alpha_card.pdf",
+    "source_page": 2
+   }
+  ],
+  "prompt_version": "extract-v4",
+  "sha256": "bece43b29a200f9ec09b97bcdfc2dd142429c433cf5685e85287033a6d39dceb"
+ },
+ "beta_card": {
+  "fees": [
+   {
+    "card": "beta_card",
+    "confidence": 0.9,
+    "product": "Beta Classic",
+    "rules": [
+     {
+      "allowance": null,
+      "event": [
+       "atm"
+      ],
+      "name": "cash_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": "6.00",
+       "percent": "3.0"
+      },
+      "quote": "Bargeldauszahlung am Geldautomaten | 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR",
+      "stacks": false,
+      "when": {
+       "country": null,
+       "currency": null,
+       "region": null
+      }
+     },
+     {
+      "allowance": null,
+      "event": [
+       "atm",
+       "payment"
+      ],
+      "name": "fx_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": null,
+       "percent": "2.0"
+      },
+      "quote": "Auslandseinsatzentgelt (Nicht-Euro-Währung) | 2,0 % | 0,00 %",
+      "stacks": true,
+      "when": {
+       "country": null,
+       "currency": [
+        "EEA_non_EUR",
+        "other"
+       ],
+       "region": null
+      }
+     },
+     {
+      "allowance": null,
+      "event": [
+       "credit"
+      ],
+      "name": "interest",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": null,
+       "percent": "14.90"
+      },
+      "quote": "Sollzinssatz für Bargeldverfügungen | 14,90 % p.a. | siehe Preisverzeichnis",
+      "stacks": false,
+      "when": {
+       "country": null,
+       "currency": null,
+       "region": null
+      }
+     }
+    ],
+    "source_file": "beta_card.pdf",
+    "source_page": 1
+   },
+   {
+    "card": "beta_card",
+    "confidence": 0.9,
+    "product": "Beta Gold",
+    "rules": [
+     {
+      "allowance": null,
+      "event": [
+       "atm"
+      ],
+      "name": "cash_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": "7.50",
+       "percent": "1.0"
+      },
+      "quote": "Bargeldauszahlung am Geldautomaten | 3,0 % mind. 6,00 EUR | 1,0 % mind. 7,50 EUR",
+      "stacks": false,
+      "when": {
+       "country": null,
+       "currency": null,
+       "region": null
+      }
+     },
+     {
+      "allowance": null,
+      "event": [
+       "atm",
+       "payment"
+      ],
+      "name": "fx_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": null,
+       "percent": "0.00"
+      },
+      "quote": "Auslandseinsatzentgelt (Nicht-Euro-Währung) | 2,0 % | 0,00 %",
+      "stacks": true,
+      "when": {
+       "country": null,
+       "currency": [
+        "EEA_non_EUR",
+        "other"
+       ],
+       "region": null
+      }
+     }
+    ],
+    "source_file": "beta_card.pdf",
+    "source_page": 1
+   }
+  ],
+  "prompt_version": "extract-v4",
+  "sha256": "f892c83b349acfa30714858855faae0552f089fea547331e31215d9bd9f116ac"
+ },
+ "gamma_card": {
+  "fees": [
+   {
+    "card": "gamma_card",
+    "confidence": 0.8,
+    "product": null,
+    "rules": [
+     {
+      "allowance": null,
+      "event": [
+       "atm",
+       "payment"
+      ],
+      "name": "fx_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": null,
+       "max_eur": null,
+       "min_eur": null,
+       "percent": "1.5"
+      },
+      "quote": "Kartenzahlungen in Fremdwährung: Auslandseinsatzentgelt 1,5 % vom Umsatz.",
+      "stacks": true,
+      "when": {
+       "country": null,
+       "currency": [
+        "EEA_non_EUR",
+        "other"
+       ],
+       "region": null
+      }
+     },
+     {
+      "allowance": null,
+      "event": [
+       "atm"
+      ],
+      "name": "atm_operator_fee",
+      "page": 1,
+      "price": {
+       "flat_eur": "2.00",
+       "max_eur": null,
+       "min_eur": null,
+       "percent": null
+      },
+      "quote": "An unseren Partnerautomaten im Ausland beträgt diese Gebühr des Geldautomatenbetreibers 2,00 EUR je Abhebung.",
+      "stacks": true,
+      "when": {
+       "country": null,
+       "currency": null,
+       "region": [
+        "EEA",
+        "outside_EEA"
+       ]
+      }
+     }
+    ],
+    "source_file": "gamma_card.pdf",
+    "source_page": 1
+   }
+  ],
+  "prompt_version": "extract-v4",
+  "sha256": "1efd710b984f50c0c17c73041faa7b8610cedc43100215a94824d3c6bae44c07"
+ }
+}

@@ -6,3 +6,12 @@ data/private/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+.superpowers/
+evals/runs/
+.claude/
+out/
+graphify-out/
+catalog/fees_nemotron.json
+docs/superpowers/
+catalog/fees.json
+.gitattributes

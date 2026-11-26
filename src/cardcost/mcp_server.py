@@ -21,7 +21,7 @@ def _advisor() -> Advisor:
     return build_advisor(db.connect())
 
 
-def _line(ln: CostLine) -> dict:
+def _line(ln: CostLine, asks: dict[str, list[str]] | None = None) -> dict:
     return {
         "card": ln.label,
         "total_eur": None if ln.total is None else str(ln.total),
@@ -30,6 +30,7 @@ def _line(ln: CostLine) -> dict:
         "source": ln.source,
         "quote": ln.quote,
         "notes": ln.notes,
+        "ask_facts": asks or {},  # fact -> values the user chooses from; save with set_wallet_fact
     }
 
 
@@ -45,9 +46,9 @@ def get_fee(card: str, amount_eur: str, used: list[str] | None = None) -> dict:
         return {"error": f"ambiguous product {card!r}, call again with one of these", "choose_one_of": choices}
     if card not in fees:
         return {"error": f"unknown card {card!r}", "cards": sorted(fees)}
-    return _line(
-        cost_line(card, fees[card], Scenario(kind="cash", amount_eur=Decimal(amount_eur), used=parse_usage(used or [])))
-    )
+    scenario = advisor.scenario(Scenario(kind="cash", amount_eur=Decimal(amount_eur), used=parse_usage(used or [])))
+    line = cost_line(card, fees[card], scenario)
+    return _line(line, advisor.missing_facts([line]).get(card))
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -58,12 +59,26 @@ def compare_cards(amount_eur: str, country: str, used: list[str] | None = None) 
     advisor = _advisor()
     fees = advisor.resolve("Bargeldauszahlung Fremdwährung Auslandseinsatzentgelt")
     choices = advisor.choice_labels()
+    scenario = advisor.scenario(
+        Scenario(kind="cash", amount_eur=Decimal(amount_eur), country=country, used=parse_usage(used or []))
+    )
+    table = rank(fees, scenario)
+    asks = advisor.missing_facts(table)
     return [
-        _line(ln) | ({"choose_one_of": choices[ln.label]} if ln.label in choices else {})
-        for ln in rank(
-            fees, Scenario(kind="cash", amount_eur=Decimal(amount_eur), country=country, used=parse_usage(used or []))
-        )
+        _line(ln, asks.get(ln.label)) | ({"choose_one_of": choices[ln.label]} if ln.label in choices else {})
+        for ln in table
     ]
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, idempotent_hint=True, open_world_hint=False))
+def set_wallet_fact(card: str, name: str, value: str) -> dict:
+    """Save a fact about the user once for a card, e.g. card='hvb', name='account_model', value='HVB AktivKonto'.
+    Use the facts and values a cost asks for (ask_facts); 'value:<rule>' saves the user's own price, e.g. '3 EUR'."""
+    try:
+        _advisor().set_fact(db.connect(), card, name, value)
+    except ValueError as e:
+        return {"error": str(e)}
+    return {"card": card, "name": name, "value": value}
 
 
 def main() -> None:

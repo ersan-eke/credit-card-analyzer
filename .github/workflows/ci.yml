@@ -12,12 +12,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/huggingface
-          key: hf-multilingual-e5-small
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
-      # replays evals/llm_cache.json, no API key needed; exits 1 if hybrid extraction accuracy < 0.9
+      # scores the committed fees files, no API key needed; exits 1 if rule recall or precision < 0.9
       - run: uv run python evals/run_eval.py

@@ -24,13 +24,19 @@ def to_cents(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def find_numbers(text: str) -> list[Decimal]:
+def number_spans(text: str) -> list[tuple[int, int, Decimal]]:
     out = []
-    for raw in _ANY.findall(text):
+    for m in _ANY.finditer(text):
+        raw = m.group()
         if "," in raw:
-            out.append(Decimal(raw.replace(".", "").replace(",", ".")))
+            value = Decimal(raw.replace(".", "").replace(",", "."))
         elif re.fullmatch(r"\d{1,3}(?:\.\d{3})+", raw):
-            out.append(Decimal(raw.replace(".", "")))
+            value = Decimal(raw.replace(".", ""))
         else:
-            out.append(Decimal(raw))
+            value = Decimal(raw)
+        out.append((m.start(), m.end(), value))
     return out
+
+
+def find_numbers(text: str) -> list[Decimal]:
+    return [v for _, _, v in number_spans(text)]

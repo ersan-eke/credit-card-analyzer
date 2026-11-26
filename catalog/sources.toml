@@ -1,0 +1,82 @@
+# One [[source]] per Preis- und Leistungsverzeichnis. The reviewed copy is docs/<id>.pdf; the id is the card id.
+# The type (PDF or web page) comes from the response content type, so it is not recorded here.
+
+[[source]]
+id = "bbva"
+bank = "BBVA"
+url = "https://www.bbva.de/content/dam/public-web/alemania/documents/general/rechtliche-dokumente/konto-und-debitkarte/preis-und-leistungsverzeichnis.pdf"
+
+[[source]]
+id = "c24"
+bank = "C24"
+url = "https://api.c24.de/api/documents/price_service_list/download/"
+
+[[source]]
+id = "consorsbank"
+bank = "Consorsbank"
+url = "https://www.consorsbank.de/content/dam/de-cb/b2c/content/pdf/transversal/agb/PLV-ab-16.12.2026.pdf"
+
+[[source]]
+id = "dkb"
+bank = "DKB"
+url = "https://dok.dkb.de/pdf/plv_pk_karten.pdf"
+
+[[source]]
+id = "hanseatic_genialcard"
+bank = "Hanseatic Bank"
+url = "https://www.hanseaticbank.de/content/download/8870/file/PLV%20GenialCard%20BF%20V1.07.2026.pdf"
+
+[[source]]
+id = "hanseatic_goldcard"
+bank = "Hanseatic Bank"
+url = "https://www.hanseaticbank.de/content/download/8871/file/PLV%20GoldCard%20BF%20V1.07.2026.pdf"
+
+[[source]]
+id = "hvb"
+bank = "HVB"
+url = "https://www.hypovereinsbank.de/content/dam/hypovereinsbank/footer/Geschaeftsbedingungen/HVB-Aktuelles-Preis-Leistungs-Verzeichnis.pdf"
+
+[[source]]
+id = "ing"
+bank = "ING"
+url = "https://www.ing.de/dokumente/ing-diba-preise-leistungen/"
+
+[[source]]
+id = "n26"
+bank = "N26"
+url = "https://docs.n26.com/legal/01+DE/01+Account/de/13account-pricelist-de.pdf"
+
+[[source]]
+id = "revolut_metal"
+bank = "Revolut"
+url = "https://www.revolut.com/de-DE/legal/metal-fees"
+
+[[source]]
+id = "revolut_plus"
+bank = "Revolut"
+url = "https://www.revolut.com/de-DE/legal/plus-fees"
+
+[[source]]
+id = "revolut_premium"
+bank = "Revolut"
+url = "https://www.revolut.com/de-DE/legal/premium-fees"
+
+[[source]]
+id = "revolut_standard"
+bank = "Revolut"
+url = "https://www.revolut.com/de-DE/legal/standard-fees"
+
+[[source]]
+id = "revolut_ultra"
+bank = "Revolut"
+url = "https://www.revolut.com/de-DE/legal/ultra-fees"
+
+[[source]]
+id = "tfbank_mastercard_gold"
+bank = "TF Bank"
+url = "https://tfbank.at/media/n1yh5fqa/04_preis-leistungsverzeichnis_tf-bank_at_20260629.pdf"
+
+[[source]]
+id = "traderepublik"
+bank = "Trade Republic"
+url = "https://assets.traderepublic.com/documents/DE/FURTHER_INFORMATION_PRICE_LIST_20251125091224.pdf"

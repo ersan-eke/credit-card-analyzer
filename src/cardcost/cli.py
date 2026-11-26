@@ -3,29 +3,32 @@ import json
 import sqlite3
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 from cardcost import db
-from cardcost.advisor import build_advisor, corpus_paths, parse_scenario, parse_usage
+from cardcost.advisor import build_advisor, parse_scenario, parse_usage, parse_values
 from cardcost.answer import answer, render_table
 from cardcost.calc import matrix, rank
-from cardcost.ingest import process_job
+from cardcost.fees import CATALOG_DOCS, CATALOG_FEES, update_fees
+from cardcost.llm import LLM
 from cardcost.logs import new_run_id, setup_logging
 from cardcost.models import EUROZONE, HOME, NUMERIC_FIELDS, FeeSchedule, Scenario, Usage
 from cardcost.numbers import parse_german_decimal
 
 
 def cmd_ingest(conn, args) -> None:
-    for path in args.paths:
-        db.enqueue_ingest(conn, path)
-    for row in conn.execute("SELECT id, path FROM ingest_job WHERE status = 'queued'").fetchall():
-        print(f"job {row['id']} {row['path']}: {process_job(conn, row['id'])}")
-    for p in corpus_paths(conn):
-        print(f"corpus: {p}")
+    paths = [Path(p) for p in args.paths] or sorted(CATALOG_DOCS.glob("*.pdf"))
+    done = update_fees(
+        paths, Path(args.fees), LLM(conn=conn, cache_path=Path(args.record) if args.record else None), conn
+    )
+    for card, status in done.items():
+        print(f"{card}: {status}")
+    print(f"{args.fees}: {len(done)} processed, {len(paths) - len(done)} unchanged")
 
 
 def cmd_products(conn, args) -> None:
-    advisor = build_advisor(conn, args.mode)
-    advisor.wallet = sorted({p.card_id for p in advisor.retriever.passages})
+    advisor = build_advisor(conn)
+    advisor.wallet = sorted(advisor.by_card)
     for label, fee in advisor.resolve("Bargeld Entgelt").items():
         print(label if fee else f"{label}  (no fees extracted, see `cardcost review list`)")
 
@@ -45,14 +48,35 @@ def choose_wallet(labels: list[str], ask=input) -> list[str]:
     return chosen
 
 
+def ask_facts(conn, advisor, asks: dict[str, dict[str, list[str]]], ask=input) -> None:
+    """Ask for each fact the cost needs and save the answer once for the card."""
+    for label, facts in asks.items():
+        for name, options in facts.items():
+            print(f"{label}: {name}?")
+            for i, option in enumerate(options, 1):
+                print(f"  {i}) {option}")
+            pick = int(ask("number: "))
+            if not 1 <= pick <= len(options):
+                raise ValueError(f"choose 1-{len(options)}, got {pick}")
+            advisor.set_fact(conn, label.partition(":")[0], name, options[pick - 1])
+
+
 def cmd_wallet(conn, args) -> None:
+    advisor = build_advisor(conn) if args.fact or args.choose else None
+    for item in args.fact:
+        card, _, rest = item.partition("=")
+        name, sep, value = rest.partition("=")
+        if not sep:
+            raise ValueError(f"fact must look like card=name=value, got {item!r}")
+        advisor.set_fact(conn, card.strip(), name.strip(), value.strip())
     if args.choose:
-        advisor = build_advisor(conn, args.mode)
-        cards = sorted({p.card_id for p in advisor.retriever.passages})
+        cards = sorted(advisor.by_card)
         db.wallet_set(conn, choose_wallet(list(advisor.resolve("Bargeld Entgelt", wallet=cards))))
     for entry in args.entries:
         db.wallet_add(conn, entry)
     print("\n".join(db.wallet(conn)) or "wallet empty: every ingested card/product is compared")
+    for card, facts in db.wallet_facts(conn).items():
+        print(f"{card}: " + ", ".join(f"{n}={v}" for n, v in sorted(facts.items())))
 
 
 def ask_usage(
@@ -62,26 +86,20 @@ def ask_usage(
     for label, fee in fees.items():
         if not fee or label in used or label.partition(":")[0] in used:
             continue
-        cash = scenario.kind == "cash" and (fee.free_count is not None or fee.free_amount_eur is not None)
-        fx = scenario.foreign_currency and fee.fx_free_eur is not None
+        free_count, free_amount, fx_free, period = fee.limits
+        cash = scenario.kind == "cash" and (free_count is not None or free_amount is not None)
+        fx = scenario.foreign_currency and fx_free is not None
         if not (cash or fx):
             continue
         if not cash:  # the withdrawal count only matters for cash
-            fx_eur = parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
+            fx_eur = parse_german_decimal(ask(f"{label} (Wechsellimit {fx_free} EUR): EUR exchanged so far? "))
             used[label] = Usage(count=0, fx_eur=fx_eur)
             continue
-        limit = " / ".join(
-            x
-            for x in (fee.free_count and f"{fee.free_count} free", fee.free_amount_eur and f"{fee.free_amount_eur} EUR")
-            if x
-        )
-        period = fee.conditions or "per period"
-        count = int(ask(f"{label} ({limit}, {period}): withdrawals so far? "))
-        eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if fee.free_amount_eur is not None else None
+        limit = " / ".join(x for x in (free_count and f"{free_count} free", free_amount and f"{free_amount} EUR") if x)
+        count = int(ask(f"{label} ({limit}, {period or 'per period'}): withdrawals so far? "))
+        eur = parse_german_decimal(ask(f"{label}: EUR withdrawn so far? ")) if free_amount is not None else None
         fx_eur = (
-            parse_german_decimal(ask(f"{label} (Wechsellimit {fee.fx_free_eur} EUR): EUR exchanged so far? "))
-            if fx
-            else None
+            parse_german_decimal(ask(f"{label} (Wechsellimit {fx_free} EUR): EUR exchanged so far? ")) if fx else None
         )
         used[label] = Usage(count=count, eur=eur, fx_eur=fx_eur)
     return used
@@ -108,9 +126,15 @@ def cmd_ask(conn, args) -> None:
     run_id = new_run_id()
     used = parse_usage(args.used)
     scenario = parse_scenario(
-        args.question, amount_eur=args.amount, kind=args.kind, country=args.country, days=args.days
+        args.question,
+        amount_eur=args.amount,
+        kind=args.kind,
+        country=args.country,
+        days=args.days,
+        facts={"repayment_mode": args.repayment} if args.repayment else None,
+        provided=parse_values(args.value),
     )
-    advisor = build_advisor(conn, args.mode)
+    advisor = build_advisor(conn)
     fees = advisor.resolve(args.question)
     if sys.stdin.isatty():
         fees = choose_products(conn, fees, advisor.choices)
@@ -120,8 +144,16 @@ def cmd_ask(conn, args) -> None:
             "ambiguous products, choose one with `cardcost wallet`: "
             + "; ".join(f"{e} -> {', '.join(f.product for f in fs)}" for e, fs in advisor.choices.items())
         )
+    advisor.fees = fees
     scenario = scenario.model_copy(update={"used": used})
-    table = rank(fees, scenario)
+    table = rank(fees, advisor.scenario(scenario))
+    if asks := advisor.missing_facts(table):
+        if sys.stdin.isatty():
+            ask_facts(conn, advisor, asks)
+            table = rank(fees, advisor.scenario(scenario))
+        else:
+            print("missing facts, set them with `cardcost wallet --fact card=name=value`: " + json.dumps(asks))
+    scenario = advisor.scenario(scenario)
     text, source = answer(args.question, scenario, table, fees, advisor.llm)
     print(f"{text}\n\n{render_table(table)}\n\n(answer: {source}, run {run_id}, scenario {scenario.model_dump_json()})")
     if pending := db.pending_reviews(conn):
@@ -129,7 +161,7 @@ def cmd_ask(conn, args) -> None:
 
 
 def cmd_matrix(conn, args) -> None:
-    advisor = build_advisor(conn, args.mode)
+    advisor = build_advisor(conn)
     fees = advisor.resolve("Bargeldauszahlung Fremdwährung")
     countries = args.countries.split(",")
     used = parse_usage(args.used)
@@ -140,12 +172,11 @@ def cmd_matrix(conn, args) -> None:
         for country in countries:
             bands = matrix(fees, kind, country, args.max, used)
             print(f"{kind:8} {country}: " + "; ".join(f"{a}-{b} EUR -> {w}" for a, b, w in bands))
-    allowance = ("free_count", "free_amount_eur", "fx_free_eur")
     state = Scenario(kind="cash", amount_eur=Decimal(1), used=used)
     assumed = [
         label
         for label, fee in fees.items()
-        if fee and any(getattr(fee, f) is not None for f in allowance) and not state.usage_for(label)
+        if fee and any(x is not None for x in fee.limits[:3]) and not state.usage_for(label)
     ]
     if assumed:
         print("allowance assumed used up (pass --used): " + ", ".join(assumed))
@@ -171,20 +202,36 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging()
     ap = argparse.ArgumentParser(prog="cardcost", description="German credit-card cost advisor")
     ap.add_argument("--db", default=None, help="SQLite path (default $CARDCOST_DB or cardcost.db)")
-    ap.add_argument("--mode", default="hybrid", choices=["bm25", "vector", "hybrid"])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("ingest", help="queue PDFs and process queued ingest jobs")
-    p.add_argument("paths", nargs="*")
+    p = sub.add_parser("ingest", help="extract the fees of changed price lists into the fees file (default: catalog)")
+    p.add_argument("paths", nargs="*", help=f"PDFs (default {CATALOG_DOCS}/*.pdf)")
+    p.add_argument("--fees", default=str(CATALOG_FEES), help="fees file to update")
+    p.add_argument("--record", help="keep every model response in this file (replayed on a repeated request)")
     sub.add_parser("products", help="list card products found in the documents")
     p = sub.add_parser("wallet", help="choose which cards/products you own, e.g. beta_card:Gold")
     p.add_argument("entries", nargs="*")
     p.add_argument("--choose", action="store_true", help="pick from the products the documents name (replaces wallet)")
+    p.add_argument(
+        "--fact",
+        action="append",
+        default=[],
+        help="a fact about you, set once per card: card=account_model=HVB AktivKonto (or card=value:rule=3 EUR)",
+    )
     p = sub.add_parser("ask", help='e.g. "Welche Karte ist am günstigsten für 300 EUR Bargeld in den USA?"')
     p.add_argument("question")
     p.add_argument("--amount", type=Decimal)
     p.add_argument("--kind", choices=["cash", "purchase"])
     p.add_argument("--country", help="ISO code, e.g. US")
     p.add_argument("--days", type=int, help="days until repayment (adds cash-advance interest)")
+    p.add_argument(
+        "--repayment", choices=["pays_in_full", "instalments"], help="how a purchase is repaid (decides its interest)"
+    )
+    p.add_argument(
+        "--value",
+        action="append",
+        default=[],
+        help="your own price for a fee or rate the document leaves open: card=rule=3 EUR or card=rule=12,5%%",
+    )
     p.add_argument(
         "--used",
         action="append",

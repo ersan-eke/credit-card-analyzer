@@ -61,7 +61,9 @@ def to_openai(kwargs: dict) -> dict:
             }
             for t in kwargs["tools"]
         ]
-        body["tool_choice"] = "auto"
+        body["tool_choice"] = "required" if kwargs.get("tool_choice", {}).get("type") == "any" else "auto"
+    if "temperature" in kwargs:
+        body["temperature"] = kwargs["temperature"]
     return body
 
 
@@ -138,6 +140,8 @@ class LLM:
     def create(self, purpose: str, prompt_version: str, **kwargs) -> dict:
         """Call messages.create and return the response as a plain dict (same shape live and replayed)."""
         kwargs = {"model": self.model, "max_tokens": 16000} | kwargs
+        if self.provider == "anthropic":  # the Messages API of the current SDK has no sampling parameters
+            kwargs.pop("temperature", None)
         cache_input = kwargs if self.provider == "anthropic" else {"provider": self.provider} | kwargs
         key = hashlib.sha256(json.dumps(cache_input, sort_keys=True, default=str).encode()).hexdigest()
         if key in self.cache:
@@ -158,7 +162,17 @@ class LLM:
         for attempt in range(MAX_RETRIES + 1):
             try:
                 if self.provider == "anthropic":
-                    return self.client.messages.create(**kwargs).model_dump(mode="json")
+                    try:
+                        return self.client.messages.create(**kwargs).model_dump(mode="json")
+                    except anthropic.BadRequestError as e:
+                        text = f"{e} {e.body}"
+                        if "tool_choice" not in kwargs or "tool_choice" not in text or "not supported" not in text:
+                            raise
+                        log.warning("tool_choice_dropped", extra={"model": kwargs.get("model"), "error": text[:200]})
+                        kwargs = {
+                            k: v for k, v in kwargs.items() if k != "tool_choice"
+                        }  # a model that cannot be forced
+                        return self.client.messages.create(**kwargs).model_dump(mode="json")
                 r = self.client.post("chat/completions", json=to_openai(kwargs))
                 r.raise_for_status()
                 return from_openai(r.json())

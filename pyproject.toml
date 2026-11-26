@@ -1,19 +1,21 @@
 [project]
 name = "cardcost"
 version = "0.1.0"
-description = "German credit-card cost advisor: RAG + structured extraction + deterministic Decimal math"
+description = "German credit-card cost advisor: whole-document extraction + deterministic Decimal math"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pdfplumber>=0.11",
-    "rank-bm25>=0.2.2",
-    "sentence-transformers>=3.0",
-    "anthropic>=0.40",
+    "pypdfium2>=4.30",
+    "anthropic>=2.3",
     "pydantic>=2.7",
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "mcp>=1.2",
-    "numpy>=1.26",
 ]
+
+[project.optional-dependencies]
+# Layout extractor for ingest only (ADR 0003); questions are answered from the fees file without it.
+ingest = ["docling>=2.150"]
 
 [project.scripts]
 cardcost = "cardcost.cli:main"
@@ -35,7 +37,6 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: loads the real embedding model"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["cardcost"]
