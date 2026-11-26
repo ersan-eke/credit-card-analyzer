@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -13,8 +14,10 @@ CATALOG_DOCS = Path("catalog/docs")
 CATALOG_FEES = Path("catalog/fees.json")
 
 
-def read_fees(paths: Iterable[Path] = (CATALOG_FEES,)) -> dict[str, list[FeeSchedule]]:
-    """Card id -> its products. Every fee is validated again on load: numbers must come from the stored quote."""
+def read_fees(paths: Iterable[Path] | None = None) -> dict[str, list[FeeSchedule]]:
+    """Card id -> its products. Every fee is validated again on load: numbers must come from the stored quote.
+    Default file: $CARDCOST_FEES, else catalog/fees.json."""
+    paths = paths or (Path(os.environ.get("CARDCOST_FEES", CATALOG_FEES)),)
     out: dict[str, list[FeeSchedule]] = {}
     for path in paths:
         if not path.exists():

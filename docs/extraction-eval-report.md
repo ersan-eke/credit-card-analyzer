@@ -1,8 +1,6 @@
-# Handoff: ticket #22 live phase results
+# Extraction eval report: whole-document prompts (extract-v8 to v13)
 
-State on 2026-11-21, main at the "Score history: extract-v13" commit. Suite: 343 tests pass. All 6 full Haiku runs of the
-budget are used. Plan executed: `docs/superpowers/plans/2026-11-20-ticket-22-live-phase.md`; spec:
-`docs/handoff-22-prompt-work.md`. Full per-run analysis and predictions: `evals/prompt_scores.md`.
+Results on 2026-11-21, 343 tests then. All six budgeted full Haiku runs were used. Per-run analysis and predictions: `evals/prompt_scores.md`.
 
 **Outcome: the 0.9 / 0.9 gate is not met.** Best Haiku run is v12 (all 0.19 recall / 0.73 precision). Sonnet 5.5 on the same
 prompt reaches 0.39 / 0.47. Prompt wording alone will not close the gap; the failures are structural (below).

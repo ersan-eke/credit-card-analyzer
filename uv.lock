@@ -126,7 +126,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.40" },
+    { name = "anthropic", specifier = ">=2.3" },
     { name = "docling", marker = "extra == 'ingest'", specifier = ">=2.150" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "mcp", specifier = ">=1.2" },
