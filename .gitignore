@@ -13,3 +13,5 @@ out/
 graphify-out/
 catalog/fees_nemotron.json
 docs/superpowers/
+catalog/fees.json
+.gitattributes
